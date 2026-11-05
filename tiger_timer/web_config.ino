@@ -32,6 +32,46 @@ const char* CONFIG_TRIVIA_FIELD_NAMES[15] = {
   "es_q", "es_correct", "es_wrong1", "es_wrong2", "es_wrong3"
 };
 
+// ---------------- Saved-settings migration: game ids v1 -> v2 ----------------
+// Firmware before the Turn Order removal used game id 5 for Turn Order and 6-12 for the games
+// after it (13 games, 15 menu entries). Saved settings store those raw ids, so on the first boot
+// of newer firmware they're converted once: Turn Order is dropped and ids above 5 move down by
+// one. Keeps the user's menu order, enabled/disabled games and start-up game. "idVer" marks it done.
+void migrateSavedGameIds() {
+  if (prefs.getUChar("idVer", 1) >= 2) return;
+  const int OLD_TURNORDER = 5, OLD_MENU_COUNT = 15, OLD_GAME_COUNT = 13;
+
+  uint8_t oldMenu[OLD_MENU_COUNT];
+  if (prefs.getBytes("menuOrd", oldMenu, OLD_MENU_COUNT) == OLD_MENU_COUNT) {
+    uint8_t newMenu[MENU_COUNT];
+    int n = 0;
+    for (int i = 0; i < OLD_MENU_COUNT; i++) {
+      int id = oldMenu[i];
+      if (id == OLD_TURNORDER) continue;
+      if (id > OLD_TURNORDER && id < OLD_GAME_COUNT) id--;
+      if (n < MENU_COUNT) newMenu[n++] = (uint8_t)id;
+    }
+    if (n == MENU_COUNT) prefs.putBytes("menuOrd", newMenu, MENU_COUNT);
+    else prefs.remove("menuOrd"); // unexpected shape - fall back to the default order
+  }
+
+  uint8_t oldEn[OLD_GAME_COUNT];
+  if (prefs.getBytes("gameEn", oldEn, OLD_GAME_COUNT) == OLD_GAME_COUNT) {
+    uint8_t newEn[GAME_COUNT];
+    int n = 0;
+    for (int i = 0; i < OLD_GAME_COUNT; i++) if (i != OLD_TURNORDER && n < GAME_COUNT) newEn[n++] = oldEn[i];
+    prefs.putBytes("gameEn", newEn, GAME_COUNT);
+  }
+
+  if (prefs.isKey("startGame")) {
+    int g = prefs.getUChar("startGame", GAME_TIMER);
+    if (g == OLD_TURNORDER) { prefs.putUChar("startGame", GAME_TIMER); prefs.putUChar("startMode", 0); } // its game is gone - boot to the menu
+    else if (g > OLD_TURNORDER) prefs.putUChar("startGame", (uint8_t)(g - 1));
+  }
+
+  prefs.putUChar("idVer", 2);
+}
+
 // ---------------- Menu order: load/save/validate ----------------
 void loadMenuOrderFromPrefs() {
   uint8_t stored[MENU_COUNT];
@@ -176,8 +216,8 @@ void handleGetConfig() {
   for (int i = 0; i < MENU_COUNT; i++) menu.add(MENU_ORDER[i]);
 
   JsonArray games = doc["games"].to<JsonArray>();
-  const int allGameIds[GAME_COUNT] = {GAME_TIMER, GAME_REFLEX, GAME_DICE, GAME_CHESS, GAME_HOTPOTATO, GAME_TURNORDER, GAME_STOPWATCH, GAME_TRIVIA, GAME_TOOTHBRUSH, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_SIMPLEMORSE};
-  const char* allGameNames[GAME_COUNT] = {"Timer", "Reflex", "Dice", "Chess Clock", "Pass the Bomb", "Turn Order", "Stopwatch", "Trivia", "Toothbrush Timer", "Tetris", "Star Drop", "Snake", "SimpleMorse"};
+  const int allGameIds[GAME_COUNT] = {GAME_TIMER, GAME_REFLEX, GAME_DICE, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_TRIVIA, GAME_TOOTHBRUSH, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_SIMPLEMORSE};
+  const char* allGameNames[GAME_COUNT] = {"Timer", "Reflex", "Dice", "Chess Clock", "Pass the Bomb", "Stopwatch", "Trivia", "Toothbrush Timer", "Tetris", "Star Drop", "Snake", "SimpleMorse"};
   for (int i = 0; i < GAME_COUNT; i++) {
     JsonObject g = games.add<JsonObject>();
     g["id"] = allGameIds[i];

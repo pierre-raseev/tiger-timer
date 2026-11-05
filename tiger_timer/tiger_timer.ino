@@ -211,22 +211,21 @@ const int GAME_REFLEX     = 1;
 const int GAME_DICE       = 2;
 const int GAME_CHESS      = 3;
 const int GAME_HOTPOTATO  = 4; // "Pass the Bomb" - internal name kept from its original Hot Potato build
-const int GAME_TURNORDER  = 5;
-const int GAME_STOPWATCH  = 6;
-const int GAME_TRIVIA     = 7;
-const int GAME_TOOTHBRUSH = 8;
-const int GAME_TETRIS     = 9;
-const int GAME_STARDROP   = 10;
-const int GAME_SNAKE      = 11;
-const int GAME_SIMPLEMORSE = 12;
-const int GAME_COUNT      = 13;
+const int GAME_STOPWATCH  = 5;  // ids 5+ shifted down by one when Turn Order was removed - saved
+const int GAME_TRIVIA     = 6;  // settings from older firmware are converted once at boot
+const int GAME_TOOTHBRUSH = 7;  // (migrateSavedGameIds in web_config.ino)
+const int GAME_TETRIS     = 8;
+const int GAME_STARDROP   = 9;
+const int GAME_SNAKE      = 10;
+const int GAME_SIMPLEMORSE = 11;
+const int GAME_COUNT      = 12;
 int currentGame = GAME_TIMER;
 
 const int MENU_SETTINGS = 100; // sentinel: a menu entry that isn't a playable game
 const int MENU_INSTRUCTIONS = 101; // sentinel: another non-game entry, the global instructions screen
-const int MENU_COUNT = 15;
+const int MENU_COUNT = 14;
 // Default/fallback order, used on first boot and whenever a saved order in flash is missing or invalid.
-const int DEFAULT_MENU_ORDER[MENU_COUNT] = {GAME_TIMER, GAME_TOOTHBRUSH, GAME_DICE, GAME_REFLEX, GAME_CHESS, GAME_HOTPOTATO, GAME_TURNORDER, GAME_STOPWATCH, GAME_TRIVIA, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_SIMPLEMORSE, MENU_INSTRUCTIONS, MENU_SETTINGS};
+const int DEFAULT_MENU_ORDER[MENU_COUNT] = {GAME_TIMER, GAME_TOOTHBRUSH, GAME_DICE, GAME_REFLEX, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_TRIVIA, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_SIMPLEMORSE, MENU_INSTRUCTIONS, MENU_SETTINGS};
 // Actual display order - no longer const: Config Mode (web_config.ino) can rewrite this at runtime
 // and persist it to flash. Everything that reads MENU_ORDER elsewhere in the sketch is unaffected,
 // since it's still just an array of GAME_* ids in display order.
@@ -329,98 +328,95 @@ const int STR_MENU_HOTPOTATO = 36;
 const int STR_HP_ARM = 37;
 const int STR_HP_ARMED = 38;
 const int STR_HP_BOOM = 39;
-const int STR_MENU_TURNORDER = 40;
-const int STR_CHOOSE_PLAYERS = 41;
-const int STR_GOES_FIRST = 42;
-const int STR_SPINNING = 43;
-const int STR_MENU_STOPWATCH = 44;
-const int STR_LAP = 45;
-const int STR_MENU_TRIVIA = 46;
-const int STR_CHOOSE_CATEGORY = 47;
-const int STR_CHOOSE_LEVEL = 48;
-const int STR_CAT_FOOTBALL = 49;
-const int STR_CAT_GEOGRAPHY = 50;
-const int STR_CAT_SCIENCE = 51;
-const int STR_CAT_HISTORY = 52;
-const int STR_LEVEL_JUNIOR = 53;
-const int STR_LEVEL_CURIOUS = 54;
-const int STR_LEVEL_MASTER = 55;
-const int STR_CAT_RANDOM = 56;
-const int STR_CAT_GENERAL = 57;
-const int STR_CAT_MYTHOLOGY = 58;
-const int STR_CAT_ART = 59;
-const int STR_CAT_ANIMALS = 60;
-const int STR_QUESTION_LABEL = 61;
-const int STR_ANSWERS_LABEL = 62;
-const int STR_TURN_ANSWERS = 63;
-const int STR_TURN_QUESTION = 64;
-const int STR_CLICK_NEXT = 65;
-const int STR_MENU_TOOTHBRUSH = 66;
-const int STR_CHOOSE_BRUSH_TIME = 67;
-const int STR_ZONE_UPPER = 68; // toothbrush zone label, line 1
-const int STR_ZONE_LOWER = 69;
-const int STR_ZONE_LEFT = 70;  // toothbrush zone label, line 2
-const int STR_ZONE_RIGHT = 71;
-const int STR_BRUSHING_DONE = 72;
-const int STR_MENU_CONFIG_MODE = 73;
-const int STR_CONFIG_STARTING = 74;
-const int STR_CONFIG_WIFI_LABEL = 75;
-const int STR_CONFIG_CONNECT_OR = 76;
-const int STR_CONFIG_VISIT = 77;
-const int STR_CONFIG_PRESS_EXIT = 78; // no longer shown on the Config Mode screen itself (no room next to the QR code), kept for potential reuse
-const int STR_MENU_INSTRUCTIONS = 79;
-const int STR_LEAVE_CONFIRM_TITLE = 80;
-const int STR_YES = 81;
-const int STR_NO = 82;
-const int STR_INSTR_MENU = 83;
-const int STR_INSTR_VOLUME = 84;
-const int STR_INSTR_SETTINGS = 85;
-const int STR_TRIVIA_PREV = 86;
-const int STR_TRIVIA_ANS = 87;
-const int STR_TRIVIA_QUES = 88;
-const int STR_TRIVIA_NEXT = 89;
-const int STR_MENU_TETRIS = 90;
-const int STR_TETRIS_PRESS_START = 91;
-const int STR_TETRIS_GAME_OVER = 92;
-const int STR_TETRIS_SCORE = 93;
-const int STR_MENU_STARDROP = 94;
-const int STR_STARDROP_PRESS_START = 95;
-const int STR_STARDROP_GAME_OVER = 96;
-const int STR_STARDROP_SCORE = 97;
-const int STR_STARDROP_HIGH = 98;
-const int STR_HP_STARTING_WITH = 99; // "starting with" (joins category + letter, e.g. "Country starting with A")
-const int STR_HP_CAT_COUNTRIES = 100;
-const int STR_HP_CAT_CITIES = 101;
-const int STR_HP_CAT_FOOD = 102;
-const int STR_HP_CAT_CELEBRITIES = 103;
-const int STR_HP_CAT_CARTOON = 104;
-const int STR_HP_CAT_HOME = 105;
-const int STR_HP_CAT_SCHOOL = 106;
-const int STR_HP_CAT_WEAR = 107;
-const int STR_HP_CAT_SPORTS = 108;
-const int STR_HP_CAT_BODYPARTS = 109;
-const int STR_HP_CAT_INSTRUMENTS = 110;
-const int STR_HP_CAT_RED = 111;
-const int STR_HP_CAT_BLUE = 112;
-const int STR_HP_CAT_GREEN = 113;
-const int STR_HP_CAT_COLD = 114;
-const int STR_HP_CAT_WARM = 115;
-const int STR_HP_CAT_FLY = 116;
-const int STR_HP_CAT_COLOURS = 117;
-const int STR_HP_CAT_NOISE = 118;
-const int STR_HP_CAT_BREAK = 119;
-const int STR_HP_LETTER_LABEL = 120;
-const int STR_HP_ROTATE_HINT = 121;
-const int STR_BRUSH_ACTIVE = 122;
-const int STR_MENU_SNAKE = 123;
-const int STR_MENU_SIMPLEMORSE = 124;
-const int STR_SIMON_SENTENCE_LABEL = 125;
-const int STR_SIMON_WATCH = 126;
-const int STR_SIMON_YOUR_TURN = 127;
-const int STR_SIMON_COMPLETE = 128;
-const int STR_SIMON_ROUND = 129;
-const int STR_ZONE_FRONT = 130; // toothbrush zone label, line 2
-const int NUM_STRINGS = 131;
+const int STR_SPINNING = 40;
+const int STR_MENU_STOPWATCH = 41;
+const int STR_LAP = 42;
+const int STR_MENU_TRIVIA = 43;
+const int STR_CHOOSE_CATEGORY = 44;
+const int STR_CHOOSE_LEVEL = 45;
+const int STR_CAT_FOOTBALL = 46;
+const int STR_CAT_GEOGRAPHY = 47;
+const int STR_CAT_SCIENCE = 48;
+const int STR_CAT_HISTORY = 49;
+const int STR_LEVEL_JUNIOR = 50;
+const int STR_LEVEL_CURIOUS = 51;
+const int STR_LEVEL_MASTER = 52;
+const int STR_CAT_RANDOM = 53;
+const int STR_CAT_GENERAL = 54;
+const int STR_CAT_MYTHOLOGY = 55;
+const int STR_CAT_ART = 56;
+const int STR_CAT_ANIMALS = 57;
+const int STR_QUESTION_LABEL = 58;
+const int STR_ANSWERS_LABEL = 59;
+const int STR_TURN_ANSWERS = 60;
+const int STR_TURN_QUESTION = 61;
+const int STR_CLICK_NEXT = 62;
+const int STR_MENU_TOOTHBRUSH = 63;
+const int STR_CHOOSE_BRUSH_TIME = 64;
+const int STR_ZONE_UPPER = 65; // toothbrush zone label, line 1
+const int STR_ZONE_LOWER = 66;
+const int STR_ZONE_LEFT = 67;  // toothbrush zone label, line 2
+const int STR_ZONE_RIGHT = 68;
+const int STR_BRUSHING_DONE = 69;
+const int STR_MENU_CONFIG_MODE = 70;
+const int STR_CONFIG_STARTING = 71;
+const int STR_CONFIG_WIFI_LABEL = 72;
+const int STR_CONFIG_CONNECT_OR = 73;
+const int STR_CONFIG_VISIT = 74;
+const int STR_CONFIG_PRESS_EXIT = 75; // no longer shown on the Config Mode screen itself (no room next to the QR code), kept for potential reuse
+const int STR_MENU_INSTRUCTIONS = 76;
+const int STR_LEAVE_CONFIRM_TITLE = 77;
+const int STR_YES = 78;
+const int STR_NO = 79;
+const int STR_INSTR_MENU = 80;
+const int STR_INSTR_VOLUME = 81;
+const int STR_INSTR_SETTINGS = 82;
+const int STR_TRIVIA_PREV = 83;
+const int STR_TRIVIA_ANS = 84;
+const int STR_TRIVIA_QUES = 85;
+const int STR_TRIVIA_NEXT = 86;
+const int STR_MENU_TETRIS = 87;
+const int STR_TETRIS_PRESS_START = 88;
+const int STR_TETRIS_GAME_OVER = 89;
+const int STR_TETRIS_SCORE = 90;
+const int STR_MENU_STARDROP = 91;
+const int STR_STARDROP_PRESS_START = 92;
+const int STR_STARDROP_GAME_OVER = 93;
+const int STR_STARDROP_SCORE = 94;
+const int STR_STARDROP_HIGH = 95;
+const int STR_HP_STARTING_WITH = 96; // "starting with" (joins category + letter, e.g. "Country starting with A")
+const int STR_HP_CAT_COUNTRIES = 97;
+const int STR_HP_CAT_CITIES = 98;
+const int STR_HP_CAT_FOOD = 99;
+const int STR_HP_CAT_CELEBRITIES = 100;
+const int STR_HP_CAT_CARTOON = 101;
+const int STR_HP_CAT_HOME = 102;
+const int STR_HP_CAT_SCHOOL = 103;
+const int STR_HP_CAT_WEAR = 104;
+const int STR_HP_CAT_SPORTS = 105;
+const int STR_HP_CAT_BODYPARTS = 106;
+const int STR_HP_CAT_INSTRUMENTS = 107;
+const int STR_HP_CAT_RED = 108;
+const int STR_HP_CAT_BLUE = 109;
+const int STR_HP_CAT_GREEN = 110;
+const int STR_HP_CAT_COLD = 111;
+const int STR_HP_CAT_WARM = 112;
+const int STR_HP_CAT_FLY = 113;
+const int STR_HP_CAT_COLOURS = 114;
+const int STR_HP_CAT_NOISE = 115;
+const int STR_HP_CAT_BREAK = 116;
+const int STR_HP_LETTER_LABEL = 117;
+const int STR_HP_ROTATE_HINT = 118;
+const int STR_BRUSH_ACTIVE = 119;
+const int STR_MENU_SNAKE = 120;
+const int STR_MENU_SIMPLEMORSE = 121;
+const int STR_SIMON_SENTENCE_LABEL = 122;
+const int STR_SIMON_WATCH = 123;
+const int STR_SIMON_YOUR_TURN = 124;
+const int STR_SIMON_COMPLETE = 125;
+const int STR_SIMON_ROUND = 126;
+const int STR_ZONE_FRONT = 127; // toothbrush zone label, line 2
+const int NUM_STRINGS = 128;
 
 const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SELECT_GAME          */{"Choose Option", "Choisir option", "Elegir opcion"},
@@ -463,9 +459,6 @@ const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_HP_ARM               */{"Press to arm", "Appuyez pour armer", "Pulsa para armar"},
   /* STR_HP_ARMED             */{"Pass it around!", "Faites tourner !", "Pasala rapido!"},
   /* STR_HP_BOOM              */{"BOOM!", "BOOM !", "BOOM!"},
-  /* STR_MENU_TURNORDER       */{"Turn Order", "Ordre de jeu", "Orden de turno"},
-  /* STR_CHOOSE_PLAYERS       */{"Choose Players", "Choisir joueurs", "Elegir jugadores"},
-  /* STR_GOES_FIRST           */{"goes first!", "commence !", "empieza!"},
   /* STR_SPINNING             */{"Spinning...", "Tirage...", "Girando..."},
   /* STR_MENU_STOPWATCH       */{"Stopwatch", "Chronom\x8Atre", "Cronometro"},
   /* STR_LAP                  */{"Lap", "Tour", "Vuelta"},
@@ -682,9 +675,6 @@ bool hpCategoryEnabled[HP_CATEGORY_COUNT];
 int hpCategory = 0;   // 0..HP_CATEGORY_COUNT-1
 int hpLetter = 0;     // 0..25, maps to 'A'..'Z'
 
-// ---- Turn Order state ----
-int turnOrderPlayerCount = 4; // 2-10
-int turnOrderResult = -1;     // -1 = no spin yet
 
 // ---- Stopwatch state ----
 const int STOPWATCH_READY   = 0; // 0:00, not started
@@ -980,7 +970,6 @@ void hpNewCombo();
 void hpRerollWithAnimation();
 void handleHotPotatoPress();
 void updateHotPotato();
-void doTurnOrderSpin();
 void handleStopwatchPress();
 void updateStopwatch();
 void recordStopwatchLap();
@@ -1061,11 +1050,9 @@ int triviaScrollOffset(int overflow, unsigned long stepMs);
 bool triviaContentOverflows();
 int drawWrappedTextInColumn(const char* text, int xStart, int colWidth, int yStart, int maxLines, int lineHeight);
 void drawHotPotatoScreen();
-void drawTurnOrderScreen();
 void drawStopwatchScreen();
 void drawHotPotatoIcon(int cx, int cy, int r, uint16_t color);
 void drawRotateIcon(int cx, int cy, int r, uint16_t color);
-void drawTurnOrderIcon(int cx, int cy, int r, uint16_t color);
 void drawStopwatchIcon(int cx, int cy, int r, uint16_t color);
 bool tryConfirmSelectionScreens();
 bool inGameScreen();
@@ -1124,6 +1111,7 @@ void drawLanguageIcon(int cx, int cy, int r, uint16_t color);
 void drawSettingsIcon(int cx, int cy, int r, uint16_t color);
 void drawConfigModeIcon(int cx, int cy, int r, uint16_t color);
 void enterConfigMode(); // web_config.ino
+void migrateSavedGameIds(); // web_config.ino
 void loadMenuOrderFromPrefs(); // web_config.ino
 void saveMenuOrderToPrefs(); // web_config.ino
 void loadGameEnabledFromPrefs(); // web_config.ino
@@ -1160,6 +1148,7 @@ void setup() {
   prefs.begin("gametimer", false);
   currentLanguage = constrain((int)prefs.getUChar("lang", LANG_EN), 0, LANG_COUNT - 1);
   currentTimerStepIndex = constrain((int)prefs.getUChar("step", TIMER_STEP_DEFAULT_INDEX), 0, TIMER_STEP_OPTION_COUNT - 1);
+  migrateSavedGameIds();    // web_config.ino - one-time conversion of settings saved by older firmware
   loadMenuOrderFromPrefs(); // web_config.ino - fills MENU_ORDER from flash, or DEFAULT_MENU_ORDER if unset/invalid
   loadGameEnabledFromPrefs(); // web_config.ino - fills gameEnabled[] from flash, or all-enabled if unset
   rebuildVisibleMenu(); // web_config.ino - filters MENU_ORDER by gameEnabled into visibleMenuOrder
@@ -1221,13 +1210,20 @@ void setup() {
 #ifdef TT_SCREEN_DUMP
 // ---------------- Bench-test only (never in a normal build): drive the toothbrush screen over
 // USB serial and dump the OLED buffer as text, so a computer can check the drawing without
-// eyes on the panel. t = open Toothbrush, p = arcade press, f = skip 20s ahead, d = dump. ----------------
+// eyes on the panel. t = open Toothbrush, p = arcade press, f = skip 20s ahead, d = dump,
+// m = list the visible menu. ----------------
 void testSerialCommands() {
   while (Serial.available()) {
     char c = Serial.read();
     if (c == 't') { inMenu = false; currentGame = GAME_TOOTHBRUSH; initGameState(GAME_TOOTHBRUSH); render(); }
     else if (c == 'p') { handleToothbrushPress(); }
     else if (c == 'f') { toothbrushRemainingSeconds = max(1L, toothbrushRemainingSeconds - 20); toothbrushLastTick = millis() - 1000; }
+    else if (c == 'm') { // visible menu, in order, with the ids behind it
+      Serial.print("[menu]");
+      for (int i = 0; i < visibleMenuCount; i++) Serial.printf(" %d:%s", visibleMenuOrder[i],
+        visibleMenuOrder[i] == MENU_SETTINGS ? "Settings" : visibleMenuOrder[i] == MENU_INSTRUCTIONS ? "Instructions" : menuLabelForGame(visibleMenuOrder[i]));
+      Serial.printf(" | idVer=%d startMode=%d startGame=%d\n", prefs.getUChar("idVer", 1), prefs.getUChar("startMode", 0), prefs.getUChar("startGame", 0));
+    }
     else if (c == 'd') {
       Serial.println("[dump begin]");
       for (int y = 0; y < SCREEN_HEIGHT; y++) {
@@ -1416,9 +1412,6 @@ void readEncoder() {
         chessIncrementSeconds = constrain(chessIncrementSeconds + direction * 10, 0, 60);
       }
       // CHESS_PLAYING / CHESS_GAME_OVER: rotation has no effect
-    } else if (currentGame == GAME_TURNORDER) {
-      turnOrderPlayerCount = constrain(turnOrderPlayerCount + direction, 2, 10);
-      turnOrderResult = -1; // changing player count invalidates any previous spin
     } else if (currentGame == GAME_TRIVIA) {
       if (triviaScreenState == TRIVIA_SELECT_CATEGORY) {
         triviaCategory = constrain(triviaCategory + direction, 0, TRIVIA_CATEGORY_COUNT - 1);
@@ -1489,8 +1482,6 @@ void initGameState(int game) {
     stopwatchState = STOPWATCH_READY;
     stopwatchElapsedMs = 0;
     stopwatchLapSeconds = -1;
-  } else if (game == GAME_TURNORDER) {
-    turnOrderResult = -1;
   } else if (game == GAME_TRIVIA) {
     triviaScreenState = TRIVIA_SELECT_CATEGORY;
     triviaAnswering = false;
@@ -1844,21 +1835,6 @@ void updateHotPotato() {
     hpBlinkState = !hpBlinkState;
     digitalWrite(BUTTON_LED, hpBlinkState ? HIGH : LOW);
   }
-}
-
-// ================= Turn Order =================
-// ---------------- Turn Order: spins and lands on a random starting player ----------------
-void doTurnOrderSpin() {
-  const int FRAMES = 12;
-  for (int f = 0; f < FRAMES; f++) {
-    turnOrderResult = random(1, turnOrderPlayerCount + 1);
-    render();
-    playNote(700 + random(0, 300), 20);
-    delay(30 + f * 8);
-  }
-  turnOrderResult = random(1, turnOrderPlayerCount + 1);
-  render();
-  playNote(1300, 100);
 }
 
 // ================= Stopwatch =================
@@ -3045,8 +3021,6 @@ void dispatchButtonShortPress() {
     }
   } else if (currentGame == GAME_HOTPOTATO) {
     handleHotPotatoPress();
-  } else if (currentGame == GAME_TURNORDER) {
-    doTurnOrderSpin();
   } else if (currentGame == GAME_STOPWATCH) {
     handleStopwatchPress();
   } else if (currentGame == GAME_TRIVIA) {
@@ -3698,8 +3672,6 @@ void render() {
     }
   } else if (currentGame == GAME_HOTPOTATO) {
     drawHotPotatoScreen();
-  } else if (currentGame == GAME_TURNORDER) {
-    drawTurnOrderScreen();
   } else if (currentGame == GAME_STOPWATCH) {
     drawStopwatchScreen();
   } else if (currentGame == GAME_TRIVIA) {
@@ -4296,53 +4268,6 @@ void drawHotPotatoScreen() {
     display.print(hint);
 
     invertScreenRegion(0, rowTop, SCREEN_WIDTH, SCREEN_HEIGHT);
-  }
-}
-
-// ---------------- Turn Order screen ----------------
-void drawTurnOrderScreen() {
-  drawTurnOrderIcon(7, 7, 6, SH110X_WHITE);
-
-  display.setTextSize(1);
-  const char* headerText = menuLabelForGame(GAME_TURNORDER);
-  int16_t hx1, hy1;
-  uint16_t hw, hh;
-  display.getTextBounds(headerText, 0, 0, &hx1, &hy1, &hw, &hh);
-  display.setCursor(SCREEN_WIDTH - hw - 2, 4);
-  display.print(headerText);
-  display.drawLine(0, 14, SCREEN_WIDTH, 14, SH110X_WHITE);
-
-  int16_t x1, y1;
-  uint16_t w, h;
-
-  if (turnOrderResult < 0) {
-    // selection mode: player count shown big and centered, same size/position as other pickers
-    char countBuf[4];
-    snprintf(countBuf, sizeof(countBuf), "%d", turnOrderPlayerCount);
-    display.setTextSize(4);
-    display.getTextBounds(countBuf, 0, 0, &x1, &y1, &w, &h);
-    display.setCursor((SCREEN_WIDTH - w) / 2, 22);
-    display.print(countBuf);
-
-    display.setTextSize(1);
-    const char* label = T(STR_CHOOSE_PLAYERS);
-    display.getTextBounds(label, 0, 0, &x1, &y1, &w, &h);
-    display.setCursor((SCREEN_WIDTH - w) / 2, 56);
-    display.print(label);
-  } else {
-    // result mode: the winning player number, big
-    char buf[4];
-    snprintf(buf, sizeof(buf), "%d", turnOrderResult);
-    display.setTextSize(4);
-    display.getTextBounds(buf, 0, 0, &x1, &y1, &w, &h);
-    display.setCursor((SCREEN_WIDTH - w) / 2, 22);
-    display.print(buf);
-
-    display.setTextSize(1);
-    const char* msg = T(STR_GOES_FIRST);
-    display.getTextBounds(msg, 0, 0, &x1, &y1, &w, &h);
-    display.setCursor((SCREEN_WIDTH - w) / 2, 56);
-    display.print(msg);
   }
 }
 
@@ -5272,7 +5197,6 @@ const char* menuLabelForGame(int gameId) {
     case GAME_REFLEX:     return T(STR_MENU_REFLEX);
     case GAME_CHESS:      return T(STR_MENU_CHESS);
     case GAME_HOTPOTATO:  return T(STR_MENU_HOTPOTATO);
-    case GAME_TURNORDER:  return T(STR_MENU_TURNORDER);
     case GAME_STOPWATCH:  return T(STR_MENU_STOPWATCH);
     case GAME_TRIVIA:     return T(STR_MENU_TRIVIA);
     case MENU_SETTINGS:   return T(STR_MENU_SETTINGS);
@@ -5530,14 +5454,6 @@ void drawRotateIcon(int cx, int cy, int r, uint16_t color) {
   display.fillTriangle(p1x, p1y, p2x, p2y, p3x, p3y, color);
 }
 
-void drawTurnOrderIcon(int cx, int cy, int r, uint16_t color) {
-  // simple spinner: circle with a pointer
-  display.drawCircle(cx, cy, r, color);
-  display.drawLine(cx, cy, cx, cy - r, color);
-  display.drawLine(cx, cy - r, cx - 2, cy - r + 3, color);
-  display.drawLine(cx, cy - r, cx + 2, cy - r + 3, color);
-}
-
 void drawStopwatchIcon(int cx, int cy, int r, uint16_t color) {
   display.drawCircle(cx, cy, r - 2, color);
   display.fillRect(cx - 2, cy - r - 2, 4, 2, color); // top button
@@ -5712,7 +5628,6 @@ void drawGameIcon(int gameIndex, int cx, int cy, int r, uint16_t color) {
   else if (gameIndex == GAME_DICE) drawDiceIcon(cx, cy, r, color);
   else if (gameIndex == GAME_CHESS) drawChessIcon(cx, cy, r, color);
   else if (gameIndex == GAME_HOTPOTATO) drawHotPotatoIcon(cx, cy, r, color);
-  else if (gameIndex == GAME_TURNORDER) drawTurnOrderIcon(cx, cy, r, color);
   else if (gameIndex == GAME_STOPWATCH) drawStopwatchIcon(cx, cy, r, color);
   else if (gameIndex == GAME_TRIVIA) drawTriviaIcon(cx, cy, r, color);
   else if (gameIndex == GAME_TOOTHBRUSH) drawToothbrushIcon(cx, cy, r, color);

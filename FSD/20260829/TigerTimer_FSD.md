@@ -46,7 +46,7 @@ and persisted across power cycles.
 - **Library:** Adafruit SH110X (pulls in Adafruit GFX Library + Adafruit BusIO via Library
   Manager).
 - Orientation: normally landscape (128 wide × 64 tall). Two specific games (Tetris and Star
-  Drop — see §5.10, §5.11) temporarily rotate the display 90° in software only while their own
+  Drop — see §5.9, §5.10) temporarily rotate the display 90° in software only while their own
   screens are drawn, then rotate back to normal before returning control — no other screen is
   ever affected by this. All other games, including Snake and SimpleMorse, deliberately stay in
   normal orientation.
@@ -59,7 +59,7 @@ and persisted across power cycles.
 - Debounced in software (~a few ms) before any action fires.
 - The exact instant of each press is timestamped (`buttonPressStart`), not just used for
   debouncing — this is reused by both the Reflex game (reaction time) and SimpleMorse
-  (short-vs-long press classification, see §5.13).
+  (short-vs-long press classification, see §5.12).
 
 ### 2.4 Input: Rotary Encoder
 - A standard EC11-style incremental rotary encoder with integrated push-button.
@@ -82,7 +82,7 @@ and persisted across power cycles.
   - **`startTone(freq)` / `stopTone()`** — non-blocking: starts or stops a tone immediately,
     with no built-in duration. Needed anywhere a tone must persist across many main-loop
     iterations instead of a single fixed duration — currently only SimpleMorse's live
-    press-and-hold feedback (§5.13). `stopTone()` is safe to call even when nothing is playing,
+    press-and-hold feedback (§5.12). `stopTone()` is safe to call even when nothing is playing,
     and should be called unconditionally on every button release rather than gated behind a
     state check — a real bug shipped once where a state check that matched at press-time no
     longer matched by release-time (because legitimate game logic changed the state in between),
@@ -223,10 +223,20 @@ Arduino `Preferences` library). Keys and what they store:
 | `startGame` | uint8 | Which game id to boot into when `startMode`=1 | Timer's id |
 | `menuOrd` | bytes (N) | The current menu ordering, as a list of game/sentinel ids | the default order below |
 | `gameEn` | bytes (N) | Per-game enabled/disabled flags, parallel array to the game id list | all enabled |
+| `idVer` | uint8 | Version of the game-id numbering the keys above were saved with (see below) | 1 (absent) |
 | `hpCatEn` | bytes (20) | Per-category enabled/disabled flags for Pass the Bomb (§5.5) | all enabled |
 | `ttHigh` | uint16 | Tetris's persisted high score | 0 |
 | `sdHigh` | uint16 | Star Drop's persisted high score | 0 |
 | `skHigh` | uint16 | Snake's persisted high score | 0 |
+
+**Game ids and the one-time migration.** `startGame`, `menuOrd` and `gameEn` store raw game ids
+(Timer 0, Reflex 1, Dice 2, Chess Clock 3, Pass the Bomb 4, Stopwatch 5, Trivia 6, Toothbrush 7,
+Tetris 8, Star Drop 9, Snake 10, SimpleMorse 11; sentinels Settings 100, Instructions 101). The
+Turn Order game was removed from the device entirely; it was id 5 and the games after it have
+moved down by one. Settings saved by older firmware (`idVer` absent) are converted once at boot
+by `migrateSavedGameIds()`: Turn Order is dropped from the saved menu order and enable flags,
+later ids are shifted down, and a start-up game of Turn Order falls back to booting to the menu.
+The user's menu order, enabled games and start-up choice are otherwise kept. Then `idVer`=2.
 
 Design rule enforced everywhere a set of things can be toggled off (games in the menu, Pass the
 Bomb categories): **at least one must always remain enabled.** If a save would disable the last
@@ -268,7 +278,7 @@ A two-phase animated wordmark, skippable by holding the arcade button at any poi
   and the item's translated label (right of the icon). The highlighted row is shown inverted
   (filled background, dark text).
 - **Default order** (used on first boot, or if saved order data is ever invalid): Timer,
-  Toothbrush Timer, Dice, Reflex, Chess Clock, Pass the Bomb, Turn Order, Stopwatch, Trivia,
+  Toothbrush Timer, Dice, Reflex, Chess Clock, Pass the Bomb, Stopwatch, Trivia,
   Tetris, Star Drop, Snake, SimpleMorse, **Instructions**, **Settings** — Instructions and
   Settings are always the last two entries by default, and (like any entry) can be reordered via
   Remote Config but can never be disabled/hidden (§3.5).
@@ -331,7 +341,7 @@ Every game screen follows a shared visual convention unless stated otherwise: a 
 top-left identifying the game, a status/header line right-aligned in the remaining top space,
 and a horizontal divider line beneath that header row, with the game's main content below the
 divider. Every game screen shows *something* meaningful in that header — even screens with no
-dynamic status text of their own (e.g. Stopwatch, Turn Order, both Trivia picker screens) show
+dynamic status text of their own (e.g. Stopwatch, both Trivia picker screens) show
 that game's translated name there, so no screen is ever left with a conspicuously empty header.
 
 ### 5.1 Timer
@@ -442,13 +452,7 @@ A party "hot potato" game with a spoken category+letter challenge.
   that 1-second pause skips straight past it. The arcade button also still works as an immediate
   alternative to waiting.
 
-### 5.6 Turn Order
-Randomly picks a number to decide who goes first.
-- Turning the encoder sets the number of players (2–10).
-- Press the arcade button to spin; shows a result from 1 to the chosen player count.
-- Changing the player count after a result invalidates that result (must re-spin).
-
-### 5.7 Stopwatch
+### 5.6 Stopwatch
 Standard count-up stopwatch with lap support.
 - The arcade button cycles three states: **Ready** (0:00) → **Running** → **Stopped** (shows the
   final elapsed time) → back to **Ready** (cleared). There is no pause/resume: pressing again
@@ -457,7 +461,7 @@ Standard count-up stopwatch with lap support.
 - Elapsed time is held as accumulated milliseconds, captured at the moment of stopping, so the
   displayed stopped time is exactly the time measured.
 
-### 5.8 Trivia
+### 5.7 Trivia
 Buzzer-style multiple-choice trivia with a physical "buzz in" mechanic.
 - **Setup:** pick a category (8 available: Sports, Geography, Science, History, General,
   Mythology, Art, Animals — `TRIVIA_REAL_CATEGORY_COUNT`=8) then a difficulty level (3 levels:
@@ -507,7 +511,7 @@ Buzzer-style multiple-choice trivia with a physical "buzz in" mechanic.
   changes. Up to 39 characters of each answer are kept. The screen only re-renders for this
   while something visible actually overflows.
 
-### 5.9 Toothbrush Timer
+### 5.8 Toothbrush Timer
 A 6-zone brushing timer: **upper left, upper front, upper right, lower left, lower front,
 lower right**, in that order.
 - Select duration (1–5 minutes) via encoder, confirm to start.
@@ -537,13 +541,13 @@ lower right**, in that order.
     "Arriba / izqda."), and a bar showing progress through the current zone.
 - A press (arcade button, or encoder short click per §3.2) pauses/resumes.
 - On completion, plays the same celebratory "firework" animation used elsewhere for
-  positive milestones (also reused by SimpleMorse's win screen, §5.13), then shows the usual
+  positive milestones (also reused by SimpleMorse's win screen, §5.12), then shows the usual
   header with static bursts and "All done!".
 - **Bench-testing the drawing:** a normal build never includes it, but building with
   `-DTT_SCREEN_DUMP` adds serial commands (`t` open Toothbrush, `p` arcade press, `f` skip 20 s,
   `d` dump the 128×64 screen as `#`/`.` text) so the screen can be checked from a computer.
 
-### 5.10 Tetris
+### 5.9 Tetris
 A compact falling-block game, played with the whole device rotated 90°.
 - **Display orientation:** the screen is temporarily rotated in software so the physical panel's
   long 128px axis becomes the vertical "falling" axis and the short 64px axis becomes the
@@ -580,7 +584,7 @@ A compact falling-block game, played with the whole device rotated 90°.
   translated "Game Over"), which automatically wraps to two lines if a translation is too wide
   for the rotated 64px width (this matters for at least French and Spanish "Game Over").
 
-### 5.11 Star Drop
+### 5.10 Star Drop
 A falling-catch game, also played rotated 90° (same rotation approach as Tetris).
 - **Board:** 4 vertical lanes, 16px each (`STARDROP_LANES`=4, `STARDROP_LANE_WIDTH`=16, filling
   the 64px rotated width exactly), with an 8px HUD strip at the top
@@ -602,11 +606,11 @@ A falling-catch game, also played rotated 90° (same rotation approach as Tetris
   updated immediately whenever beaten. Resettable only via Remote Config (§7.2), not on-device.
 - **Game over:** a few quick full-screen black/white flashes with a descending 3-note cue (a
   simpler variant of Tetris's game-over animation, since there's no board to visually "fill").
-- Same inverted-title-bar treatment and translation-safe wrapping as Tetris (§5.10) on both the
+- Same inverted-title-bar treatment and translation-safe wrapping as Tetris (§5.9) on both the
   Ready ("STAR DROP" — kept identical across all 3 languages, it's treated as a proper noun) and
   Game Over screens.
 
-### 5.12 Snake
+### 5.11 Snake
 A classic grid-based snake game, played in the normal (unrotated) orientation, since a wide
 grid suits the panel's natural landscape shape fine without needing Tetris/Star Drop's rotation
 trick.
@@ -643,7 +647,7 @@ trick.
 - Uses the standard icon+header+divider screen template (§5, intro paragraph) rather than
   Tetris/Star Drop's rotated/inverted-title-bar style, since it doesn't need the rotation.
 
-### 5.13 SimpleMorse
+### 5.12 SimpleMorse
 A Simon-Says-style memory game where the growing pattern to repeat is Morse code — short
 presses (dots) and long presses (dashes) — for a randomly chosen word, rather than colors.
 - **Word selection:** on entering the game, one word is chosen at random from a fixed pool of 17
@@ -688,7 +692,7 @@ presses (dots) and long presses (dashes) — for a randomly chosen word, rather 
   the exact same word+letter+code layout as the Ready screen — which then persists until the
   arcade button is pressed to start a fresh round with a newly chosen word.
 - **Winning:** completing the full sequence triggers the same celebratory "firework" animation
-  used by Toothbrush Timer's completion (§5.9), held on screen for the same 1.5 seconds, then
+  used by Toothbrush Timer's completion (§5.8), held on screen for the same 1.5 seconds, then
   automatically replaced by the same solution reveal described above.
 - Both the walrus (in its normal, non-wounded form) and a simplified version of it are reused as
   this game's menu icon.
@@ -781,7 +785,7 @@ Remote Config", with these sections:
      JS Blob-URL technique, because that approach is known to silently fail in some restricted
      mobile browser contexts (notably Android's captive-portal sign-in WebView, which this
      whole feature is likely to be accessed through — see §7.1). The download is UTF-8 with a
-     byte-order mark (converted from the device's CP437, §5.8), so spreadsheet apps open the
+     byte-order mark (converted from the device's CP437, §5.7), so spreadsheet apps open the
      accents correctly.
    - **Upload CSV** — loads a CSV file into the in-browser editor for review (does not
      auto-save; the user must still hit Save to write it to the device). The page decodes the
@@ -820,7 +824,7 @@ exact routes, only the equivalent capability)
 - `GET /api/trivia/csv?category=..&level=..` — sends the CSV file as a real file download,
   converted to UTF-8 with a BOM (see the Download CSV rationale above).
 - All text the device sends to the page (including the Pass the Bomb category names) is UTF-8;
-  see §5.8 "Text encoding" for the conversion rules.
+  see §5.7 "Text encoding" for the conversion rules.
 - `POST /api/reset-highscore` — body `{"game": "tetris"|"stardrop"|"snake"}`; resets that one
   game's persisted high score to 0. A dedicated endpoint rather than folding this into the
   general config save, since it's a one-shot destructive action, not a settings change.
@@ -863,7 +867,7 @@ exact routes, only the equivalent capability)
 
 A separate pixel/arcade-style bitmap font (visually matching the boot splash's "TIGER"/"TIMER"
 wordmark, §4.1) is used specifically for the per-game splash screens (§4.3) and the Tetris/Star
-Drop title bars (§5.10/§5.11), layered alongside the display library's normal built-in font used
+Drop title bars (§5.9/§5.10), layered alongside the display library's normal built-in font used
 for everything else. It's an 8×8-pixel-per-character monospace bitmap font, covering standard
 ASCII plus the two accented characters needed by the French translations (é, è) at the same code
 points the rest of the firmware already uses for those characters. If reproducing this: any
@@ -882,14 +886,14 @@ Being honest about where prose specification reaches its limit, per the earlier 
   the header," "left ~2/3 / right ~1/3 split") but not enumerated pixel-by-pixel for all the
   distinct screens. A rebuild from this document alone will be behaviorally equivalent but is
   very unlikely to be visually pixel-identical.
-- **The exact tetromino rotation-state bitmask table** (§5.10) is not reproduced numerically
+- **The exact tetromino rotation-state bitmask table** (§5.9) is not reproduced numerically
   here — "the standard 7 tetrominoes with up to 4 rotations each" is sufficient for a correct
   reimplementation, since this is a well-known, well-documented game mechanic independent of
   this specific project.
 - **The full trivia question content** (the actual CSV data files) is not part of this
   specification at all — it's game *content*, not game *behavior*, and ships as separate data
   files.
-- **The Morse code table** (§5.13) is not reproduced here as data — standard International
+- **The Morse code table** (§5.12) is not reproduced here as data — standard International
   Morse code for A-Z is a well-documented, unambiguous external reference.
 - **The custom font's exact glyph bitmaps** (§9) are not reproduced here as data.
 
