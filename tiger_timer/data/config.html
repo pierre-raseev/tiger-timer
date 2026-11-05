@@ -582,8 +582,16 @@ document.getElementById('addQuestionBtn').addEventListener('click', () => {
 document.getElementById('saveTriviaBtn').addEventListener('click', async () => {
   if (!triviaLoadedFor) return;
   try {
-    await apiPost(`/api/trivia?category=${triviaLoadedFor.cat}&level=${triviaLoadedFor.lvl}`, { questions: triviaQuestions });
-    toast(`Saved ${triviaQuestions.length} questions`);
+    const res = await apiPost(`/api/trivia?category=${triviaLoadedFor.cat}&level=${triviaLoadedFor.lvl}`, { questions: triviaQuestions });
+    const skipped = (res && res.skipped) || 0;
+    if (skipped > 0) {
+      // the device dropped rows with no question text - mirror that in the editor
+      triviaQuestions = triviaQuestions.filter(q => (q.en_q || '').trim() || (q.fr_q || '').trim() || (q.es_q || '').trim());
+      renderTriviaList();
+      toast(`Saved ${triviaQuestions.length} questions (${skipped} empty removed)`);
+    } else {
+      toast(`Saved ${triviaQuestions.length} questions`);
+    }
   } catch (e) { toast('Could not save questions', true); }
 });
 

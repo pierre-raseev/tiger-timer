@@ -680,7 +680,7 @@ int hpCategory = 0;   // 0..HP_CATEGORY_COUNT-1
 int hpLetter = 0;     // 0..25, maps to 'A'..'Z'
 
 // ---- Turn Order state ----
-int turnOrderPlayerCount = 4; // 2-6
+int turnOrderPlayerCount = 4; // 2-10
 int turnOrderResult = -1;     // -1 = no spin yet
 
 // ---- Stopwatch state ----
@@ -782,7 +782,7 @@ const int SNAKE_CELL_SIZE = 4;   // pixels per cell
 const int SNAKE_HUD_HEIGHT = 16; // content starts just below the standard header/divider at y=14
 const int SNAKE_COLS = SCREEN_WIDTH / SNAKE_CELL_SIZE;                        // 32
 const int SNAKE_ROWS = (SCREEN_HEIGHT - SNAKE_HUD_HEIGHT) / SNAKE_CELL_SIZE;  // 12
-const int SNAKE_MAX_LENGTH = 200; // well under the 32*14=448 total cells - a very long snake already
+const int SNAKE_MAX_LENGTH = 200; // well under the 32*12=384 total cells - a very long snake already
 
 const int SNAKE_READY     = 0;
 const int SNAKE_PLAYING   = 1;
@@ -2010,7 +2010,7 @@ void tetrisSpawnPiece() {
     digitalWrite(BUTTON_LED, LOW);
     if (tetrisScore > tetrisHighScore) {
       tetrisHighScore = tetrisScore;
-      prefs.putUShort("ttHigh", (uint16_t)tetrisHighScore);
+      prefs.putUShort("ttHigh", (uint16_t)min(tetrisHighScore, 65535)); // stored as 16-bit - clamp instead of wrapping
     }
     playTetrisGameOverAnimation();
   }
@@ -2272,7 +2272,7 @@ void stardropGameOver() {
   digitalWrite(BUTTON_LED, LOW);
   if (stardropScore > stardropHighScore) {
     stardropHighScore = stardropScore;
-    prefs.putUShort("sdHigh", (uint16_t)stardropHighScore);
+    prefs.putUShort("sdHigh", (uint16_t)min(stardropHighScore, 65535)); // stored as 16-bit - clamp instead of wrapping
   }
   playStarDropGameOverAnimation();
 }
@@ -2395,7 +2395,7 @@ void snakeGameOver() {
   digitalWrite(BUTTON_LED, LOW);
   if (snakeScore > snakeHighScore) {
     snakeHighScore = snakeScore;
-    prefs.putUShort("skHigh", (uint16_t)snakeHighScore);
+    prefs.putUShort("skHigh", (uint16_t)min(snakeHighScore, 65535)); // stored as 16-bit - clamp instead of wrapping
   }
   playNote(300, 90);
   playNote(220, 140);
@@ -2422,17 +2422,19 @@ void updateSnake() {
   newRow = (newRow + SNAKE_ROWS) % SNAKE_ROWS;
   newCol = (newCol + SNAKE_COLS) % SNAKE_COLS;
 
-  for (int i = 0; i < snakeLength; i++) {
+  bool ateFood = (newRow == snakeFoodRow && newCol == snakeFoodCol);
+  int growTo = ateFood ? min(snakeLength + 1, SNAKE_MAX_LENGTH) : snakeLength;
+
+  // Self-collision. When the snake isn't growing this move, its tail cell is vacated in the same
+  // tick, so moving into it is legal - it's excluded from the check.
+  int checkCount = (growTo == snakeLength) ? snakeLength - 1 : snakeLength;
+  for (int i = 0; i < checkCount; i++) {
     if (snakeRow[i] == newRow && snakeCol[i] == newCol) {
       snakeGameOver();
       render();
       return;
     }
   }
-
-  bool ateFood = (newRow == snakeFoodRow && newCol == snakeFoodCol);
-
-  int growTo = ateFood ? min(snakeLength + 1, SNAKE_MAX_LENGTH) : snakeLength;
   for (int i = growTo - 1; i > 0; i--) {
     snakeRow[i] = snakeRow[i - 1];
     snakeCol[i] = snakeCol[i - 1];

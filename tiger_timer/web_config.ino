@@ -489,17 +489,30 @@ void handlePostTrivia() {
   f.println("en_question,en_correct,en_wrong1,en_wrong2,en_wrong3,fr_question,fr_correct,fr_wrong1,fr_wrong2,fr_wrong3,es_question,es_correct,es_wrong1,es_wrong2,es_wrong3");
 
   JsonArray rows = doc["questions"].as<JsonArray>();
+  int skipped = 0;
   for (JsonVariant rv : rows) {
     JsonObject row = rv.as<JsonObject>();
     String line;
+    bool hasQuestionText = false;
     for (int i = 0; i < 15; i++) {
       String val = row[CONFIG_TRIVIA_FIELD_NAMES[i]].is<const char*>() ? String((const char*)row[CONFIG_TRIVIA_FIELD_NAMES[i]]) : String("");
-      line += csvSanitizeField(utf8ToCp437(val)); // page sends UTF-8, the device font needs CP437
+      String clean = csvSanitizeField(utf8ToCp437(val)); // page sends UTF-8, the device font needs CP437
+      if (i % 5 == 0 && clean.length() > 0) hasQuestionText = true; // columns 0/5/10 = en/fr/es question
+      line += clean;
       if (i < 14) line += ",";
     }
+    // A row with no question text in any language (e.g. "+ Add question" never filled in) would
+    // still count as a question on the device and show up blank - drop it instead.
+    if (!hasQuestionText) { skipped++; continue; }
     f.println(line);
   }
   f.close();
+
+  if (skipped > 0) {
+    String resp = "{\"ok\":true,\"skipped\":" + String(skipped) + "}";
+    configServer.send(200, "application/json", resp);
+    return;
+  }
 
   configServer.send(200, "application/json", "{\"ok\":true}");
 }

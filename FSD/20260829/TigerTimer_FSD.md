@@ -210,7 +210,8 @@ remaining item, that specific part of the change is silently rejected (a warning
 Remote Config's web UI) while any other part of the same save still applies.
 
 The three high scores are **not** resettable from the device itself — that's deliberately a
-Remote Config (web) feature only, see §7.2.
+Remote Config (web) feature only, see §7.2. They are stored as 16-bit values, so a score above
+65535 is saved as 65535 (clamped, rather than silently wrapping around to a small number).
 
 ### 3.6 Why the Splash-Skip Doesn't Cause a Phantom Click
 Worth documenting explicitly because it's a real bug class: if you skip the boot splash by
@@ -580,7 +581,9 @@ trick.
   free for pause since the arcade button already has another job there).
 - **Walls do not kill** — moving off any edge wraps the snake around to the opposite side
   (right edge → reappears on the left, top edge → reappears at the bottom, etc.). **The only
-  way to lose is colliding with the snake's own body.**
+  way to lose is colliding with the snake's own body.** Moving into the cell the tail occupies
+  is *not* a collision when the snake isn't growing on that move, because the tail vacates that
+  cell in the same tick (it is a collision on a move that eats food, since the tail then stays).
 - **Food:** a single item spawned on a random cell not currently occupied by the snake; eating
   it grows the snake by one segment and increments the score.
 - **Difficulty ramp:** move interval starts at 220ms and decreases 10ms per level (level =
@@ -737,7 +740,9 @@ Remote Config", with these sections:
      a raw file from the sketch's `data/` folder), otherwise Windows-1252 (Excel's default CSV
      encoding).
    - **Add question** / **Save questions** to append a blank row or persist edits back to the
-     device's flash file for that category/level.
+     device's flash file for that category/level. On save, any row with no question text in
+     any of the three languages is dropped (otherwise it would play as a blank question); the
+     page reports how many were removed and drops them from the editor too.
 5. **Pass the Bomb categories** — all 20 categories (§5.5) listed with their English name and
    French/Spanish translations shown beneath each, and a toggle per category (same
    "at least one enabled" rule).
