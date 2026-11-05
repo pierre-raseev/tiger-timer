@@ -4433,7 +4433,7 @@ struct ToothShape { int8_t x, y, w, h, r; char round; int8_t zoneSide; }; // zon
 const ToothShape TOOTH_UPPER_LEFT_HALF[] = {
   {31, 1, 7, 12, 3, 'b', 1}, // central incisor
   {24, 2, 6, 10, 3, 'b', 1}, // lateral incisor
-  {18, 3, 5, 11, 2, 'b', 1}, // canine
+  {18, 3, 5, 11, 2, 'b', 0}, // canine (side zone, so every zone has 4 teeth)
   {11, 6, 6,  9, 2, 'a', 0}, // premolar 1
   { 4,13, 6,  8, 2, 'a', 0}, // premolar 2
   { 0,22, 9,  8, 2, 'a', 0}, // molar

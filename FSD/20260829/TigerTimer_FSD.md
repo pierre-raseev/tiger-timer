@@ -519,8 +519,8 @@ lower right**, in that order.
 - **Running screen** (no header line, to give the teeth the full height):
   - **Left 77 px — the teeth:** a front view of an open mouth, teeth only (no lips/tongue). The
     upper arch curves over the top half, the lower arch is its mirror image below. Each half
-    arch has 6 teeth: central incisor, lateral incisor, canine (front zone) and two premolars +
-    a molar (side zone) — 12 teeth per arch, 24 in all. Teeth are rounded rectangles (crown
+    arch has 6 teeth: central + lateral incisor (front zone) and canine, two premolars and a
+    molar (side zone) — 12 teeth per arch, 24 in all, so **every zone covers 4 teeth**. Teeth are rounded rectangles (crown
     edge rounded, gum edge square; back teeth rounded all round) with at least 1 px between
     neighbours so they never merge. Coordinates live in `TOOTH_UPPER_LEFT_HALF[]`; the other
     three quarters are mirrored (`TEETH_MIRROR_X`=76, `TEETH_MIRROR_Y`=63).
