@@ -472,6 +472,13 @@ Buzzer-style multiple-choice trivia with a physical "buzz in" mechanic.
   Question/Answers views — you can look at the answer choices without buzzing in.
 - Answers are displayed as a shuffled list of up to 4 options (the correct one plus its wrong
   answers, order randomized per question) each time a question is shown.
+- **Long text scrolls instead of being cut off** (French/Spanish translations regularly run
+  longer than the English): the Question view shows 4 word-wrapped lines of ~21 characters; a
+  question needing more scrolls up one line every ~1.8s. Each answer row shows 19 characters; a
+  longer answer scrolls sideways one character every 250ms. Both hold still for 1.5s at the start
+  and at the end, then loop, and restart from the beginning whenever the view or question
+  changes. Up to 39 characters of each answer are kept. The screen only re-renders for this
+  while something visible actually overflows.
 
 ### 5.9 Toothbrush Timer
 A 4-quadrant brushing timer (upper-left, upper-right, lower-left, lower-right — the four

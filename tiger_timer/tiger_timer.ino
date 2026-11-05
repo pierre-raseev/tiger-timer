@@ -867,7 +867,8 @@ int triviaOrderPosition = 0; // where we are within that shuffled order
 char triviaQuestionBuf[110] = ""; // sized for the 5-line display's ~95-char visual capacity, plus margin -
                                     // translations often run longer than the English original
 const int TRIVIA_MAX_OPTIONS = 4;
-char triviaOptionBuf[TRIVIA_MAX_OPTIONS][24] = {"", "", "", ""}; // shuffled display order
+char triviaOptionBuf[TRIVIA_MAX_OPTIONS][40] = {"", "", "", ""}; // shuffled display order - longer than a
+                                                                    // row shows (19 chars); overflow scrolls
 int triviaOptionCount = 0;      // 2-4 depending on how many non-empty options this question has
 int triviaCorrectOption = -1;   // index into triviaOptionBuf that's the correct answer, after shuffling
 bool triviaAnswerVisible = false;
@@ -878,6 +879,19 @@ int triviaLastBipSecond = 0; // tracks which second-mark within the answer windo
 const unsigned long TRIVIA_ANSWER_WINDOW_MS = 5000;
 bool triviaBlinkState = false;
 unsigned long lastTriviaBlinkToggle = 0;
+
+// Text too long for the screen scrolls automatically instead of being cut off (translations often
+// run longer than the English): a question needing more than 4 wrapped lines scrolls up a line at a
+// time, an answer longer than its 19-character row scrolls sideways a character at a time. Both
+// hold still at the start and the end, then loop. Timing restarts whenever the view changes.
+const int TRIVIA_QUESTION_VISIBLE_LINES = 4;
+const int TRIVIA_QUESTION_CHARS_PER_LINE = 21;
+const int TRIVIA_ANSWER_VISIBLE_CHARS = 19;
+const unsigned long TRIVIA_SCROLL_HOLD_MS = 1500;      // pause at each end before/after scrolling
+const unsigned long TRIVIA_SCROLL_CHAR_MS = 250;       // answers: one character per step
+const unsigned long TRIVIA_SCROLL_LINE_MS = 1800;      // questions: one line per step
+unsigned long triviaViewShownAt = 0; // reset whenever the Question/Answers view or question changes
+long triviaLastScrollFrame = -1;
 
 // volume: 0 = mute, 1 = low, 2 = high. Low is the default.
 int volumeLevel = 1;
@@ -1033,7 +1047,10 @@ void drawTriviaPlayScreen();
 void drawTriviaIcon(int cx, int cy, int r, uint16_t color);
 void invertScreenRegion(int x0, int y0, int x1, int y1);
 void drawArrowGlyph(int cx, int cy, uint16_t color, bool pointRight);
-int drawWrappedText(const char* text, int yStart, int maxLines, int lineHeight);
+int drawWrappedText(const char* text, int yStart, int maxLines, int lineHeight, int skipLines = 0);
+int wrappedLineCount(const char* text, int charsPerLine);
+int triviaScrollOffset(int overflow, unsigned long stepMs);
+bool triviaContentOverflows();
 int drawWrappedTextInColumn(const char* text, int xStart, int colWidth, int yStart, int maxLines, int lineHeight);
 void drawHotPotatoScreen();
 void drawTurnOrderScreen();
@@ -2693,6 +2710,7 @@ void loadCurrentTriviaOrderEntry() {
 // been to always shows the exact same content rather than re-randomizing it. ----------------
 void moveTriviaStep(int direction) {
   bool changedQuestion = false;
+  triviaViewShownAt = millis(); // any view change restarts long-text scrolling from the start
 
   if (direction > 0) {
     if (!triviaShowingAnswers) {
@@ -2739,6 +2757,7 @@ void confirmTriviaLevel() {
   triviaAnswerVisible = false;
   triviaShowingAnswers = false;
   loadCurrentTriviaOrderEntry();
+  triviaViewShownAt = millis();
   digitalWrite(BUTTON_LED, HIGH); // ready to buzz
   render();
   playStartMelody();
@@ -2754,6 +2773,7 @@ void handleTriviaButtonPress() {
     // buzz in - whether this is the first press or an interrupt of an already-in-progress
     // answer window, the effect is the same: reveal the answer and (re)start the 5s window
     // fresh from zero, so a second buzz-in restarts the countdown rather than being ignored
+    if (!triviaShowingAnswers) triviaViewShownAt = millis(); // switching to the Answers view
     triviaAnswerVisible = true;
     triviaAnswering = true;
     triviaShowingAnswers = true;
@@ -2770,6 +2790,16 @@ void handleTriviaButtonPress() {
 // ---------------- Trivia: blinks the LED during the 5s answer window, bips once per second,
 // then plays a distinct descending sound and resets when the window ends ----------------
 void updateTrivia() {
+  // keep long questions/answers scrolling - re-render only when the scroll step actually changes,
+  // and only while something on screen is too long to fit
+  if (triviaScreenState == TRIVIA_PLAYING && inGameScreen() && !screenAsleep && triviaContentOverflows()) {
+    long frame = (long)((millis() - triviaViewShownAt) / TRIVIA_SCROLL_CHAR_MS);
+    if (frame != triviaLastScrollFrame) {
+      triviaLastScrollFrame = frame;
+      render();
+    }
+  }
+
   if (triviaScreenState != TRIVIA_PLAYING || !triviaAnswering) return;
 
   unsigned long elapsed = millis() - triviaAnswerRevealTime;
@@ -3656,12 +3686,14 @@ void drawCenteredAutoFit(const char* text, int y, int maxSize) {
 // ---------------- Display: word-wraps text across up to maxLines centered lines - used for the
 // trivia question, which can't always fit on one line even when kept short. Returns how many
 // lines it actually drew, so a caller can position anything below dynamically. ----------------
-int drawWrappedText(const char* text, int yStart, int maxLines, int lineHeight) {
+// skipLines: wrapped lines to skip before drawing (used to scroll a long trivia question).
+int drawWrappedText(const char* text, int yStart, int maxLines, int lineHeight, int skipLines) {
   display.setTextSize(1);
   int len = strlen(text);
   const int charsPerLine = 21; // ~128px / 6px per character at size 1
   int pos = 0;
-  int lineNum = 0;
+  int lineNum = 0; // counts lines actually drawn
+  int skipped = 0;
 
   while (pos < len && lineNum < maxLines) {
     int remaining = len - pos;
@@ -3672,22 +3704,70 @@ int drawWrappedText(const char* text, int yStart, int maxLines, int lineHeight) 
       if (breakAt > 0) take = breakAt;
     }
 
-    char lineBuf[24];
-    int copyLen = min(take, (int)sizeof(lineBuf) - 1);
-    strncpy(lineBuf, text + pos, copyLen);
-    lineBuf[copyLen] = '\0';
+    if (skipped < skipLines) {
+      skipped++;
+    } else {
+      char lineBuf[24];
+      int copyLen = min(take, (int)sizeof(lineBuf) - 1);
+      strncpy(lineBuf, text + pos, copyLen);
+      lineBuf[copyLen] = '\0';
 
-    int16_t x1, y1;
-    uint16_t w, h;
-    display.getTextBounds(lineBuf, 0, 0, &x1, &y1, &w, &h);
-    display.setCursor((SCREEN_WIDTH - w) / 2, yStart + lineNum * lineHeight);
-    display.print(lineBuf);
+      int16_t x1, y1;
+      uint16_t w, h;
+      display.getTextBounds(lineBuf, 0, 0, &x1, &y1, &w, &h);
+      display.setCursor((SCREEN_WIDTH - w) / 2, yStart + lineNum * lineHeight);
+      display.print(lineBuf);
+      lineNum++;
+    }
 
     pos += take;
     while (pos < len && text[pos] == ' ') pos++; // skip the space the line broke on
-    lineNum++;
   }
   return lineNum;
+}
+
+// ---------------- How many lines drawWrappedText's word-wrap would produce for this text, without
+// drawing anything - same break rules, so the two always agree ----------------
+int wrappedLineCount(const char* text, int charsPerLine) {
+  int len = strlen(text);
+  int pos = 0;
+  int lines = 0;
+  while (pos < len) {
+    int remaining = len - pos;
+    int take = min(charsPerLine, remaining);
+    if (take < remaining) {
+      int breakAt = take;
+      while (breakAt > 0 && text[pos + breakAt] != ' ') breakAt--;
+      if (breakAt > 0) take = breakAt;
+    }
+    pos += take;
+    while (pos < len && text[pos] == ' ') pos++;
+    lines++;
+  }
+  return lines;
+}
+
+// ---------------- Trivia scrolling: current offset (0..overflow) for something that's `overflow`
+// steps too long - holds at 0, steps once per stepMs, holds at the end, then loops ----------------
+int triviaScrollOffset(int overflow, unsigned long stepMs) {
+  if (overflow <= 0) return 0;
+  unsigned long cycle = 2 * TRIVIA_SCROLL_HOLD_MS + (unsigned long)overflow * stepMs;
+  unsigned long t = (millis() - triviaViewShownAt) % cycle;
+  if (t < TRIVIA_SCROLL_HOLD_MS) return 0;
+  t -= TRIVIA_SCROLL_HOLD_MS;
+  if (t < (unsigned long)overflow * stepMs) return (int)(t / stepMs);
+  return overflow;
+}
+
+// ---------------- Trivia scrolling: true if anything in the current view is too long to show at once ----------------
+bool triviaContentOverflows() {
+  if (!triviaShowingAnswers) {
+    return wrappedLineCount(triviaQuestionBuf, TRIVIA_QUESTION_CHARS_PER_LINE) > TRIVIA_QUESTION_VISIBLE_LINES;
+  }
+  for (int i = 0; i < triviaOptionCount; i++) {
+    if ((int)strlen(triviaOptionBuf[i]) > TRIVIA_ANSWER_VISIBLE_CHARS) return true;
+  }
+  return false;
 }
 
 // ---------------- Same word-wrap approach as drawWrappedText, but confined to and centered within
@@ -4942,7 +5022,9 @@ void drawTriviaPlayScreen() {
     // ---- Question view ---- (16 to 53, 37px - up to 4 lines x 9px, 1px margin)
     const int questionTop = 16;
     const int lineHeight = 9;
-    drawWrappedText(triviaQuestionBuf, questionTop, 4, lineHeight);
+    int extraLines = wrappedLineCount(triviaQuestionBuf, TRIVIA_QUESTION_CHARS_PER_LINE) - TRIVIA_QUESTION_VISIBLE_LINES;
+    int skip = triviaScrollOffset(extraLines, TRIVIA_SCROLL_LINE_MS); // 0 unless it's too long to fit
+    drawWrappedText(triviaQuestionBuf, questionTop, TRIVIA_QUESTION_VISIBLE_LINES, lineHeight, skip);
   } else {
     // ---- Answers view: single column, full width - each answer gets roughly double the room
     // it had in the old 2x2 grid, with a small bullet in front of each in place of a letter prefix,
@@ -4959,8 +5041,11 @@ void drawTriviaPlayScreen() {
     for (int i = 0; i < triviaOptionCount; i++) {
       int y = answersTop + i * rowPitch;
 
-      char displayText[24];
-      strncpy(displayText, triviaOptionBuf[i], sizeof(displayText) - 1);
+      // too-long answers scroll sideways (one character per step) rather than being cut off
+      int optLen = strlen(triviaOptionBuf[i]);
+      int charOffset = triviaScrollOffset(optLen - TRIVIA_ANSWER_VISIBLE_CHARS, TRIVIA_SCROLL_CHAR_MS);
+      char displayText[40];
+      strncpy(displayText, triviaOptionBuf[i] + charOffset, sizeof(displayText) - 1);
       displayText[sizeof(displayText) - 1] = '\0';
 
       int16_t tx1, ty1;
