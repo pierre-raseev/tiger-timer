@@ -813,11 +813,24 @@ const char* const MORSE_TABLE[26] = {
 
 // Each word's total dot/dash count (summed across its letters) was checked to land between
 // 10 and 15 - the "10 to 15 presses" requirement - see the constant SIMON_MAX_LENGTH below.
+// Every letter's code also fits its on-screen column (128px / letter count) on the Ready screen.
+// Short, everyday English words (animals, food, nature, toys, home, vehicles...) - 136 in all.
 const char* const SIMON_WORDS[] = {
-  "TIGER", "SNAKE", "PARTY", "BOMB", "CHESS", "DICE", "PLAY", "QUIZ", "LOSE", "BUZZ",
-  "ROLL", "TRIVIA", "PASS", "MORSE", "SIMON", "TETRIS", "DROP"
+  "TIGER", "SNAKE", "PARTY", "BOMB", "CHESS", "DICE", "PLAY", "QUIZ", "LOSE", "BUZZ", "ROLL",
+  "PASS", "MORSE", "SIMON", "TETRIS", "DROP", "FISH", "BIRD", "FROG", "BEAR", "LION", "WOLF",
+  "DUCK", "COW", "FOX", "OWL", "MOUSE", "HORSE", "SHEEP", "ZEBRA", "PANDA", "KOALA", "CAMEL",
+  "SHARK", "WHALE", "CRAB", "SEAL", "LLAMA", "MOON", "SNOW", "WIND", "STORM", "SKY", "LAKE",
+  "RIVER", "HILL", "ROCK", "LEAF", "ROSE", "GRASS", "SAND", "BEACH", "WAVE", "FIRE", "APPLE",
+  "PEAR", "PLUM", "LEMON", "MANGO", "MELON", "GRAPE", "BERRY", "CAKE", "PASTA", "BREAD", "MILK",
+  "SOUP", "RICE", "HONEY", "CANDY", "BALL", "DRUM", "BELL", "BOOK", "DOLL", "CARD", "ROBOT",
+  "RADIO", "PIANO", "MUSIC", "SONG", "DANCE", "JUMP", "SWIM", "SING", "DRAW", "PAINT", "HOUSE",
+  "HOME", "DOOR", "ROOM", "CHAIR", "TABLE", "LAMP", "PHONE", "BOX", "CUP", "BOWL", "SPOON", "FORK",
+  "SOCK", "SHOE", "COAT", "BUS", "TRAIN", "PLANE", "BOAT", "SHIP", "BIKE", "TRUCK", "BLUE", "PINK",
+  "GOLD", "GREEN", "WHITE", "FUNNY", "SMILE", "HERO", "MAGIC", "DREAM", "SPACE", "ALIEN", "GHOST",
+  "KING", "QUEEN", "CROWN", "FIVE", "ZERO", "LOVE", "HUG", "KISS", "CLUB", "GOAL", "FAST", "SLOW",
+  "COLD"
 };
-const int SIMON_WORD_COUNT = 17;
+const int SIMON_WORD_COUNT = sizeof(SIMON_WORDS) / sizeof(SIMON_WORDS[0]);
 const int SIMON_MAX_LENGTH = 15; // longest any word's flattened dot/dash sequence can be
 
 const int SIMON_READY     = 0; // showing the chosen word, waiting to start
@@ -1143,7 +1156,8 @@ void setup() {
   lastClkState = digitalRead(ENCODER_CLK);
 
   Serial.begin(115200);
-  randomSeed(micros()); // seed for the reflex game's random light delay
+  randomSeed(esp_random() ^ micros()); // hardware RNG: micros() alone is nearly identical every boot,
+                                       // which replayed the same "random" words, dice, delays... each time
 
   prefs.begin("gametimer", false);
   currentLanguage = constrain((int)prefs.getUChar("lang", LANG_EN), 0, LANG_COUNT - 1);
@@ -1211,7 +1225,7 @@ void setup() {
 // ---------------- Bench-test only (never in a normal build): drive the toothbrush screen over
 // USB serial and dump the OLED buffer as text, so a computer can check the drawing without
 // eyes on the panel. t = open Toothbrush, p = arcade press, f = skip 20s ahead, d = dump,
-// m = list the visible menu. ----------------
+// m = list the visible menu, w = 10 SimpleMorse word picks. ----------------
 void testSerialCommands() {
   while (Serial.available()) {
     char c = Serial.read();
@@ -1223,6 +1237,11 @@ void testSerialCommands() {
       for (int i = 0; i < visibleMenuCount; i++) Serial.printf(" %d:%s", visibleMenuOrder[i],
         visibleMenuOrder[i] == MENU_SETTINGS ? "Settings" : visibleMenuOrder[i] == MENU_INSTRUCTIONS ? "Instructions" : menuLabelForGame(visibleMenuOrder[i]));
       Serial.printf(" | idVer=%d startMode=%d startGame=%d\n", prefs.getUChar("idVer", 1), prefs.getUChar("startMode", 0), prefs.getUChar("startGame", 0));
+    }
+    else if (c == 'w') { // 10 SimpleMorse word picks, to check variety across boots
+      Serial.print("[words]");
+      for (int i = 0; i < 10; i++) { simonNewSequence(); Serial.printf(" %s(%d)", simonWord, simonSequenceLength); }
+      Serial.println();
     }
     else if (c == 'd') {
       Serial.println("[dump begin]");
@@ -2507,8 +2526,11 @@ void updateSnake() {
 // ---------------- Picks a random word and flattens its Morse code into a single dot/dash
 // sequence (letter boundaries aren't preserved - the whole word is one continuous pattern to
 // repeat, matching how the "10 to 15 presses" requirement was specified). ----------------
+int simonLastWordIndex = -1; // never pick the same word twice in a row
 void simonNewSequence() {
   int idx = random(0, SIMON_WORD_COUNT);
+  if (idx == simonLastWordIndex) idx = (idx + 1 + random(0, SIMON_WORD_COUNT - 1)) % SIMON_WORD_COUNT;
+  simonLastWordIndex = idx;
   strncpy(simonWord, SIMON_WORDS[idx], sizeof(simonWord) - 1);
   simonWord[sizeof(simonWord) - 1] = '\0';
 

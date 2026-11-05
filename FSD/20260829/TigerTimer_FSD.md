@@ -650,12 +650,21 @@ trick.
 ### 5.12 SimpleMorse
 A Simon-Says-style memory game where the growing pattern to repeat is Morse code — short
 presses (dots) and long presses (dashes) — for a randomly chosen word, rather than colors.
-- **Word selection:** on entering the game, one word is chosen at random from a fixed pool of 17
-  (TIGER, SNAKE, PARTY, BOMB, CHESS, DICE, PLAY, QUIZ, LOSE, BUZZ, ROLL, TRIVIA, PASS, MORSE,
-  SIMON, TETRIS, DROP), each pre-verified so its full word, flattened into International Morse
-  code across all its letters (letter boundaries aren't preserved as gaps — the whole word is
-  one continuous dot/dash sequence to repeat), totals **between 10 and 15 symbols**
-  (`SIMON_MAX_LENGTH`=15 is the hard cap on sequence length).
+- **Word selection:** on entering the game (and on each replay), one word is chosen at random
+  from a fixed pool of **136 short, everyday English words** (`SIMON_WORDS[]` — animals, food,
+  nature, toys and music, home objects, vehicles, colours, fun words; 3–6 letters, e.g. COW, FOX,
+  LION, MANGO, ROBOT, TRAIN, GHOST, TETRIS). The same word is never
+  picked twice in a row. Every word is pre-verified to meet two rules:
+  - flattened into International Morse code across all its letters (letter boundaries aren't
+    preserved as gaps — the whole word is one continuous dot/dash sequence to repeat), it totals
+    **between 10 and 15 symbols** (`SIMON_MAX_LENGTH`=15 is the hard cap on sequence length);
+  - each letter's code fits in its column on the Ready screen (128 px ÷ letter count). This is why
+    TRIVIA from the original 17-word pool was dropped: its V (`...-`) is wider than a 6-letter
+    column.
+- **Randomness:** the random generator is seeded at boot from the chip's hardware RNG
+  (`esp_random()`), not just `micros()` — the boot timing is nearly identical every power-up, so
+  the old seed replayed the same sequence of "random" words (and dice, Reflex delays...) after
+  each restart.
 - **Ready screen:** shows the label "Word in Morse" and the chosen word with each letter's own
   Morse code shown directly underneath it (one column per letter, column width = screen width ÷
   letter count) — the plaintext word and its code mapping are both fully visible here; what's
