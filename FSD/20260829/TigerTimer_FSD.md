@@ -183,10 +183,15 @@ Triggered only by the encoder's 1-second long-press (§3.2) while inside any gam
   rotation direction just flips it).
 - Confirming (arcade button *or* encoder short click, per §3.2) on "Yes" performs a full,
   safe teardown of whatever was running (pauses the timer, resets an armed reflex round to
-  ready, pauses the chess clock, defuses an armed bomb, pauses the stopwatch preserving elapsed
-  time, cancels a trivia answer-reveal window, stops a running toothbrush timer, resets
-  Tetris/Star Drop/Snake/SimpleMorse to their Ready state, turns off the button LED and any
-  live tone) and returns to the main menu with the cursor positioned on the game just left.
+  ready, pauses the chess clock, defuses an armed bomb, stops the stopwatch, cancels a trivia
+  answer-reveal window, stops a running toothbrush timer, resets Tetris/Star Drop/Snake/
+  SimpleMorse to their Ready state, turns off the button LED and any live tone) and returns to
+  the main menu with the cursor positioned on the game just left.
+- Leaving is **not** a suspend: re-entering any game from the menu starts it fresh from its
+  just-opened state (`initGameState()`, the same reset a direct boot into that game uses). So
+  the Chess Clock goes back to time setup and the Stopwatch back to 0:00 — the "pause" above
+  only stops time from running while you're out of the game, it isn't kept for later. The one
+  exception is the countdown Timer, whose set duration and remaining time are not reset.
 - Confirming on "No" simply closes the dialog and resumes the game exactly as it was — nothing
   changes.
 
@@ -430,10 +435,12 @@ Randomly picks a number to decide who goes first.
 
 ### 5.7 Stopwatch
 Standard count-up stopwatch with lap support.
-- Press the arcade button to start/stop.
+- The arcade button cycles three states: **Ready** (0:00) → **Running** → **Stopped** (shows the
+  final elapsed time) → back to **Ready** (cleared). There is no pause/resume: pressing again
+  after stopping resets to 0:00 rather than continuing the count.
 - An encoder click records a lap while running.
-- Elapsed time is tracked precisely across pause/resume (accumulated milliseconds, not
-  re-measured from a single start timestamp), so pausing and resuming never drifts.
+- Elapsed time is held as accumulated milliseconds, captured at the moment of stopping, so the
+  displayed stopped time is exactly the time measured.
 
 ### 5.8 Trivia
 Buzzer-style multiple-choice trivia with a physical "buzz in" mechanic.
@@ -702,7 +709,8 @@ rightward, specifically so the two icons read as visually related.
 - The on-device screen while Remote Config is active shows a QR code (encoding the standard
   `WIFI:T:nopass;S:TigerTimer-Config;;` join-network format, scannable by any phone camera app)
   plus the SSID and IP as text fallback.
-- Exits back to the Settings screen on either physical button. On exit the firmware waits for
+- Exits on either physical button, back to the **main menu** with the cursor on the Settings
+  entry (not into the Settings submenu itself — one click reopens it). On exit the firmware waits for
   that button to be fully released (plus a ~50ms settle) before returning to the main loop —
   same reasoning as the splash skip (§3.6): otherwise a slightly long exit press is still down
   when the main loop's debounce starts and gets read as a fresh click.
