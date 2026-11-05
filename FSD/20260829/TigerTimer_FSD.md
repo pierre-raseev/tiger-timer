@@ -508,17 +508,40 @@ Buzzer-style multiple-choice trivia with a physical "buzz in" mechanic.
   while something visible actually overflows.
 
 ### 5.9 Toothbrush Timer
-A 4-quadrant brushing timer (upper-left, upper-right, lower-left, lower-right — the four
-quadrants of a mouth).
+A 6-zone brushing timer: **upper left, upper front, upper right, lower left, lower front,
+lower right**, in that order.
 - Select duration (1–5 minutes) via encoder, confirm to start.
-- While running, the screen divides the total time into 4 equal segments, one per quadrant, and
-  advances through them in sequence, playing a short beep on each quadrant change so the user
-  knows to move the brush without needing to watch the screen. The header shows "Brush!" the
-  whole time the game is running.
-- An encoder click pauses/resumes.
+- The total time is split into 6 equal zones (`TOOTHBRUSH_ZONE_COUNT`=6, e.g. 20 s each for
+  2 minutes). On each zone change the same two-tone zone-change beep plays, so the user knows
+  to move the brush without watching the screen. Sounds are unchanged from the 4-quadrant
+  version: start melody, the soft ~180 ms "scrub" clicks, the zone-change beep and the
+  finish fireworks.
+- **Running screen** (no header line, to give the teeth the full height):
+  - **Left 77 px — the teeth:** a front view of an open mouth, teeth only (no lips/tongue). The
+    upper arch curves over the top half, the lower arch is its mirror image below. Each half
+    arch has 6 teeth: central incisor, lateral incisor, canine (front zone) and two premolars +
+    a molar (side zone) — 12 teeth per arch, 24 in all. Teeth are rounded rectangles (crown
+    edge rounded, gum edge square; back teeth rounded all round) with at least 1 px between
+    neighbours so they never merge. Coordinates live in `TOOTH_UPPER_LEFT_HALF[]`; the other
+    three quarters are mirrored (`TEETH_MIRROR_X`=76, `TEETH_MIRROR_Y`=63).
+  - **States:** teeth still to brush are outlines; brushed zones are solid white, so the mouth
+    "fills in" as you go. The active zone blinks solid/outline in time with the scrub clicks
+    (held solid while paused).
+  - **Brush:** a small toothbrush sprite sits in the open part of the mouth with its bristles
+    against the active zone and its handle pointing inward. Flat and scrubbing side to side on
+    the front zones, upright and scrubbing up and down on the side zones (±2 px per click). It
+    is drawn over a 1 px black margin so it reads clearly. Three foam bubbles (dots and tiny
+    circles) pop next to the brush, only ever drawn into empty space, never onto a tooth.
+  - **Right panel** (right of a divider at x=78): "Brush!" (or "Paused"), the remaining time
+    in large digits, the zone name on two lines (e.g. "Upper / left", "Haut / gauche",
+    "Arriba / izqda."), and a bar showing progress through the current zone.
+- A press (arcade button, or encoder short click per §3.2) pauses/resumes.
 - On completion, plays the same celebratory "firework" animation used elsewhere for
-  positive milestones (also reused by SimpleMorse's win screen, §5.13), rather than a bespoke
-  animation.
+  positive milestones (also reused by SimpleMorse's win screen, §5.13), then shows the usual
+  header with static bursts and "All done!".
+- **Bench-testing the drawing:** a normal build never includes it, but building with
+  `-DTT_SCREEN_DUMP` adds serial commands (`t` open Toothbrush, `p` arcade press, `f` skip 20 s,
+  `d` dump the 128×64 screen as `#`/`.` text) so the screen can be checked from a computer.
 
 ### 5.10 Tetris
 A compact falling-block game, played with the whole device rotated 90°.

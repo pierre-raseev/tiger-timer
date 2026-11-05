@@ -357,10 +357,10 @@ const int STR_TURN_QUESTION = 64;
 const int STR_CLICK_NEXT = 65;
 const int STR_MENU_TOOTHBRUSH = 66;
 const int STR_CHOOSE_BRUSH_TIME = 67;
-const int STR_QUAD_UPPER_LEFT = 68;
-const int STR_QUAD_UPPER_RIGHT = 69;
-const int STR_QUAD_LOWER_LEFT = 70;
-const int STR_QUAD_LOWER_RIGHT = 71;
+const int STR_ZONE_UPPER = 68; // toothbrush zone label, line 1
+const int STR_ZONE_LOWER = 69;
+const int STR_ZONE_LEFT = 70;  // toothbrush zone label, line 2
+const int STR_ZONE_RIGHT = 71;
 const int STR_BRUSHING_DONE = 72;
 const int STR_MENU_CONFIG_MODE = 73;
 const int STR_CONFIG_STARTING = 74;
@@ -419,7 +419,8 @@ const int STR_SIMON_WATCH = 126;
 const int STR_SIMON_YOUR_TURN = 127;
 const int STR_SIMON_COMPLETE = 128;
 const int STR_SIMON_ROUND = 129;
-const int NUM_STRINGS = 130;
+const int STR_ZONE_FRONT = 130; // toothbrush zone label, line 2
+const int NUM_STRINGS = 131;
 
 const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SELECT_GAME          */{"Choose Option", "Choisir option", "Elegir opcion"},
@@ -490,10 +491,10 @@ const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_CLICK_NEXT           */{"Next", "Suivant", "Siguiente"},
   /* STR_MENU_TOOTHBRUSH      */{"Toothbrush", "Brossage", "Cepillado"},
   /* STR_CHOOSE_BRUSH_TIME    */{"Choose brush time", "Choisir la duree", "Elegir duracion"},
-  /* STR_QUAD_UPPER_LEFT      */{"Upper Left", "Haut Gauche", "Arriba Izq"},
-  /* STR_QUAD_UPPER_RIGHT     */{"Upper Right", "Haut Droite", "Arriba Der"},
-  /* STR_QUAD_LOWER_LEFT      */{"Lower Left", "Bas Gauche", "Abajo Izq"},
-  /* STR_QUAD_LOWER_RIGHT     */{"Lower Right", "Bas Droite", "Abajo Der"},
+  /* STR_ZONE_UPPER           */{"Upper", "Haut", "Arriba"},
+  /* STR_ZONE_LOWER           */{"Lower", "Bas", "Abajo"},
+  /* STR_ZONE_LEFT            */{"left", "gauche", "izqda."},
+  /* STR_ZONE_RIGHT           */{"right", "droite", "derecha"},
   /* STR_BRUSHING_DONE        */{"All done!", "Termin\x82 !", "Listo!"},
   /* STR_MENU_CONFIG_MODE     */{"Remote Config", "Config distante", "Config remota"},
   /* STR_CONFIG_STARTING      */{"Starting WiFi...", "Demarrage WiFi...", "Iniciando WiFi..."},
@@ -552,6 +553,7 @@ const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SIMON_YOUR_TURN      */{"Your turn", "A toi", "Tu turno"},
   /* STR_SIMON_COMPLETE       */{"Complete!", "Reussi !", "Completo!"},
   /* STR_SIMON_ROUND          */{"Round", "Manche", "Ronda"},
+  /* STR_ZONE_FRONT           */{"front", "devant", "frente"},
 
 };
 
@@ -699,13 +701,15 @@ const int TOOTHBRUSH_RUNNING     = 1;
 const int TOOTHBRUSH_DONE        = 2;
 int toothbrushScreenState = TOOTHBRUSH_SELECT_TIME;
 int toothbrushMinutes = 2; // 1-5, default 2 (matches the standard dental recommendation)
-long toothbrushTotalSeconds = 0;     // set when the run starts, used for the quadrant math
+long toothbrushTotalSeconds = 0;     // set when the run starts, used for the zone math
 long toothbrushRemainingSeconds = 0;
 bool toothbrushPaused = false;
 unsigned long toothbrushLastTick = 0;       // for the 1-second countdown
 unsigned long toothbrushLastBrushSound = 0; // for the periodic "scrub" click
-bool toothbrushPulseState = false;          // toggles each click, for the LED + quadrant flash
-int toothbrushLastQuadrant = -1;            // tracks the previous quadrant, so a change can be detected and beeped
+bool toothbrushPulseState = false;          // toggles each click, for the LED + active-zone blink + brush scrub
+int toothbrushLastZone = -1;                // tracks the previous zone, so a change can be detected and beeped
+unsigned int toothbrushFrame = 0;           // counts scrub clicks, drives the foam-bubble positions
+const int TOOTHBRUSH_ZONE_COUNT = 6;        // upper left/front/right, then lower left/front/right
 
 // ---- Tetris state ----
 // Board is drawn with the display temporarily rotated 90 degrees (see drawTetris*Screen), so the
@@ -1012,7 +1016,7 @@ void handleSimonButtonPress();
 void drawWalrusFace(int cx, int cy, int headR, bool wounded, uint16_t color);
 void playWoundedWalrusAnimation();
 void drawSimpleMorseIcon(int cx, int cy, int r, uint16_t color);
-int toothbrushCurrentQuadrant();
+int toothbrushCurrentZone();
 void playToothbrushZoneChangeBeep();
 void playToothbrushDoneAnimation();
 void drawToothbrushSelectScreen();
@@ -1214,7 +1218,34 @@ void setup() {
   render();
 }
 
+#ifdef TT_SCREEN_DUMP
+// ---------------- Bench-test only (never in a normal build): drive the toothbrush screen over
+// USB serial and dump the OLED buffer as text, so a computer can check the drawing without
+// eyes on the panel. t = open Toothbrush, p = arcade press, f = skip 20s ahead, d = dump. ----------------
+void testSerialCommands() {
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == 't') { inMenu = false; currentGame = GAME_TOOTHBRUSH; initGameState(GAME_TOOTHBRUSH); render(); }
+    else if (c == 'p') { handleToothbrushPress(); }
+    else if (c == 'f') { toothbrushRemainingSeconds = max(1L, toothbrushRemainingSeconds - 20); toothbrushLastTick = millis() - 1000; }
+    else if (c == 'd') {
+      Serial.println("[dump begin]");
+      for (int y = 0; y < SCREEN_HEIGHT; y++) {
+        char line[SCREEN_WIDTH + 1];
+        for (int x = 0; x < SCREEN_WIDTH; x++) line[x] = display.getPixel(x, y) ? '#' : '.';
+        line[SCREEN_WIDTH] = 0;
+        Serial.println(line);
+      }
+      Serial.println("[dump end]");
+    }
+  }
+}
+#endif
+
 void loop() {
+#ifdef TT_SCREEN_DUMP
+  testSerialCommands();
+#endif
   readEncoder();
   readButton();
   readEncoderButton();
@@ -1873,14 +1904,23 @@ void recordStopwatchLap() {
 }
 
 // ================= Toothbrush =================
-// ---------------- Toothbrush: which of the 4 mouth quadrants is "up" right now, based on how
-// far through the total brushing time we are (each quadrant gets an even quarter) ----------------
-int toothbrushCurrentQuadrant() {
+// ---------------- Toothbrush: which of the 6 mouth zones is "up" right now, based on how far
+// through the total brushing time we are (each zone gets an even sixth). Order: upper left,
+// upper front, upper right, lower left, lower front, lower right (0-5). ----------------
+int toothbrushCurrentZone() {
   if (toothbrushTotalSeconds <= 0) return 0;
   long elapsed = toothbrushTotalSeconds - toothbrushRemainingSeconds;
-  float fraction = (float)elapsed / (float)toothbrushTotalSeconds;
-  int q = (int)(fraction * 4.0);
-  return constrain(q, 0, 3);
+  int z = (int)((elapsed * TOOTHBRUSH_ZONE_COUNT) / toothbrushTotalSeconds);
+  return constrain(z, 0, TOOTHBRUSH_ZONE_COUNT - 1);
+}
+
+// ---------------- Toothbrush: how far through the current zone we are, 0..1 (for the zone bar) ----------------
+float toothbrushZoneFraction() {
+  if (toothbrushTotalSeconds <= 0) return 0;
+  long elapsed = toothbrushTotalSeconds - toothbrushRemainingSeconds;
+  float zoneLen = (float)toothbrushTotalSeconds / TOOTHBRUSH_ZONE_COUNT;
+  float f = (elapsed - toothbrushCurrentZone() * zoneLen) / zoneLen;
+  return constrain(f, 0.0f, 1.0f);
 }
 
 // ---------------- Toothbrush: select-time confirm starts the run; running press toggles pause;
@@ -1890,7 +1930,8 @@ void handleToothbrushPress() {
     toothbrushTotalSeconds = (long)toothbrushMinutes * 60;
     toothbrushRemainingSeconds = toothbrushTotalSeconds;
     toothbrushPaused = false;
-    toothbrushLastQuadrant = 0; // always starts on the upper-left quadrant
+    toothbrushLastZone = 0; // always starts on the upper-left zone
+    toothbrushFrame = 0;
     toothbrushScreenState = TOOTHBRUSH_RUNNING;
     toothbrushLastTick = millis();
     toothbrushLastBrushSound = millis();
@@ -1908,8 +1949,8 @@ void handleToothbrushPress() {
   }
 }
 
-// ---------------- Toothbrush: 1-second countdown tick, a zone-change beep whenever the quadrant
-// advances, plus a periodic short click (with the LED and quadrant highlight pulsing in time with
+// ---------------- Toothbrush: 1-second countdown tick, a zone-change beep whenever the zone
+// advances, plus a periodic short click (with the LED, active zone and brush moving in time with
 // it) simulating a brushing rhythm - this hardware's buzzer can't play real audio, so this is a
 // rhythmic approximation, not a recording ----------------
 void updateToothbrush() {
@@ -1928,9 +1969,9 @@ void updateToothbrush() {
       return;
     }
 
-    int newQuadrant = toothbrushCurrentQuadrant();
-    if (newQuadrant != toothbrushLastQuadrant) {
-      toothbrushLastQuadrant = newQuadrant;
+    int newZone = toothbrushCurrentZone();
+    if (newZone != toothbrushLastZone) {
+      toothbrushLastZone = newZone;
       playToothbrushZoneChangeBeep();
     }
     render();
@@ -1939,6 +1980,7 @@ void updateToothbrush() {
   if (millis() - toothbrushLastBrushSound >= TOOTHBRUSH_BRUSH_INTERVAL_MS) {
     toothbrushLastBrushSound = millis();
     toothbrushPulseState = !toothbrushPulseState;
+    toothbrushFrame++;
     digitalWrite(BUTTON_LED, toothbrushPulseState ? HIGH : LOW);
     playNote(600 + random(0, 100), 25); // short soft click, slight pitch variation for a more organic feel
     render();
@@ -4381,34 +4423,100 @@ void drawToothbrushSelectScreen() {
   display.print(label);
 }
 
-// ---------------- Toothbrush: running screen - a 2x2 quadrant grid (left) with the current
-// quadrant pulsing in time with the brushing clicks, remaining time (right), and the quadrant
-// name at the bottom. Whole screen still shows the last quadrant/time when finished, since
-// TOOTHBRUSH_DONE only changes the bottom message and stops the countdown/sound. ----------------
+// ---------------- Toothbrush: teeth drawing ----------------
+// A front view of an open mouth, teeth only: the upper arch curves over the top half of the
+// left 77px, the lower arch is its mirror image below. Each tooth is a rounded rectangle whose
+// crown edge (toward the open mouth) is rounded and gum edge is square; molars/premolars are
+// rounded all round. Coordinates are for the upper-left half of the upper arch; the other three
+// quarters are mirrored. Teeth are separated by at least 1px so filled teeth never merge.
+struct ToothShape { int8_t x, y, w, h, r; char round; int8_t zoneSide; }; // zoneSide: 0 = side zone, 1 = front zone
+const ToothShape TOOTH_UPPER_LEFT_HALF[] = {
+  {31, 1, 7, 12, 3, 'b', 1}, // central incisor
+  {24, 2, 6, 10, 3, 'b', 1}, // lateral incisor
+  {18, 3, 5, 11, 2, 'b', 1}, // canine
+  {11, 6, 6,  9, 2, 'a', 0}, // premolar 1
+  { 4,13, 6,  8, 2, 'a', 0}, // premolar 2
+  { 0,22, 9,  8, 2, 'a', 0}, // molar
+};
+const int TOOTH_HALF_COUNT = sizeof(TOOTH_UPPER_LEFT_HALF) / sizeof(TOOTH_UPPER_LEFT_HALF[0]);
+const int TEETH_MIRROR_X = 76;  // right half: x' = 76 - (x + w - 1)
+const int TEETH_MIRROR_Y = 63;  // lower arch: y' = 63 - (y + h - 1)
+const int TOOTHBRUSH_PANEL_X = 78; // vertical divider; time + zone label to its right (teeth end at x=76)
+
+// is pixel (i,j) of a w x h tooth inside its outline? round: 'b' = bottom corners rounded,
+// 't' = top corners rounded, 'a' = all four
+bool toothContains(int i, int j, int w, int h, int r, char round) {
+  if (i < 0 || j < 0 || i >= w || j >= h) return false;
+  bool roundTop = (round != 'b'), roundBottom = (round != 't');
+  int cx = -1, cy = -1;
+  if (i < r) cx = r; else if (i > w - 1 - r) cx = w - 1 - r;
+  if (j < r && roundTop) cy = r; else if (j > h - 1 - r && roundBottom) cy = h - 1 - r;
+  if (cx < 0 || cy < 0) return true;
+  int dx = i - cx, dy = j - cy;
+  return (dx * dx + dy * dy) * 5 <= r * r * 5 + r * 4; // r^2 + 0.8r, the same rounding as the mockup
+}
+
+void drawTooth(int x, int y, int w, int h, int r, char round, bool filled) {
+  for (int j = 0; j < h; j++) {
+    for (int i = 0; i < w; i++) {
+      if (!toothContains(i, j, w, h, r, round)) continue;
+      bool edge = !toothContains(i - 1, j, w, h, r, round) || !toothContains(i + 1, j, w, h, r, round) ||
+                  !toothContains(i, j - 1, w, h, r, round) || !toothContains(i, j + 1, w, h, r, round);
+      if (filled || edge) display.drawPixel(x + i, y + j, SH110X_WHITE);
+    }
+  }
+}
+
+// ---------------- Toothbrush: the brush sprite, scrubbing on the active zone ----------------
+// Built from small rects for the upper-left / upper-front zones, then mirrored for the others.
+// Each rect is first cleared with a 1px black margin so the brush reads clearly against teeth.
+struct BrushRect { int8_t x, y, w, h; };
+BrushRect toothbrushSprite[24]; // global, not a parameter: Arduino's auto-generated prototypes sit above this struct
+int buildBrushSprite(int zone, int offset) {
+  BrushRect* out = toothbrushSprite;
+  int n = 0;
+  int side = zone % 3; // 0 left, 1 front, 2 right
+  if (side == 1) { // flat brush under the front teeth, bristles up, handle to the right
+    int hx = 29 + offset;
+    for (int i = 0; i < 16; i += 2) out[n++] = {(int8_t)(hx + i), 14, 1, 2}; // bristles
+    out[n++] = {(int8_t)hx, 16, 16, 3};        // head
+    out[n++] = {(int8_t)(hx + 16), 17, 4, 1};  // neck
+    out[n++] = {(int8_t)(hx + 19), 17, 14, 2}; // handle
+  } else {          // upright brush beside the side teeth, bristles out, handle into the mouth
+    int hy = 19 + offset;
+    for (int j = 0; j < 11; j += 2) out[n++] = {11, (int8_t)(hy + j), 2, 1}; // bristles
+    out[n++] = {13, (int8_t)hy, 3, 11};                                      // head
+    for (int k = 0; k < 13; k++) out[n++] = {(int8_t)(16 + k), (int8_t)(hy + 6 + (k * 9 + 10) / 20), 1, 2}; // handle, sloping down
+  }
+  for (int i = 0; i < n; i++) {
+    if (side == 2) out[i].x = TEETH_MIRROR_X - (out[i].x + out[i].w - 1);
+    if (zone >= 3) out[i].y = TEETH_MIRROR_Y - (out[i].y + out[i].h - 1);
+  }
+  return n;
+}
+
+// ---------------- Toothbrush: running screen - two arches of teeth (left) split into 6 zones;
+// outlined = still to brush, solid = brushed, the active zone blinks with the scrub clicks while
+// a brush scrubs over it with a little foam. Right panel: "Brush!"/"Paused", remaining time,
+// two-line zone name, and a bar for progress through the current zone. The finished screen
+// keeps the usual header + static bursts. ----------------
 void drawToothbrushRunningScreen() {
-  drawToothbrushIcon(7, 7, 6, SH110X_WHITE);
-
-  display.setTextSize(1);
-  const char* headerText = T(STR_BRUSH_ACTIVE);
-  int16_t hx1, hy1;
-  uint16_t hw, hh;
-  display.getTextBounds(headerText, 0, 0, &hx1, &hy1, &hw, &hh);
-  display.setCursor(SCREEN_WIDTH - hw - 2, 4);
-  display.print(headerText);
-  display.drawLine(0, 14, SCREEN_WIDTH, 14, SH110X_WHITE);
-
   int16_t x1, y1;
   uint16_t w, h;
 
   if (toothbrushScreenState == TOOTHBRUSH_DONE) {
+    drawToothbrushIcon(7, 7, 6, SH110X_WHITE);
+    display.setTextSize(1);
+    const char* headerText = T(STR_BRUSH_ACTIVE);
+    display.getTextBounds(headerText, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor(SCREEN_WIDTH - w - 2, 4);
+    display.print(headerText);
+    display.drawLine(0, 14, SCREEN_WIDTH, 14, SH110X_WHITE);
     // the firework animation already played once (see playToothbrushDoneAnimation) - this is the
-    // persistent screen shown afterward: a few static bursts, reusing the same drawBurst() helper
-    // the animation itself uses, so the look stays consistent without replaying the whole thing
+    // persistent screen shown afterward, reusing the same drawBurst() helper
     drawBurst(34, 28, 12);
     drawBurst(SCREEN_WIDTH / 2, 34, 12);
     drawBurst(SCREEN_WIDTH - 34, 28, 12);
-
-    display.setTextSize(1);
     const char* doneText = T(STR_BRUSHING_DONE);
     display.getTextBounds(doneText, 0, 0, &x1, &y1, &w, &h);
     display.setCursor((SCREEN_WIDTH - w) / 2, 57);
@@ -4416,46 +4524,84 @@ void drawToothbrushRunningScreen() {
     return;
   }
 
-  int currentQuadrant = toothbrushCurrentQuadrant();
-  const int cellW = 22, cellH = 17, gap = 2, gridX = 6, gridY = 18;
+  int zone = toothbrushCurrentZone();
+  bool blinkOn = toothbrushPaused || toothbrushPulseState;
 
-  for (int q = 0; q < 4; q++) {
-    int col = q % 2;
-    int row = q / 2;
-    int cx = gridX + col * (cellW + gap);
-    int cy = gridY + row * (cellH + gap);
-    display.drawRect(cx, cy, cellW, cellH, SH110X_WHITE);
-
-    if (q == currentQuadrant) {
-      bool shouldFill = toothbrushPaused ? true : toothbrushPulseState;
-      if (shouldFill) {
-        display.fillRect(cx + 2, cy + 2, cellW - 4, cellH - 4, SH110X_WHITE);
+  // teeth: 4 mirrored copies of the upper-left half
+  for (int arch = 0; arch < 2; arch++) {          // 0 upper, 1 lower
+    for (int half = 0; half < 2; half++) {        // 0 left, 1 right
+      for (int t = 0; t < TOOTH_HALF_COUNT; t++) {
+        const ToothShape& s = TOOTH_UPPER_LEFT_HALF[t];
+        int x = half ? TEETH_MIRROR_X - (s.x + s.w - 1) : s.x;
+        int y = arch ? TEETH_MIRROR_Y - (s.y + s.h - 1) : s.y;
+        char round = s.round;
+        if (arch && round == 'b') round = 't';
+        int toothZone = arch * 3 + (s.zoneSide ? 1 : (half ? 2 : 0));
+        bool filled = (toothZone < zone) || (toothZone == zone && blinkOn);
+        drawTooth(x, y, s.w, s.h, s.r, round, filled);
       }
     }
   }
 
-  // remaining time, right side of the grid
+  // brush + foam
+  int offset = toothbrushPaused ? 0 : (toothbrushPulseState ? 2 : -2);
+  int n = buildBrushSprite(zone, offset);
+  const BrushRect* brush = toothbrushSprite;
+  for (int i = 0; i < n; i++) display.fillRect(brush[i].x - 1, brush[i].y - 1, brush[i].w + 2, brush[i].h + 2, SH110X_BLACK);
+  for (int i = 0; i < n; i++) display.fillRect(brush[i].x, brush[i].y, brush[i].w, brush[i].h, SH110X_WHITE);
+  if (!toothbrushPaused) {
+    const BrushRect* head = nullptr;
+    for (int i = 0; i < n && !head; i++) if (brush[i].w >= 3 && brush[i].h >= 3) head = &brush[i];
+    int side = zone % 3;
+    bool upper = zone < 3;
+    for (int b = 0; head && b < 3; b++) {
+      int along = (toothbrushFrame * 5 + b * 7) % max((int)head->w, (int)head->h);
+      int away = 3 + (toothbrushFrame + b * 2) % 5;
+      int px, py;
+      if (side == 1) { px = head->x + along; py = upper ? head->y + head->h + away : head->y - 1 - away; }
+      else { py = head->y + along; px = (side == 0) ? head->x + head->w + away : head->x - 1 - away; }
+      int r = ((toothbrushFrame + b) % 3 == 0) ? 1 : 0;
+      bool clear = true; // only foam into empty space, never onto a tooth
+      for (int j = -r - 1; j <= r + 1 && clear; j++)
+        for (int i = -r - 1; i <= r + 1; i++) {
+          int X = px + i, Y = py + j;
+          if (X < 0 || Y < 0 || X >= TOOTHBRUSH_PANEL_X || Y >= SCREEN_HEIGHT || display.getPixel(X, Y)) { clear = false; break; }
+        }
+      if (!clear) continue;
+      if (r) display.drawCircle(px, py, 1, SH110X_WHITE); else display.drawPixel(px, py, SH110X_WHITE);
+    }
+  }
+
+  // right panel
+  display.drawFastVLine(TOOTHBRUSH_PANEL_X, 0, SCREEN_HEIGHT, SH110X_WHITE);
+  const int panelCenter = (TOOTHBRUSH_PANEL_X + 1 + SCREEN_WIDTH) / 2; // texts centered on their visible width
+  display.setTextSize(1);
+  const char* topText = toothbrushPaused ? T(STR_PAUSED) : T(STR_BRUSH_ACTIVE);
+  display.getTextBounds(topText, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor(panelCenter - ((int)w - 1) / 2, 2);
+  display.print(topText);
+
   char timeBuf[6];
   snprintf(timeBuf, sizeof(timeBuf), "%ld:%02ld", toothbrushRemainingSeconds / 60, toothbrushRemainingSeconds % 60);
   display.setTextSize(2);
   display.getTextBounds(timeBuf, 0, 0, &x1, &y1, &w, &h);
-  int timeAreaLeft = gridX + 2 * cellW + gap;
-  int timeAreaWidth = SCREEN_WIDTH - timeAreaLeft;
-  display.setCursor(timeAreaLeft + (timeAreaWidth - (int)w) / 2, 30);
+  display.setCursor(panelCenter - ((int)w - 2) / 2, 15); // w includes the font's trailing blank column (2px at size 2)
   display.print(timeBuf);
 
-  // bottom: quadrant name, or "Paused" when relevant
   display.setTextSize(1);
-  const char* bottomText;
-  if (toothbrushPaused) {
-    bottomText = T(STR_PAUSED);
-  } else {
-    const int quadStrings[4] = {STR_QUAD_UPPER_LEFT, STR_QUAD_UPPER_RIGHT, STR_QUAD_LOWER_LEFT, STR_QUAD_LOWER_RIGHT};
-    bottomText = T(quadStrings[currentQuadrant]);
+  if (!toothbrushPaused) {
+    const int line2[3] = {STR_ZONE_LEFT, STR_ZONE_FRONT, STR_ZONE_RIGHT};
+    const char* l1 = T(zone < 3 ? STR_ZONE_UPPER : STR_ZONE_LOWER);
+    const char* l2 = T(line2[zone % 3]);
+    display.getTextBounds(l1, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor(panelCenter - ((int)w - 1) / 2, 36);
+    display.print(l1);
+    display.getTextBounds(l2, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor(panelCenter - ((int)w - 1) / 2, 45);
+    display.print(l2);
   }
-  display.getTextBounds(bottomText, 0, 0, &x1, &y1, &w, &h);
-  display.setCursor((SCREEN_WIDTH - w) / 2, 57);
-  display.print(bottomText);
+  display.drawRect(81, 57, 45, 6, SH110X_WHITE);
+  display.fillRect(82, 58, (int)(43 * toothbrushZoneFraction() + 0.5f), 4, SH110X_WHITE);
 }
 
 // ================= Tetris screens =================
