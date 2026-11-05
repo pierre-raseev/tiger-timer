@@ -435,6 +435,29 @@ function parseCSV(text) {
   });
 }
 
+// Uploaded CSVs can arrive in three encodings: UTF-8 (what Download produces, and most editors),
+// Windows-1252 (Excel's default "CSV" save), or CP437 (the raw files in the sketch's data/
+// folder, which is what the device itself stores). The device expects UTF-8 from this page and
+// converts it to CP437 on save, so decode to proper text here instead of letting the browser
+// guess - a wrong guess silently turns every accent into a replacement character.
+const CP437_HIGH = "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ ";
+function decodeCsvBytes(bytes) {
+  if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) bytes = bytes.subarray(3);
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch (e) { /* not valid UTF-8 - one of the single-byte encodings */ }
+  // CP437 accents live in 0x80-0xA5; Windows-1252 accents live in 0xC0-0xFF. A file with
+  // high bytes only in the CP437 range is almost certainly a device/sketch file.
+  let lowHigh = 0, upperHigh = 0;
+  for (const b of bytes) { if (b >= 0x80 && b <= 0xA5) lowHigh++; else if (b >= 0xC0) upperHigh++; }
+  if (lowHigh > 0 && upperHigh === 0) {
+    let s = '';
+    for (const b of bytes) s += b < 0x80 ? String.fromCharCode(b) : CP437_HIGH[b - 0x80];
+    return s;
+  }
+  return new TextDecoder('windows-1252').decode(bytes);
+}
+
 function populateTriviaDropdowns() {
   const catSel = document.getElementById('triviaCat');
   const lvlSel = document.getElementById('triviaLevel');
@@ -530,7 +553,7 @@ document.getElementById('csvFileInput').addEventListener('change', e => {
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      triviaQuestions = parseCSV(reader.result);
+      triviaQuestions = parseCSV(decodeCsvBytes(new Uint8Array(reader.result)));
       triviaLoadedFor = { cat: document.getElementById('triviaCat').value, lvl: document.getElementById('triviaLevel').value };
       document.getElementById('addQuestionBtn').disabled = false;
       document.getElementById('saveTriviaBtn').disabled = false;
@@ -541,7 +564,7 @@ document.getElementById('csvFileInput').addEventListener('change', e => {
     }
   };
   reader.onerror = () => toast('Could not read that file', true);
-  reader.readAsText(file);
+  reader.readAsArrayBuffer(file);
   e.target.value = ''; // allow re-selecting the same file later
 });
 

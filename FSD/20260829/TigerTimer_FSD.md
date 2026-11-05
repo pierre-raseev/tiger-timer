@@ -431,6 +431,16 @@ Buzzer-style multiple-choice trivia with a physical "buzz in" mechanic.
   the columns matching the currently active language are shown to the player. Up to 3 wrong
   answers are supported per question; fewer are fine (some rows may have blank wrong-answer
   columns for questions with only 2 total choices).
+- **Text encoding:** the files on the device are stored in **CP437** (IBM Code Page 437), the
+  character set of the display library's built-in font — e.g. é is the single byte `0x82`, ñ is
+  `0xA4`. This is what the on-device parser reads and draws byte-for-byte. Anything that leaves
+  or enters the device through Remote Config (§7) is converted at that boundary: CP437 → UTF-8
+  when sending content to the web page, UTF-8 → CP437 when saving what the page sends back.
+  Characters CP437 has no glyph for are replaced with a readable ASCII stand-in on save (smart
+  quotes → `'`/`"`, en/em dashes → `-`, `…` → `...`, `œ` → `oe`, accented capitals like À/Ê → A/E),
+  anything else becomes `?`. (A real bug shipped once without this conversion: the page received
+  raw CP437 bytes as if they were UTF-8, showed every accent as `�`, and a single load+save
+  permanently wrote those replacement characters back into the file.)
 - **Play — question order:** at the start of a round, the full set of questions for that
   category+level is shuffled once into a fixed random order for the session. Navigation moves
   through this fixed order, so revisiting a question always shows the exact same content, never
@@ -688,9 +698,15 @@ Remote Config", with these sections:
      a real HTTP file download (`Content-Disposition: attachment`), deliberately *not* using a
      JS Blob-URL technique, because that approach is known to silently fail in some restricted
      mobile browser contexts (notably Android's captive-portal sign-in WebView, which this
-     whole feature is likely to be accessed through — see §7.1).
+     whole feature is likely to be accessed through — see §7.1). The download is UTF-8 with a
+     byte-order mark (converted from the device's CP437, §5.8), so spreadsheet apps open the
+     accents correctly.
    - **Upload CSV** — loads a CSV file into the in-browser editor for review (does not
-     auto-save; the user must still hit Save to write it to the device).
+     auto-save; the user must still hit Save to write it to the device). The page decodes the
+     file itself rather than letting the browser guess: UTF-8 (with or without BOM) first; if
+     that's not valid, CP437 when the only high bytes are in CP437's accent range 0x80–0xA5 (i.e.
+     a raw file from the sketch's `data/` folder), otherwise Windows-1252 (Excel's default CSV
+     encoding).
    - **Add question** / **Save questions** to append a blank row or persist edits back to the
      device's flash file for that category/level.
 5. **Pass the Bomb categories** — all 20 categories (§5.5) listed with their English name and
@@ -714,10 +730,13 @@ exact routes, only the equivalent capability)
   "at least one enabled" rule per toggle-able group independently, reporting a non-fatal warning
   in the response if any part of a save was rejected for that reason while still applying the
   rest.
-- `GET /api/trivia?category=..&level=..` — returns that CSV's question rows as JSON.
-- `POST /api/trivia?category=..&level=..` — rewrites that CSV file from submitted JSON rows.
-- `GET /api/trivia/csv?category=..&level=..` — streams the raw CSV file as a real file download
-  (see the Download CSV rationale above).
+- `GET /api/trivia?category=..&level=..` — returns that CSV's question rows as JSON (UTF-8).
+- `POST /api/trivia?category=..&level=..` — rewrites that CSV file from submitted JSON rows
+  (UTF-8 in, converted to CP437 on write).
+- `GET /api/trivia/csv?category=..&level=..` — sends the CSV file as a real file download,
+  converted to UTF-8 with a BOM (see the Download CSV rationale above).
+- All text the device sends to the page (including the Pass the Bomb category names) is UTF-8;
+  see §5.8 "Text encoding" for the conversion rules.
 - `POST /api/reset-highscore` — body `{"game": "tetris"|"stardrop"|"snake"}`; resets that one
   game's persisted high score to 0. A dedicated endpoint rather than folding this into the
   general config save, since it's a one-shot destructive action, not a settings change.

@@ -102,6 +102,36 @@ void rebuildVisibleMenu() {
   }
 }
 
+// ---------------- Text encoding: device files are CP437, the web page is UTF-8 (see cp437_utf8.h) ----------------
+String cp437ToUtf8(const String& in) {
+  String out;
+  out.reserve(in.length() + 16);
+  char buf[4];
+  for (size_t i = 0; i < in.length(); i++) {
+    uint8_t b = (uint8_t)in[i];
+    uint32_t cp = (b < 0x80) ? b : CP437_HIGH_TO_UNICODE[b - 0x80];
+    int n = tt_utf8Encode(cp, buf);
+    for (int k = 0; k < n; k++) out += buf[k];
+  }
+  return out;
+}
+
+String utf8ToCp437(const String& in) {
+  String out;
+  out.reserve(in.length());
+  const uint8_t* s = (const uint8_t*)in.c_str();
+  size_t len = in.length();
+  size_t i = 0;
+  char buf[3];
+  while (i < len) {
+    uint32_t cp;
+    i += tt_utf8Decode(s, len, i, &cp);
+    int n = tt_unicodeToCp437(cp, buf);
+    for (int k = 0; k < n; k++) out += buf[k];
+  }
+  return out;
+}
+
 // ---------------- CSV helpers ----------------
 // Strips characters that would break the sketch's plain (unquoted) CSV format. The on-device
 // trivia parser splits purely on commas and lines, so commas/newlines inside a field are not
@@ -164,9 +194,9 @@ void handleGetConfig() {
   for (int i = 0; i < HP_CATEGORY_COUNT; i++) {
     JsonObject c = hpCats.add<JsonObject>();
     c["id"] = i;
-    c["en"] = TRANSLATIONS[HP_CATEGORY_STRINGS[i]][LANG_EN];
-    c["fr"] = TRANSLATIONS[HP_CATEGORY_STRINGS[i]][LANG_FR];
-    c["es"] = TRANSLATIONS[HP_CATEGORY_STRINGS[i]][LANG_ES];
+    c["en"] = cp437ToUtf8(TRANSLATIONS[HP_CATEGORY_STRINGS[i]][LANG_EN]);
+    c["fr"] = cp437ToUtf8(TRANSLATIONS[HP_CATEGORY_STRINGS[i]][LANG_FR]);
+    c["es"] = cp437ToUtf8(TRANSLATIONS[HP_CATEGORY_STRINGS[i]][LANG_ES]);
     c["enabled"] = hpCategoryEnabled[i];
   }
 
@@ -323,7 +353,7 @@ void handleGetTrivia() {
         }
       }
       JsonObject row = rows.add<JsonObject>();
-      for (int i = 0; i < 15; i++) row[CONFIG_TRIVIA_FIELD_NAMES[i]] = fields[i];
+      for (int i = 0; i < 15; i++) row[CONFIG_TRIVIA_FIELD_NAMES[i]] = cp437ToUtf8(fields[i]);
     }
     f.close();
   }
@@ -365,11 +395,17 @@ void handleGetTriviaCsv() {
     return;
   }
 
+  // Converted to UTF-8 (with a byte-order mark, so Excel/Numbers detect the encoding and show
+  // accents correctly) - the file on the device stays CP437. Files are a few KB, so building the
+  // whole response in RAM is fine.
+  String body = "\xEF\xBB\xBF";
+  body += cp437ToUtf8(f.readString());
+  f.close();
+
   char cd[48];
   snprintf(cd, sizeof(cd), "attachment; filename=\"%s_%s.csv\"", CONFIG_TRIVIA_CATEGORIES[catIdx], CONFIG_TRIVIA_LEVELS[lvlIdx]);
   configServer.sendHeader("Content-Disposition", cd);
-  configServer.streamFile(f, "text/csv");
-  f.close();
+  configServer.send(200, "text/csv; charset=utf-8", body);
 }
 
 // ---------------- Route: POST /api/reset-highscore - body {"game":"tetris"|"stardrop"|"snake"} -
@@ -445,7 +481,7 @@ void handlePostTrivia() {
     String line;
     for (int i = 0; i < 15; i++) {
       String val = row[CONFIG_TRIVIA_FIELD_NAMES[i]].is<const char*>() ? String((const char*)row[CONFIG_TRIVIA_FIELD_NAMES[i]]) : String("");
-      line += csvSanitizeField(val);
+      line += csvSanitizeField(utf8ToCp437(val)); // page sends UTF-8, the device font needs CP437
       if (i < 14) line += ",";
     }
     f.println(line);

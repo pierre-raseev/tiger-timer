@@ -113,6 +113,7 @@
 #include <ArduinoJson.h>
 #include "tigertimer_qrcode.h" // vendored QR encoder (see tigertimer_qrcode.h/.c) - avoids a name collision
                              // with the ESP32 core's own bundled qrcode.h (used for WiFi provisioning)
+#include "cp437_utf8.h" // CP437 <-> UTF-8 conversion for the Remote Config web page (web_config.ino)
 #include <math.h> // roundf(), used when drawing the WiFi QR code at an arbitrary pixel size // Library Manager: "ArduinoJson" by Benoit Blanchon - used only by the
                           // Config Mode web server (web_config.ino) to parse/build the config page's requests
 
