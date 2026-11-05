@@ -814,8 +814,9 @@ const char* const MORSE_TABLE[26] = {
 // Each word's total dot/dash count (summed across its letters) was checked to land between
 // 10 and 15 - the "10 to 15 presses" requirement - see the constant SIMON_MAX_LENGTH below.
 // Every letter's code also fits its on-screen column (128px / letter count) on the Ready screen.
-// Short, everyday English words (animals, food, nature, toys, home, vehicles...) - 136 in all.
-const char* const SIMON_WORDS[] = {
+// Short, everyday words (animals, food, nature, toys, home, vehicles...), one pool per language;
+// the game uses the pool of the currently selected language. English: 136 words.
+const char* const SIMON_WORDS_EN[] = {
   "TIGER", "SNAKE", "PARTY", "BOMB", "CHESS", "DICE", "PLAY", "QUIZ", "LOSE", "BUZZ", "ROLL",
   "PASS", "MORSE", "SIMON", "TETRIS", "DROP", "FISH", "BIRD", "FROG", "BEAR", "LION", "WOLF",
   "DUCK", "COW", "FOX", "OWL", "MOUSE", "HORSE", "SHEEP", "ZEBRA", "PANDA", "KOALA", "CAMEL",
@@ -830,7 +831,38 @@ const char* const SIMON_WORDS[] = {
   "KING", "QUEEN", "CROWN", "FIVE", "ZERO", "LOVE", "HUG", "KISS", "CLUB", "GOAL", "FAST", "SLOW",
   "COLD"
 };
-const int SIMON_WORD_COUNT = sizeof(SIMON_WORDS) / sizeof(SIMON_WORDS[0]);
+// French and Spanish pools follow the same two rules, and only use words that are spelled
+// without accents (the Morse alphabet here is plain A-Z, so an accented word would show wrong).
+const char* const SIMON_WORDS_FR[] = {
+  "TIGRE", "BOMBE", "JOUER", "QUIZ", "PERDU", "GAGNE", "MORSE", "SIMON", "CHAT", "CHIEN", "OISEAU",
+  "LAPIN", "OURS", "LION", "LOUP", "VACHE", "RENARD", "MOUTON", "PANDA", "KOALA", "CRABE", "LAMA",
+  "SINGE", "TORTUE", "POULE", "LUNE", "PLUIE", "NUAGE", "ORAGE", "CIEL", "LAC", "ARBRE", "ROSE",
+  "FLEUR", "HERBE", "SABLE", "PLAGE", "VAGUE", "GLACE", "POMME", "POIRE", "PRUNE", "MANGUE",
+  "MELON", "RAISIN", "PAIN", "SOUPE", "OEUF", "SUCRE", "JUS", "LIVRE", "CARTE", "JOUET", "ROBOT",
+  "RADIO", "PIANO", "DANSE", "SAUTER", "NAGER", "LIRE", "DESSIN", "MAISON", "PORTE", "TABLE",
+  "LAMPE", "TASSE", "BOL", "MANTEAU", "BUS", "TRAIN", "AVION", "ROUGE", "BLEU", "NOIR", "JAUNE",
+  "MAGIE", "BISOU", "CLUB", "LOUPE", "JOUR", "SOIR", "HIVER", "ROND", "COEUR", "DOUX", "FORT",
+  "KIWI", "OLIVE", "TOMATE", "NOIX", "ORANGE", "STYLO", "GOMME", "PONT", "ROUTE", "VILLE", "PARC",
+  "PLUME", "TAPIS", "GUITARE", "JOIE", "CALIN", "DODO", "PAPA", "MAMAN", "TONTON", "BRAS", "PIED",
+  "YEUX", "DOIGT"
+};
+const char* const SIMON_WORDS_ES[] = {
+  "TIGRE", "BOMBA", "DADOS", "JUGAR", "GANAR", "MORSE", "SIMON", "PERRO", "LOBO", "PATO", "VACA",
+  "CERDO", "ABEJA", "OVEJA", "CEBRA", "PANDA", "KOALA", "FOCA", "LLAMA", "MONO", "CABRA", "SOL",
+  "LUNA", "NIEVE", "NUBE", "CIELO", "LAGO", "ROCA", "HOJA", "ROSA", "FLOR", "ARENA", "FUEGO",
+  "HIELO", "PERA", "MANGO", "FRESA", "PASTA", "LECHE", "SOPA", "ARROZ", "HUEVO", "DULCE", "QUESO",
+  "JUGO", "CARTA", "ROBOT", "RADIO", "PIANO", "BAILE", "NADAR", "CASA", "CAMA", "SILLA", "RELOJ",
+  "LLAVE", "CAJA", "BOL", "TENEDOR", "GORRO", "BUS", "BICI", "ROJO", "AZUL", "VERDE", "NEGRO",
+  "MAGIA", "REINA", "AMIGO", "BESO", "CLUB", "GOL", "JUEGO", "NOCHE", "TARDE", "FELIZ", "RISA",
+  "HOLA", "KIWI", "TOMATE", "OLIVA", "NUEZ", "ERIZO", "MOSCA", "GOMA", "ISLA", "CALLE", "PLUMA",
+  "VELA", "TESORO", "BOCA", "DEDO", "OJOS", "NARIZ", "PELO", "DIENTE"
+};
+const char* const* const SIMON_WORDS_BY_LANG[LANG_COUNT] = {SIMON_WORDS_EN, SIMON_WORDS_FR, SIMON_WORDS_ES};
+const int SIMON_WORD_COUNT_BY_LANG[LANG_COUNT] = {
+  sizeof(SIMON_WORDS_EN) / sizeof(SIMON_WORDS_EN[0]),
+  sizeof(SIMON_WORDS_FR) / sizeof(SIMON_WORDS_FR[0]),
+  sizeof(SIMON_WORDS_ES) / sizeof(SIMON_WORDS_ES[0])
+};
 const int SIMON_MAX_LENGTH = 15; // longest any word's flattened dot/dash sequence can be
 
 const int SIMON_READY     = 0; // showing the chosen word, waiting to start
@@ -844,6 +876,7 @@ int simonSequence[SIMON_MAX_LENGTH]; // 0 = dot (short press), 1 = dash (long pr
 int simonSequenceLength = 0;         // total symbols in the current word
 int simonRound = 0;                  // how many symbols the player must currently repeat (1..simonSequenceLength)
 int simonInputIndex = 0;             // how many correct presses received so far this round
+int simonLastWordIndex = -1;         // never pick the same word twice in a row
 char simonWord[16] = "";             // the chosen word, for display
 int simonLetterEndIndex[15];         // cumulative symbol count once each letter is complete (parallel to simonWord)
 int simonLetterCount = 0;            // how many letters simonLetterEndIndex actually covers
@@ -1225,7 +1258,8 @@ void setup() {
 // ---------------- Bench-test only (never in a normal build): drive the toothbrush screen over
 // USB serial and dump the OLED buffer as text, so a computer can check the drawing without
 // eyes on the panel. t = open Toothbrush, p = arcade press, f = skip 20s ahead, d = dump,
-// m = list the visible menu, w = 10 SimpleMorse word picks. ----------------
+// m = list the visible menu, w = 10 SimpleMorse word picks,
+// L = cycle the language in RAM only (not saved). ----------------
 void testSerialCommands() {
   while (Serial.available()) {
     char c = Serial.read();
@@ -1243,6 +1277,7 @@ void testSerialCommands() {
       for (int i = 0; i < 10; i++) { simonNewSequence(); Serial.printf(" %s(%d)", simonWord, simonSequenceLength); }
       Serial.println();
     }
+    else if (c == 'L') { currentLanguage = (currentLanguage + 1) % LANG_COUNT; simonLastWordIndex = -1; Serial.printf("[lang] %d (RAM only, not saved)\n", currentLanguage); }
     else if (c == 'd') {
       Serial.println("[dump begin]");
       for (int y = 0; y < SCREEN_HEIGHT; y++) {
@@ -2526,12 +2561,14 @@ void updateSnake() {
 // ---------------- Picks a random word and flattens its Morse code into a single dot/dash
 // sequence (letter boundaries aren't preserved - the whole word is one continuous pattern to
 // repeat, matching how the "10 to 15 presses" requirement was specified). ----------------
-int simonLastWordIndex = -1; // never pick the same word twice in a row
 void simonNewSequence() {
-  int idx = random(0, SIMON_WORD_COUNT);
-  if (idx == simonLastWordIndex) idx = (idx + 1 + random(0, SIMON_WORD_COUNT - 1)) % SIMON_WORD_COUNT;
+  int lang = constrain(currentLanguage, 0, LANG_COUNT - 1);
+  const char* const* words = SIMON_WORDS_BY_LANG[lang];
+  int count = SIMON_WORD_COUNT_BY_LANG[lang];
+  int idx = random(0, count);
+  if (idx == simonLastWordIndex) idx = (idx + 1 + random(0, count - 1)) % count;
   simonLastWordIndex = idx;
-  strncpy(simonWord, SIMON_WORDS[idx], sizeof(simonWord) - 1);
+  strncpy(simonWord, words[idx], sizeof(simonWord) - 1);
   simonWord[sizeof(simonWord) - 1] = '\0';
 
   simonSequenceLength = 0;

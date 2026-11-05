@@ -651,10 +651,17 @@ trick.
 A Simon-Says-style memory game where the growing pattern to repeat is Morse code — short
 presses (dots) and long presses (dashes) — for a randomly chosen word, rather than colors.
 - **Word selection:** on entering the game (and on each replay), one word is chosen at random
-  from a fixed pool of **136 short, everyday English words** (`SIMON_WORDS[]` — animals, food,
-  nature, toys and music, home objects, vehicles, colours, fun words; 3–6 letters, e.g. COW, FOX,
-  LION, MANGO, ROBOT, TRAIN, GHOST, TETRIS). The same word is never
-  picked twice in a row. Every word is pre-verified to meet two rules:
+  from a fixed pool of short, everyday words **in the currently selected language** — animals,
+  food, nature, toys and music, home objects, vehicles, colours, fun words, 3–7 letters:
+  - English: 136 words (`SIMON_WORDS_EN[]`, e.g. COW, FOX, LION, MANGO, ROBOT, TRAIN, GHOST);
+  - French: 110 words (`SIMON_WORDS_FR[]`, e.g. CHAT, LAPIN, POMME, MAISON, NUAGE, BISOU);
+  - Spanish: 96 words (`SIMON_WORDS_ES[]`, e.g. PERRO, LUNA, QUESO, CASA, FUEGO, AMIGO).
+
+  French and Spanish only use words that are spelled **without accents** (the Morse alphabet is
+  plain A–Z, so e.g. ZÈBRE, VÉLO, LEÓN, RATÓN are deliberately left out rather than shown
+  wrong). The word is picked when a round is set up, so changing the language changes the
+  pool from the next word on. The same word is never picked twice in a row. Every word in all
+  three pools is pre-verified to meet two rules:
   - flattened into International Morse code across all its letters (letter boundaries aren't
     preserved as gaps — the whole word is one continuous dot/dash sequence to repeat), it totals
     **between 10 and 15 symbols** (`SIMON_MAX_LENGTH`=15 is the hard cap on sequence length);
