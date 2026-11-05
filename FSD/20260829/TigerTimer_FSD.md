@@ -103,9 +103,21 @@ and persisted across power cycles.
   sleep. (Deep sleep is the *software-controlled* low-power state used automatically after
   inactivity; the physical switch is a full hardware disconnect for storage/shipping.)
 - **Deep sleep wake source:** `esp_sleep_enable_ext1_wakeup` on the arcade button pin
-  (`ESP_EXT1_WAKEUP_ANY_LOW`), with the RTC peripheral power domain kept on so the button's
-  internal pull-up stays reliable through sleep. Waking from deep sleep is a full reboot (runs
-  `setup()` again), not a resume-from-RAM.
+  (`ESP_EXT1_WAKEUP_ANY_LOW`). Waking from deep sleep is a full reboot (runs `setup()` again),
+  not a resume-from-RAM.
+- **Wake pin pull-up, learned the hard way:** for sleep the pin is handed to the chip's
+  low-power (RTC/LP) IO block, which has its **own** pull-up — the `INPUT_PULLUP` from `setup()`
+  is the normal digital one and does not carry over. So before sleeping the firmware explicitly
+  enables the LP pull-up on the pin (`rtc_gpio_init` / `rtc_gpio_pullup_en`, pull-down off) and
+  keeps the RTC peripheral power domain on so it stays powered. Without this the pin floated
+  LOW and the board woke — rebooting, startup chime included — the instant it went to sleep
+  after 30 idle minutes. On boot `setup()` hands the pin back to the normal GPIO
+  (`rtc_gpio_hold_dis` + `rtc_gpio_deinit`) before `pinMode`.
+- **Bench-testing sleep:** two build-time flags exist only for testing, never set in a normal
+  build: `TT_DEEP_SLEEP_TIMEOUT_MS` overrides the 30-minute timeout (e.g. 20000), and
+  `TT_SLEEP_TEST_TIMER_WAKE_S` adds a timer wake so a test can watch the board stay asleep and
+  come back by itself. Pass them via
+  `--build-property "compiler.cpp.extra_flags=-DTT_DEEP_SLEEP_TIMEOUT_MS=20000UL -DTT_SLEEP_TEST_TIMER_WAKE_S=40"`.
 
 ---
 
@@ -118,9 +130,12 @@ and persisted across power cycles.
    first-ever boot if unformatted.
 4. Initialize the display, encoder pins, button pin, buzzer PWM channel. Then print a one-line
    boot summary on USB serial (115200 baud), e.g.
-   `[boot] Tiger Timer - OLED ok, LittleFS ok (272/1408 KB used), config.html present, sports_junior.csv present, lang=1`
+   `[boot] Tiger Timer - reset=11 wake=0, OLED ok, LittleFS ok (272/1408 KB used), config.html present, sports_junior.csv present, lang=1`
    — so a connected computer can confirm a healthy boot, and that the data files are present,
-   without looking at the screen.
+   without looking at the screen. `reset` is `esp_reset_reason()` (1 power-on, 3 software,
+   4 crash, 8 deep-sleep wake, 9 brown-out, 11 USB) and `wake` is
+   `esp_sleep_get_wakeup_cause()` (0 not a sleep wake, 3 ext1 = button, 4 timer), which shows
+   at a glance whether an unexpected reboot was a sleep wake, a crash or a power dip.
 5. Play the boot splash animation (§4.1) — **unless the arcade button is held down**, in which
    case the splash is skipped entirely and the device proceeds straight to step 6. (See §3.6 for
    why this is button-debounce-safe.)

@@ -107,6 +107,7 @@
 #include <Preferences.h>
 #include <LittleFS.h>
 #include "esp_sleep.h"
+#include "driver/rtc_io.h" // LP-IO pull-up for the deep-sleep wake pin
 #include <WiFi.h>
 #include <WebServer.h>
 #include <DNSServer.h> // used by web_config.ino for the captive-portal redirect
@@ -937,7 +938,10 @@ const int REFLEX_WIN_LENGTH = 4;
 
 // ---- Power management: screen sleeps after inactivity, unless something time-critical is happening ----
 const unsigned long SCREEN_TIMEOUT_MS = 5UL * 60UL * 1000UL;      // 5 minutes: OLED off
-const unsigned long DEEP_SLEEP_TIMEOUT_MS = 30UL * 60UL * 1000UL; // 30 minutes: full chip deep sleep
+#ifndef TT_DEEP_SLEEP_TIMEOUT_MS // build-time override, only for bench-testing sleep without waiting 30 min
+#define TT_DEEP_SLEEP_TIMEOUT_MS (30UL * 60UL * 1000UL)
+#endif
+const unsigned long DEEP_SLEEP_TIMEOUT_MS = TT_DEEP_SLEEP_TIMEOUT_MS; // 30 minutes: full chip deep sleep
 unsigned long lastActivityTime = 0;
 bool screenAsleep = false;
 
@@ -1132,6 +1136,10 @@ void drawVolumeIconAt(int x, int y);
 void drawVolumeOverlay();
 
 void setup() {
+  // After a deep-sleep wake the button pin is still owned by the LP-IO block (see enterDeepSleep) -
+  // hand it back to the normal GPIO matrix before configuring it, or digitalRead() can't see it.
+  rtc_gpio_hold_dis((gpio_num_t)digitalPinToGPIONumber(BUTTON_PIN));
+  rtc_gpio_deinit((gpio_num_t)digitalPinToGPIONumber(BUTTON_PIN));
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(BUTTON_LED, OUTPUT);
   ledcAttach(BUZZER_PIN, 2000, BUZZER_PWM_BITS); // attach buzzer to LEDC so duty (volume) is controllable
@@ -1174,7 +1182,8 @@ void setup() {
 
   // One-line boot summary on USB serial - lets a connected computer confirm a healthy boot
   // (and that the trivia data / config page are present) without looking at the screen.
-  Serial.printf("[boot] Tiger Timer - OLED %s, LittleFS %s (%u/%u KB used), config.html %s, sports_junior.csv %s, lang=%d\n",
+  Serial.printf("[boot] Tiger Timer - reset=%d wake=%d, OLED %s, LittleFS %s (%u/%u KB used), config.html %s, sports_junior.csv %s, lang=%d\n",
+                (int)esp_reset_reason(), (int)esp_sleep_get_wakeup_cause(),
                 oledOk ? "ok" : "MISSING", fsOk ? "ok" : "FAILED",
                 fsOk ? (unsigned)(LittleFS.usedBytes() / 1024) : 0u, fsOk ? (unsigned)(LittleFS.totalBytes() / 1024) : 0u,
                 (fsOk && LittleFS.exists("/config.html")) ? "present" : "missing",
@@ -1300,8 +1309,21 @@ void enterDeepSleep() {
   display.oled_command(SH110X_DISPLAYOFF);
   prefs.end();
 
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON); // keeps the button's internal pull-up reliable through sleep
-  esp_sleep_enable_ext1_wakeup(1ULL << BUTTON_PIN, ESP_EXT1_WAKEUP_ANY_LOW);
+  // ext1 hands the pin over to the low-power (RTC/LP) IO block for sleep, which has its OWN
+  // pull-up/pull-down - the pinMode(INPUT_PULLUP) set in setup() is the digital one and doesn't
+  // carry over. Without enabling the LP pull-up here the pin floats, reads LOW, and the chip
+  // wakes (= reboots, chime and all) the instant it goes to sleep. The RTC_PERIPH domain stays
+  // on so that pull-up stays powered through sleep.
+  gpio_num_t wakePin = (gpio_num_t)digitalPinToGPIONumber(BUTTON_PIN);
+  rtc_gpio_init(wakePin);
+  rtc_gpio_set_direction(wakePin, RTC_GPIO_MODE_INPUT_ONLY);
+  rtc_gpio_pulldown_dis(wakePin);
+  rtc_gpio_pullup_en(wakePin);
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+  esp_sleep_enable_ext1_wakeup(1ULL << wakePin, ESP_EXT1_WAKEUP_ANY_LOW);
+#ifdef TT_SLEEP_TEST_TIMER_WAKE_S // bench-test only: also wake on a timer, so a test can confirm the chip stays asleep then comes back
+  esp_sleep_enable_timer_wakeup((uint64_t)TT_SLEEP_TEST_TIMER_WAKE_S * 1000000ULL);
+#endif
   esp_deep_sleep_start();
 }
 
