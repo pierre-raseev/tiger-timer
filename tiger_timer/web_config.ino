@@ -16,6 +16,12 @@ const byte DNS_PORT = 53;
 const char* CONFIG_AP_SSID = "TigerTimer-Config"; // open network - no password, so phones can captive-portal straight in
 String configApIpStr; // set in enterConfigMode(), used to build the captive-portal redirect target
 
+// Config Mode auto-exit (see enterConfigMode()) - it blocks normal screen/deep sleep, so it must
+// end on its own when abandoned.
+const unsigned long CONFIG_NO_CLIENT_TIMEOUT_MS  = 5UL * 60UL * 1000UL;  // nobody connected for 5 min
+const unsigned long CONFIG_NO_REQUEST_TIMEOUT_MS = 30UL * 60UL * 1000UL; // connected but no request for 30 min
+unsigned long configLastRequestMs = 0; // stamped at the top of every route handler below
+
 // Same category/level naming used by the trivia game itself (triviaFilePath) - kept in sync manually
 // since they're in different tabs of the same sketch.
 const char* CONFIG_TRIVIA_CATEGORIES[TRIVIA_REAL_CATEGORY_COUNT] = {"sports", "geography", "science", "history", "general", "mythology", "art", "animals"};
@@ -150,6 +156,7 @@ String csvSanitizeField(const String& in) {
 
 // ---------------- Route: GET / - serves the config page itself from LittleFS ----------------
 void handleConfigRoot() {
+  configLastRequestMs = millis(); // any request counts as "someone is using Config Mode" - see enterConfigMode()
   File f = LittleFS.open("/config.html", "r");
   if (!f) {
     configServer.send(500, "text/plain", "config.html not found on LittleFS. Did you upload the data folder?");
@@ -162,6 +169,7 @@ void handleConfigRoot() {
 // ---------------- Route: GET /api/config - current menu order, startup choice, default timer, and
 // the static list of games/categories/levels the page needs to build its UI ----------------
 void handleGetConfig() {
+  configLastRequestMs = millis(); // any request counts as "someone is using Config Mode" - see enterConfigMode()
   JsonDocument doc;
 
   JsonArray menu = doc["menuOrder"].to<JsonArray>();
@@ -212,6 +220,7 @@ void handleGetConfig() {
 
 // ---------------- Route: POST /api/config - saves menu order / startup choice / default timer ----------------
 void handlePostConfig() {
+  configLastRequestMs = millis(); // any request counts as "someone is using Config Mode" - see enterConfigMode()
   if (!configServer.hasArg("plain")) {
     configServer.send(400, "application/json", "{\"ok\":false,\"error\":\"missing body\"}");
     return;
@@ -313,6 +322,7 @@ void handlePostConfig() {
 
 // ---------------- Route: GET /api/trivia?category=..&level=.. - returns that CSV's rows as JSON ----------------
 void handleGetTrivia() {
+  configLastRequestMs = millis(); // any request counts as "someone is using Config Mode" - see enterConfigMode()
   if (!configServer.hasArg("category") || !configServer.hasArg("level")) {
     configServer.send(400, "application/json", "{\"ok\":false,\"error\":\"missing category/level\"}");
     return;
@@ -371,6 +381,7 @@ void handleGetTrivia() {
 // often silently does nothing. Downloads whatever's currently saved on the device - hit "Save
 // questions" first if you've made edits you want included. ----------------
 void handleGetTriviaCsv() {
+  configLastRequestMs = millis(); // any request counts as "someone is using Config Mode" - see enterConfigMode()
   if (!configServer.hasArg("category") || !configServer.hasArg("level")) {
     configServer.send(400, "text/plain", "missing category/level");
     return;
@@ -412,6 +423,7 @@ void handleGetTriviaCsv() {
 // resets that one game's persisted high score to 0. A dedicated endpoint rather than folding this
 // into POST /api/config, since it's a one-shot action, not a settings save. ----------------
 void handleResetHighScore() {
+  configLastRequestMs = millis(); // any request counts as "someone is using Config Mode" - see enterConfigMode()
   if (!configServer.hasArg("plain")) {
     configServer.send(400, "application/json", "{\"ok\":false,\"error\":\"missing body\"}");
     return;
@@ -442,6 +454,7 @@ void handleResetHighScore() {
 
 // ---------------- Route: POST /api/trivia?category=..&level=.. - rewrites that CSV from submitted rows ----------------
 void handlePostTrivia() {
+  configLastRequestMs = millis(); // any request counts as "someone is using Config Mode" - see enterConfigMode()
   if (!configServer.hasArg("category") || !configServer.hasArg("level") || !configServer.hasArg("plain")) {
     configServer.send(400, "application/json", "{\"ok\":false,\"error\":\"missing category/level/body\"}");
     return;
@@ -496,6 +509,7 @@ void handlePostTrivia() {
 // with our own IP, this is what makes phones pop the page open automatically on connect,
 // instead of needing you to type the address in by hand.
 void handleConfigNotFound() {
+  configLastRequestMs = millis(); // any request counts as "someone is using Config Mode" - see enterConfigMode()
   configServer.sendHeader("Location", "http://" + configApIpStr + "/", true);
   configServer.send(302, "text/plain", "");
 }
@@ -575,27 +589,46 @@ void enterConfigMode() {
 
   configDns.start(DNS_PORT, "*", ip); // answers every DNS lookup with our own IP
 
-  configServer.on("/", HTTP_GET, handleConfigRoot);
-  configServer.on("/api/config", HTTP_GET, handleGetConfig);
-  configServer.on("/api/config", HTTP_POST, handlePostConfig);
-  configServer.on("/api/trivia", HTTP_GET, handleGetTrivia);
-  configServer.on("/api/trivia", HTTP_POST, handlePostTrivia);
-  configServer.on("/api/trivia/csv", HTTP_GET, handleGetTriviaCsv);
-  configServer.on("/api/reset-highscore", HTTP_POST, handleResetHighScore);
-  configServer.onNotFound(handleConfigNotFound); // also serves as the captive-portal redirect
+  // Routes are registered once per boot: WebServer keeps its handler list across stop()/begin(),
+  // and calling on() again on every visit would just append duplicate handlers (leaking memory).
+  static bool routesRegistered = false;
+  if (!routesRegistered) {
+    configServer.on("/", HTTP_GET, handleConfigRoot);
+    configServer.on("/api/config", HTTP_GET, handleGetConfig);
+    configServer.on("/api/config", HTTP_POST, handlePostConfig);
+    configServer.on("/api/trivia", HTTP_GET, handleGetTrivia);
+    configServer.on("/api/trivia", HTTP_POST, handlePostTrivia);
+    configServer.on("/api/trivia/csv", HTTP_GET, handleGetTriviaCsv);
+    configServer.on("/api/reset-highscore", HTTP_POST, handleResetHighScore);
+    configServer.onNotFound(handleConfigNotFound); // also serves as the captive-portal redirect
+    routesRegistered = true;
+  }
   configServer.begin();
 
   drawConfigModeScreen(CONFIG_AP_SSID, configApIpStr.c_str());
 
-  // Blocking loop: nothing else needs to run while Config Mode is active. Exits on a press of
-  // either the arcade button or the encoder click (debounce isn't critical here - it's a
-  // one-shot exit signal either way).
+  // Blocking loop: nothing else needs to run while Config Mode is active (so normal screen/deep
+  // sleep can't run either). Exits on a press of either the arcade button or the encoder click,
+  // or automatically once nobody is using it - so a forgotten Config Mode can't keep WiFi and the
+  // screen on until the battery is flat:
+  //   - no phone/laptop connected to the access point for CONFIG_NO_CLIENT_TIMEOUT_MS, or
+  //   - no web request at all for CONFIG_NO_REQUEST_TIMEOUT_MS, even if something stays connected.
+  unsigned long lastClientSeenMs = millis();
+  configLastRequestMs = millis();
   while (digitalRead(BUTTON_PIN) == HIGH && digitalRead(ENCODER_SW) == HIGH) {
     configDns.processNextRequest();
     configServer.handleClient();
+    if (WiFi.softAPgetStationNum() > 0) lastClientSeenMs = millis();
+    if (millis() - lastClientSeenMs >= CONFIG_NO_CLIENT_TIMEOUT_MS) break;
+    if (millis() - configLastRequestMs >= CONFIG_NO_REQUEST_TIMEOUT_MS) break;
     delay(2);
   }
-  delay(250); // let the press settle so it isn't also seen as a button event once we're back in loop()
+
+  // Wait for whichever button ended it to be fully released (plus a settle delay), same idea as
+  // the splash skip (FSD 3.6): a fixed delay alone let a slightly-long exit press still be down
+  // when loop() resumed, which read it as a fresh click and reopened Settings.
+  while (digitalRead(BUTTON_PIN) == LOW || digitalRead(ENCODER_SW) == LOW) delay(2);
+  delay(50);
 
   configServer.stop();
   configDns.stop();

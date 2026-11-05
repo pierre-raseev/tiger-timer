@@ -688,7 +688,16 @@ rightward, specifically so the two icons read as visually related.
 - The on-device screen while Remote Config is active shows a QR code (encoding the standard
   `WIFI:T:nopass;S:TigerTimer-Config;;` join-network format, scannable by any phone camera app)
   plus the SSID and IP as text fallback.
-- Exits back to the Settings screen on either physical button.
+- Exits back to the Settings screen on either physical button. On exit the firmware waits for
+  that button to be fully released (plus a ~50ms settle) before returning to the main loop —
+  same reasoning as the splash skip (§3.6): otherwise a slightly long exit press is still down
+  when the main loop's debounce starts and gets read as a fresh click.
+- **Auto-exit when abandoned:** Remote Config runs its own blocking loop, so the normal screen-
+  and deep-sleep timers (§3.3) can't run while it's active. To stop a forgotten session keeping
+  WiFi and the screen on until the battery dies, it exits on its own (exactly as if a button
+  had been pressed) after **5 minutes with no device connected to the access point**, or after
+  **30 minutes with no web request at all** even if something stays connected. Normal sleep
+  timing resumes from there.
 
 ### 7.2 Web Page Feature Set
 A single-page web app served from the device itself (no internet connection needed or used —
