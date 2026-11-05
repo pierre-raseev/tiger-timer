@@ -116,7 +116,11 @@ and persisted across power cycles.
 2. Load all persisted settings from flash (see §3.5 for the full key list).
 3. Mount the filesystem used for trivia question data (LittleFS); format it automatically on
    first-ever boot if unformatted.
-4. Initialize the display, encoder pins, button pin, buzzer PWM channel.
+4. Initialize the display, encoder pins, button pin, buzzer PWM channel. Then print a one-line
+   boot summary on USB serial (115200 baud), e.g.
+   `[boot] Tiger Timer - OLED ok, LittleFS ok (272/1408 KB used), config.html present, sports_junior.csv present, lang=1`
+   — so a connected computer can confirm a healthy boot, and that the data files are present,
+   without looking at the screen.
 5. Play the boot splash animation (§4.1) — **unless the arcade button is held down**, in which
    case the splash is skipped entirely and the device proceeds straight to step 6. (See §3.6 for
    why this is button-debounce-safe.)

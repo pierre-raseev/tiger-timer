@@ -1161,14 +1161,25 @@ void setup() {
   remainingTime = defaultTimerSeconds;
   runStartTime = defaultTimerSeconds;
 
-  if (!LittleFS.begin(true)) { // true = format if mount fails (e.g. first run)
+  bool fsOk = LittleFS.begin(true); // true = format if mount fails (e.g. first run)
+  if (!fsOk) {
     Serial.println("LittleFS mount failed - trivia questions won't load. Did you upload the data folder?");
   }
 
   Wire.begin(D4, D5); // SDA, SCL
-  if (!display.begin(OLED_I2C_ADDR, true)) {
+  bool oledOk = display.begin(OLED_I2C_ADDR, true);
+  if (!oledOk) {
     Serial.println("OLED not found - check wiring/address");
   }
+
+  // One-line boot summary on USB serial - lets a connected computer confirm a healthy boot
+  // (and that the trivia data / config page are present) without looking at the screen.
+  Serial.printf("[boot] Tiger Timer - OLED %s, LittleFS %s (%u/%u KB used), config.html %s, sports_junior.csv %s, lang=%d\n",
+                oledOk ? "ok" : "MISSING", fsOk ? "ok" : "FAILED",
+                fsOk ? (unsigned)(LittleFS.usedBytes() / 1024) : 0u, fsOk ? (unsigned)(LittleFS.totalBytes() / 1024) : 0u,
+                (fsOk && LittleFS.exists("/config.html")) ? "present" : "missing",
+                (fsOk && LittleFS.exists("/sports_junior.csv")) ? "present" : "missing",
+                currentLanguage);
   display.setRotation(0);
   display.cp437(true); // use the corrected CP437 character mapping, needed for accented characters
 
