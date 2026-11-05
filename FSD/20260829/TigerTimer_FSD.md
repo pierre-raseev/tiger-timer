@@ -334,6 +334,13 @@ A reaction-time light/buzzer game.
   large text for a fixed display duration (`FALSE_START_DISPLAY_MS` = 1500ms), with no bomb
   icon shown afterward — just the text, purely a shared visual effect for the "you failed"
   moment, not a bomb-themed feature in this game.
+- **The false start fires on the press itself (button going down), not on release** — the one
+  exception to "arcade button acts on release". That press is then consumed, so its release
+  does nothing. Reason (a real bug once): if the false start were judged on release, holding the
+  button down from before the light until after it turned on would be processed as a hit in the
+  lit state, scoring a negative reaction time that became the new best. As a second safety net,
+  any hit whose press timestamp is earlier than the light-on timestamp is treated as a false
+  start.
 
 ### 5.3 Dice
 Rolls 1–5 dice of a chosen type.

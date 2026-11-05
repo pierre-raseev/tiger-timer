@@ -583,6 +583,8 @@ int buttonState       = HIGH; // confirmed/debounced state
 unsigned long lastButtonEdgeTime = 0;
 const unsigned long BUTTON_DEBOUNCE_MS = 20; // raised back up from 10ms after flaky/double-trigger behavior
 unsigned long buttonPressStart = 0;
+bool buttonPressConsumed = false; // true once this press already did its job on the way DOWN (e.g. a Reflex
+                                  // false start, or waking the screen) - its release then dispatches nothing
 
 // encoder state
 int lastClkState;
@@ -1040,6 +1042,7 @@ void drawRotateIcon(int cx, int cy, int r, uint16_t color);
 void drawTurnOrderIcon(int cx, int cy, int r, uint16_t color);
 void drawStopwatchIcon(int cx, int cy, int r, uint16_t color);
 bool tryConfirmSelectionScreens();
+bool inGameScreen();
 void leaveToMenu();
 void openLeaveConfirm();
 void confirmLeaveConfirmSelection();
@@ -2819,6 +2822,12 @@ bool tryConfirmSelectionScreens() {
   return false;
 }
 
+// ---------------- True when a game's own screen is showing - not the menu, Settings, a picker,
+// Instructions, or the leave-confirm dialog drawn over the game ----------------
+bool inGameScreen() {
+  return !inMenu && !inLeaveConfirm && !inInstructions && !inSettingsMenu && !inLanguageSelect && !inTimerStepSelect;
+}
+
 // ---------------- Leaves whatever's currently happening and jumps to the main game list, pausing
 // or resetting anything in progress so nothing is lost or left in a stuck state. Only called after
 // the user has confirmed via the "Go back to menu?" dialog (see openLeaveConfirm/confirmLeaveConfirmSelection). ----------------
@@ -2959,7 +2968,14 @@ void readButton() {
       if (buttonState == LOW) {
         registerActivity();
         buttonPressStart = millis(); // also used by the Reflex game to measure reaction time
-        if (currentGame == GAME_SIMPLEMORSE && simonState == SIMON_INPUT) {
+        buttonPressConsumed = false;
+        if (currentGame == GAME_REFLEX && reflexState == REFLEX_WAITING && inGameScreen()) {
+          // A false start has to be judged the instant the button goes DOWN. Every other press
+          // dispatches on release, and if this one did too, holding the button through the
+          // light coming on would land in REFLEX_LIT and score a negative "reaction time".
+          buttonPressConsumed = true;
+          handleReflexButtonPress();
+        } else if (currentGame == GAME_SIMPLEMORSE && simonState == SIMON_INPUT) {
           startTone(1000); // one constant pitch for the whole hold - duration is what tells dot from dash, not a pitch change
           digitalWrite(BUTTON_LED, HIGH);
         }
@@ -2975,7 +2991,8 @@ void readButton() {
         if (currentGame == GAME_SIMPLEMORSE) {
           digitalWrite(BUTTON_LED, LOW);
         }
-        dispatchButtonShortPress();
+        if (!buttonPressConsumed) dispatchButtonShortPress();
+        buttonPressConsumed = false;
       }
     }
   }
@@ -3386,6 +3403,11 @@ void playSplashScreen() {
 
 // ---------------- Reflex game: handles a button press depending on the current round state ----------------
 void handleReflexButtonPress() {
+  // Defensive: a press that started before the light came on is a false start, whatever state
+  // we're in by the time it's processed (readButton() already catches this on the press itself).
+  if (reflexState == REFLEX_LIT && (long)(buttonPressStart - reflexLightOnTime) < 0) {
+    reflexState = REFLEX_WAITING;
+  }
   if (reflexState == REFLEX_WAITING) {
     // pressed before the light came on
     digitalWrite(BUTTON_LED, LOW);
