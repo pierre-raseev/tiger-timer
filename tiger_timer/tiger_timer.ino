@@ -598,6 +598,7 @@ const unsigned long SW_DEBOUNCE_MS = 40;
 bool swClaimedByVolume = false; // true once a rotation-while-held adjusts volume, so release doesn't also fire a click
 unsigned long swPressStart = 0;
 bool swLongFired = false; // true once the 1s hold has already opened/closed the menu, so release doesn't also fire a click
+bool swWakeConsumed = false; // true when this hold woke the sleeping screen - it then fires no click or long-press
 const unsigned long ENCODER_LONG_PRESS_MS = 1000;
 
 // ---- Reflex game state ----
@@ -933,7 +934,7 @@ bool screenAsleep = false;
 int menuPositionForGame(int gameId);
 const char* menuLabelForGame(int gameId);
 const char* T(int stringId);
-void registerActivity();
+bool registerActivity();
 bool isTimeCriticalActive();
 void checkScreenSleep();
 void checkDeepSleep();
@@ -1217,13 +1218,17 @@ void loop() {
   checkDeepSleep();
 }
 
-// ---------------- Power management: call whenever real user input happens ----------------
-void registerActivity() {
+// ---------------- Power management: call whenever real user input happens. Returns true if this
+// input just woke a sleeping screen - input handlers then swallow that gesture, so a press or turn
+// made on a dark screen only wakes it instead of also doing something the user couldn't see. ----------------
+bool registerActivity() {
   lastActivityTime = millis();
   if (screenAsleep) {
     display.oled_command(SH110X_DISPLAYON);
     screenAsleep = false;
+    return true;
   }
+  return false;
 }
 
 // ---------------- Power management: true while a countdown, an armed reflex round, or a running chess clock is in progress ----------------
@@ -1279,7 +1284,10 @@ void readEncoder() {
   // Only act on the falling edge of CLK (HIGH -> LOW). A full detent toggles
   // CLK twice (once each direction), so reacting to every change double-counts.
   if (clkState == LOW && lastClkState == HIGH) {
-    registerActivity();
+    if (registerActivity()) { // this detent only woke the screen - don't also act on it
+      lastClkState = clkState;
+      return;
+    }
     int dtState = digitalRead(ENCODER_DT);
     int direction = (dtState == HIGH) ? 1 : -1; // +1 clockwise, -1 counter-clockwise
 
@@ -2966,10 +2974,12 @@ void readButton() {
       buttonState = raw;
 
       if (buttonState == LOW) {
-        registerActivity();
+        bool wokeScreen = registerActivity();
         buttonPressStart = millis(); // also used by the Reflex game to measure reaction time
-        buttonPressConsumed = false;
-        if (currentGame == GAME_REFLEX && reflexState == REFLEX_WAITING && inGameScreen()) {
+        buttonPressConsumed = wokeScreen; // a press that only woke the screen does nothing else
+        if (wokeScreen) {
+          // nothing else - see registerActivity()
+        } else if (currentGame == GAME_REFLEX && reflexState == REFLEX_WAITING && inGameScreen()) {
           // A false start has to be judged the instant the button goes DOWN. Every other press
           // dispatches on release, and if this one did too, holding the button through the
           // light coming on would land in REFLEX_LIT and score a negative "reaction time".
@@ -3016,7 +3026,7 @@ void readEncoderButton() {
 
       if (swState == LOW) {
         // just confirmed pressed - start timing for a possible long press
-        registerActivity();
+        swWakeConsumed = registerActivity(); // a hold that woke the screen fires neither click nor long-press
         swClaimedByVolume = false;
         swPressStart = millis();
         swLongFired = false;
@@ -3025,7 +3035,7 @@ void readEncoderButton() {
         // volume, and didn't already fire the long-press menu toggle
         if (swClaimedByVolume) {
           render(); // clear the full-screen volume overlay, back to the normal screen
-        } else if (!swLongFired) {
+        } else if (!swLongFired && !swWakeConsumed) {
           if (!tryConfirmSelectionScreens()) {
             if (currentGame == GAME_DICE && diceScreenState == DICE_SELECT_TYPE) {
               confirmDiceType();
@@ -3050,13 +3060,14 @@ void readEncoderButton() {
         }
         swClaimedByVolume = false;
         swLongFired = false;
+        swWakeConsumed = false;
       }
     }
   }
 
   // long-press: checked continuously while held, not just on release - and only if this hold
-  // hasn't already been claimed for a volume turn
-  if (swState == LOW && !swClaimedByVolume && !swLongFired && (millis() - swPressStart >= ENCODER_LONG_PRESS_MS)) {
+  // hasn't already been claimed for a volume turn (or used to wake the screen)
+  if (swState == LOW && !swClaimedByVolume && !swLongFired && !swWakeConsumed && (millis() - swPressStart >= ENCODER_LONG_PRESS_MS)) {
     swLongFired = true;
     toggleMenuFromLongPress();
   }

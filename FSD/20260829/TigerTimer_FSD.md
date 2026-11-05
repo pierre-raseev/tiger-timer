@@ -153,6 +153,12 @@ Two important interaction guarantees:
   stopwatch, an active trivia buzz-in window, a running toothbrush timer, an in-progress
   Tetris/Star Drop/Snake game, or SimpleMorse actively waiting for input) — those are never
   allowed to go dark mid-round. Any button/encoder activity wakes the screen immediately.
+  **The gesture that wakes the screen is consumed and does nothing else**: an arcade press that
+  wakes it fires no action on release, an encoder detent that wakes it doesn't move anything,
+  and an encoder hold that wakes it fires neither a click nor the 1-second long-press (turning
+  while still holding it does still adjust volume). Otherwise a press made on a dark screen —
+  where the user can't see what's highlighted — would restart a timer, arm a round or open a
+  menu entry blind.
 - **Deep sleep** (full chip shutdown, wakes via reboot): after 30 minutes of no activity, subject
   to the same "not time-critical" exemption. USB charging is unaffected by deep sleep, since the
   charge circuit is separate hardware (§2.6).
