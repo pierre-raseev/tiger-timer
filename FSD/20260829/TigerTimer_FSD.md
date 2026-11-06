@@ -651,6 +651,11 @@ A compact falling-block game, played with the whole device rotated 90°.
 - Both the Ready and Game Over screens show an inverted title bar at the top ("TETRIS" /
   translated "Game Over"), which automatically wraps to two lines if a translation is too wide
   for the rotated 64px width (this matters for at least French and Spanish "Game Over").
+- **Ready screen score line** (the last score, or the high score if no game has been played
+  yet) is **bottom-anchored**: the rotated 64px width fits only 10 characters per line, so a
+  translated label plus a 3–4 digit number ("Record: 123", "Score: 1234") wraps to two lines.
+  The line count is measured first and the block placed so its last line ends 3px above the
+  screen's bottom edge, keeping both lines fully on screen. Star Drop's Ready screen uses the same rule.
 
 ### 5.10 Star Drop
 A falling-catch game, also played rotated 90° (same rotation approach as Tetris).
@@ -680,6 +685,8 @@ A falling-catch game, also played rotated 90° (same rotation approach as Tetris
 - Same inverted-title-bar treatment and translation-safe wrapping as Tetris (§5.9) on both the
   Ready ("STAR DROP" — kept identical across all 3 languages, it's treated as a proper noun) and
   Game Over screens.
+- The Ready screen's high-score line is bottom-anchored the same way as Tetris's (§5.9), so a
+  wrapped "Record: 1234" stays fully on screen.
 
 ### 5.11 Snake
 A classic grid-based snake game, played in the normal (unrotated) orientation, since a wide

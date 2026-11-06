@@ -1134,6 +1134,8 @@ void drawToothbrushRunningScreen();
 void drawTetrisReadyScreen();
 int drawRotatedInvertedTitle(const char* title);
 int drawRotatedWrappedText(const char* text, int yStart, int lineHeight);
+int drawRotatedWrappedTextBottom(const char* text, int lineHeight);
+int layoutRotatedWrappedText(const char* text, int yStart, int lineHeight, bool draw);
 void drawTetrisPlayScreen();
 void drawTetrisGameOverScreen();
 void drawStarDropReadyScreen();
@@ -1353,6 +1355,8 @@ void testSerialCommands() {
     if (c == 't') { inMenu = false; currentGame = GAME_TOOTHBRUSH; initGameState(GAME_TOOTHBRUSH); render(); }
     else if (c == 'p') { if (currentGame == GAME_TOOTHBRUSH) handleToothbrushPress(); else dispatchButtonShortPress(); }
     else if (c == 'R') { inMenu = false; currentGame = GAME_STARDROP; initGameState(GAME_STARDROP); render(); }
+    else if (c == 'T') { inMenu = false; currentGame = GAME_TETRIS; initGameState(GAME_TETRIS); render(); }
+    else if (c == 'H') { stardropHighScore = 1234; tetrisHighScore = 1234; render(); } // RAM only - tests the wrapped score line
     else if (c == 'g' || c == 'h' || c == 'k' || c == 'c') { playGameSplashScreen(c == 'g' ? GAME_REFLEX : c == 'h' ? GAME_HOTPOTATO : c == 'k' ? GAME_CHESS : GAME_STOPWATCH); }
     else if (c == 'G') { // cycle through the newest animated splashes
       static const int GAMES[] = {GAME_TIMER, GAME_DICE, GAME_TRIVIA, GAME_TETRIS, GAME_SNAKE, GAME_PONG, GAME_SIMPLEMORSE};
@@ -5406,6 +5410,19 @@ int drawRotatedInvertedTitle(const char* title) {
 // fixed 128px SCREEN_WIDTH, so long translated strings wrap between words instead of mid-word.
 // Returns the number of lines drawn, so callers can space subsequent content accordingly. ----------------
 int drawRotatedWrappedText(const char* text, int yStart, int lineHeight) {
+  return layoutRotatedWrappedText(text, yStart, lineHeight, true);
+}
+
+// ---------------- Shared: same wrapped text, but bottom-anchored - counts the lines first, then
+// starts high enough that the last line clears the bottom edge by a 2px margin. Used
+// for the score line at the foot of the rotated start screens, where a translated label plus a
+// 3-4 digit number ("Record: 123") wraps to 2 lines and would otherwise run off the bottom. ----------------
+int drawRotatedWrappedTextBottom(const char* text, int lineHeight) {
+  int lines = layoutRotatedWrappedText(text, 0, lineHeight, false);
+  return layoutRotatedWrappedText(text, display.height() - 10 - (lines - 1) * lineHeight, lineHeight, true);
+}
+
+int layoutRotatedWrappedText(const char* text, int yStart, int lineHeight, bool draw) {
   display.setTextSize(1);
   display.setTextWrap(false);
   int rw = display.width();
@@ -5428,11 +5445,13 @@ int drawRotatedWrappedText(const char* text, int yStart, int lineHeight) {
     strncpy(lineBuf, text + pos, copyLen);
     lineBuf[copyLen] = '\0';
 
-    int16_t x1, y1;
-    uint16_t w, h;
-    display.getTextBounds(lineBuf, 0, 0, &x1, &y1, &w, &h);
-    display.setCursor((rw - (int)w) / 2, yStart + lineNum * lineHeight);
-    display.print(lineBuf);
+    if (draw) {
+      int16_t x1, y1;
+      uint16_t w, h;
+      display.getTextBounds(lineBuf, 0, 0, &x1, &y1, &w, &h);
+      display.setCursor((rw - (int)w) / 2, yStart + lineNum * lineHeight);
+      display.print(lineBuf);
+    }
 
     pos += take;
     while (pos < len && text[pos] == ' ') pos++; // skip the space the line broke on
@@ -5458,11 +5477,11 @@ void drawTetrisReadyScreen() {
   if (tetrisScore > 0) {
     char buf[24];
     snprintf(buf, sizeof(buf), "%s: %d", T(STR_TETRIS_SCORE), tetrisScore);
-    drawRotatedWrappedText(buf, rh - 16, 10);
+    drawRotatedWrappedTextBottom(buf, 10);
   } else if (tetrisHighScore > 0) {
     char buf[24];
     snprintf(buf, sizeof(buf), "%s: %d", T(STR_STARDROP_HIGH), tetrisHighScore);
-    drawRotatedWrappedText(buf, rh - 16, 10);
+    drawRotatedWrappedTextBottom(buf, 10);
   }
 
   display.setRotation(0);
@@ -5561,7 +5580,7 @@ void drawStarDropReadyScreen() {
 
   char buf[24];
   snprintf(buf, sizeof(buf), "%s: %d", T(STR_STARDROP_HIGH), stardropHighScore);
-  drawRotatedWrappedText(buf, rh - 16, 10);
+  drawRotatedWrappedTextBottom(buf, 10);
 
   display.setRotation(0);
 }
