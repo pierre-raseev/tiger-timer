@@ -440,7 +440,7 @@ A reaction-time light/buzzer game.
 
 ### 5.3 Dice
 Rolls 1–5 dice of a chosen type.
-- **Icon:** an outlined die behind a solid four-pip die that overlaps its corner (kept within
+- **Icon:** a single solid 12×12 die with rounded corners showing five 2×2 pips (kept within
   the 14 px highlight bar of a selected menu row).
 - **Selection screen:** turning the encoder cycles the die type (the available face counts,
   e.g. d4/d6/d8/d10/d12/d20 — implement whatever standard tabletop die set makes sense; the

@@ -6358,19 +6358,17 @@ void drawReflexIcon(int cx, int cy, int r, uint16_t color) {
   drawPixelArt(REFLEX_ICON_ART, sizeof(REFLEX_ICON_ART) / sizeof(REFLEX_ICON_ART[0]), cx - 6, cy - 5, 1, false, color);
 }
 
-// ---------------- Dice icon: an outlined die behind a solid one (4 pips), the solid one overlapping
-// its corner ----------------
+// ---------------- Dice icon: a single solid 12x12 die with rounded corners showing five 2x2 pips
+// cut out in the inverse colour ----------------
 void drawDiceIcon(int cx, int cy, int r, uint16_t color) {
-  // spans cy-7..cy+5 so it stays inside the 14px highlight bar of a selected menu row
+  // spans cy-7..cy+4 so it stays inside the 14px highlight bar of a selected menu row
   uint16_t inverse = (color == SH110X_WHITE) ? SH110X_BLACK : SH110X_WHITE;
-  display.drawRect(cx - 6, cy - 7, 8, 8, color);
-  display.drawPixel(cx - 4, cy - 5, color);
-  display.fillRect(cx - 2, cy - 3, 9, 9, inverse); // gap where the front die overlaps the back one
-  display.fillRect(cx - 1, cy - 2, 8, 8, color);
-  display.drawPixel(cx + 1, cy, inverse);
-  display.drawPixel(cx + 4, cy, inverse);
-  display.drawPixel(cx + 1, cy + 3, inverse);
-  display.drawPixel(cx + 4, cy + 3, inverse);
+  display.fillRoundRect(cx - 6, cy - 7, 12, 12, 2, color);
+  display.fillRect(cx - 4, cy - 5, 2, 2, inverse); // corners
+  display.fillRect(cx + 2, cy - 5, 2, 2, inverse);
+  display.fillRect(cx - 4, cy + 1, 2, 2, inverse);
+  display.fillRect(cx + 2, cy + 1, 2, 2, inverse);
+  display.fillRect(cx - 1, cy - 2, 2, 2, inverse); // centre
 }
 
 // ---------------- Chess Clock icon: a king chess piece. 13x12 pixel art. ----------------
