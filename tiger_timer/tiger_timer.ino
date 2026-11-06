@@ -419,9 +419,7 @@ const int STR_SIMON_COMPLETE = 125;
 const int STR_SIMON_ROUND = 126;
 const int STR_ZONE_FRONT = 127; // toothbrush zone label, line 2
 const int STR_MENU_PONG = 128;
-const int STR_TIMES_UP_STATUS = 129; // Timer end: small status line while 0:00 flashes
-const int STR_TIMES_UP_BIG = 130;    // Timer end: big PressStart2P line among the confetti
-const int NUM_STRINGS = 131;
+const int NUM_STRINGS = 129;
 
 const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SELECT_GAME          */{"Choose Option", "Choisir option", "Elegir opcion"},
@@ -553,8 +551,6 @@ const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SIMON_ROUND          */{"Round", "Manche", "Ronda"},
   /* STR_ZONE_FRONT           */{"front", "devant", "frente"},
   /* STR_MENU_PONG            */{"Pong", "Pong", "Pong"},
-  /* STR_TIMES_UP_STATUS      */{"Time's up", "Temps \x82" "coul\x82", "Tiempo agotado"},
-  /* STR_TIMES_UP_BIG         */{"TIME'S UP!", "C'EST FINI !", "FIN DEL TIEMPO"}, // PressStart2P covers chars 32-138 only: no capital accents or \xAD
 
 };
 
@@ -1222,6 +1218,11 @@ void updateReflexGame();
 void updateChessGame();
 void playBombAnimation();
 int timerEndFrameCount();
+void hgPoint(float u, float v, float a, int& x, int& y);
+void hgQuad(float u0, float v0, float u1, float v1, float u2, float v2, float u3, float v3, float a);
+float hgHalfWidth(float v);
+void hgSand(float v0, float v1, float a);
+void drawEndHourglass(float a, int topH, int botH);
 void drawTimerEndFrame(int i);
 void playTimerEndAnimation();
 void drawTimerLayout(const char* buf, const char* statusText);
@@ -4469,55 +4470,88 @@ void playBombAnimation() {
   display.display();
 }
 
-// ---------------- Timer end: "confetti" - the timer screen freezes on 0:00 with a "Time's up"
-// status and flashes inverted in step with the 4-note end jingle, then the digits give way to 36
-// tumbling confetti pieces bursting from the centre under gravity, around a big PressStart2P
-// "TIME'S UP!" that types itself in 2 letters a frame on a black backing box. About 2.1 s,
-// then the caller's render() shows the timer screen with the preset back. ----------------
-const int TIMER_END_FLASH_FRAMES = 6;
-const int TIMER_END_CONFETTI_FRAMES = 11;
-const int TIMER_END_FRAME_COUNT = TIMER_END_FLASH_FRAMES + TIMER_END_CONFETTI_FRAMES;
-const int TIMER_END_CONFETTI = 36;
+// ---------------- Timer end: "hourglass flip" - matches the Timer's hourglass icon and splash.
+// A big hourglass with the bottom bulb full: the last grains drop while sparkles pop on each note
+// of the end jingle, then the hourglass spins 180 degrees and the sand starts running again from
+// the top - ready for another round. About 1.9 s, then the caller's render() shows the timer
+// screen with the preset back. Geometry is in hourglass-local coordinates (u across, v along its
+// axis, centred on the screen) and rotated per frame. ----------------
+const int TIMER_END_JINGLE_FRAMES = 4;
+const int TIMER_END_FLIP_FRAMES = 6;
+const int TIMER_END_RUN_FRAMES = 6;
+const int TIMER_END_FRAME_COUNT = TIMER_END_JINGLE_FRAMES + TIMER_END_FLIP_FRAMES + TIMER_END_RUN_FRAMES;
+const int HG_CX = 64, HG_CY = 32;
 
 int timerEndFrameCount() { return TIMER_END_FRAME_COUNT; }
 
-void drawTimerEndFrame(int i) {
-  display.clearDisplay();
-  display.setTextColor(SH110X_WHITE);
-  if (i < TIMER_END_FLASH_FRAMES) {
-    drawTimerLayout("0:00", T(STR_TIMES_UP_STATUS));
-    if (i % 2 == 0) invertScreenRegion(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-    return;
-  }
-  int f = i - TIMER_END_FLASH_FRAMES;
-  float t = f + 1;
-  for (int p = 0; p < TIMER_END_CONFETTI; p++) {
-    float a = (p * 360.0f / TIMER_END_CONFETTI + (p % 3) * 6) * PI / 180.0f;
-    float speed = 3 + ((p * 7) % 5) * 0.9f;
-    float vx = cosf(a) * speed * 1.5f, vy = sinf(a) * speed * 0.9f - 2.4f;
-    int x = (int)lroundf(64 + vx * t), y = (int)lroundf(34 + vy * t + 0.32f * t * t);
-    switch ((p % 4 + f) % 4) { // each piece cycles through 4 shapes - reads as tumbling
-      case 0: display.fillRect(x, y, 3, 3, SH110X_WHITE); break;
-      case 1: display.fillRect(x - 2, y, 4, 2, SH110X_WHITE); break;
-      case 2: display.fillRect(x, y - 2, 2, 4, SH110X_WHITE); break;
-      default: display.drawPixel(x, y, SH110X_WHITE); display.drawPixel(x + 1, y + 1, SH110X_WHITE); display.drawPixel(x - 1, y + 1, SH110X_WHITE); break;
+void hgPoint(float u, float v, float a, int& x, int& y) {
+  float c = cosf(a), s = sinf(a);
+  x = (int)lroundf(HG_CX + u * c - v * s);
+  y = (int)lroundf(HG_CY + u * s + v * c);
+}
+
+// a rotated quad (4 local points, in order) as two filled triangles
+void hgQuad(float u0, float v0, float u1, float v1, float u2, float v2, float u3, float v3, float a) {
+  int x0, y0, x1, y1, x2, y2, x3, y3;
+  hgPoint(u0, v0, a, x0, y0); hgPoint(u1, v1, a, x1, y1); hgPoint(u2, v2, a, x2, y2); hgPoint(u3, v3, a, x3, y3);
+  display.fillTriangle(x0, y0, x1, y1, x2, y2, SH110X_WHITE);
+  display.fillTriangle(x0, y0, x2, y2, x3, y3, SH110X_WHITE);
+}
+
+float hgHalfWidth(float v) { return 2 + fabsf(v) / 24 * 12; }
+
+// sand filling the glass between local rows v0..v1, just inside the walls
+void hgSand(float v0, float v1, float a) {
+  if (v1 < v0) return;
+  float w0 = hgHalfWidth(v0) - 1, w1 = hgHalfWidth(v1) - 1;
+  hgQuad(-w0, v0, w0, v0, w1, v1, -w1, v1, a);
+}
+
+// caps 33 px wide, glass walls narrowing to a 4 px neck, sand heights in px (14 = a full bulb)
+void drawEndHourglass(float a, int topH, int botH) {
+  hgQuad(-16, -28, 16, -28, 16, -25, -16, -25, a);
+  hgQuad(-16, 25, 16, 25, 16, 28, -16, 28, a);
+  const float WALL[4][2] = {{-14, -24}, {-2, -1}, {-2, 1}, {-14, 24}};
+  for (int side = -1; side <= 1; side += 2) {
+    for (int i = 0; i < 3; i++) {
+      int xa, ya, xb, yb;
+      hgPoint(WALL[i][0] * -side, WALL[i][1], a, xa, ya);
+      hgPoint(WALL[i + 1][0] * -side, WALL[i + 1][1], a, xb, yb);
+      display.drawLine(xa, ya, xb, yb, SH110X_WHITE);
     }
   }
-  const char* msg = T(STR_TIMES_UP_BIG);
-  display.setFont(&PressStart2P8pt);
-  display.setTextSize(1);
-  int16_t x1, y1;
-  uint16_t w, h;
-  display.getTextBounds(msg, 0, 0, &x1, &y1, &w, &h);
-  int left = (SCREEN_WIDTH - (int)w) / 2;
-  display.fillRect(left - 3, 25, w + 6, 14, SH110X_BLACK);
-  char shown[24];
-  int n = min((int)strlen(msg), min(2 + f * 2, (int)sizeof(shown) - 1));
-  strncpy(shown, msg, n);
-  shown[n] = '\0';
-  display.setCursor(left - x1, 28 - y1);
-  display.print(shown);
-  display.setFont();
+  if (topH > 0) hgSand(-1 - topH, -2, a);
+  if (botH > 0) hgSand(24 - botH, 23, a);
+}
+
+void drawTimerEndFrame(int i) {
+  display.clearDisplay();
+  if (i < TIMER_END_JINGLE_FRAMES) { // the last grains fall, sparkles pop
+    drawEndHourglass(0, 0, 14);
+    if (i < 2) { display.drawPixel(HG_CX, HG_CY + 4 + i * 6, SH110X_WHITE); display.drawPixel(HG_CX, HG_CY + 9 + i * 5, SH110X_WHITE); }
+    const int8_t SP[4][2] = {{30, 14}, {98, 18}, {26, 48}, {102, 46}};
+    drawSplashSparkle(SP[i][0], SP[i][1], i == 3 ? 4 : 3);
+    if (i == 3) { drawSplashSparkle(98, 18, 3); drawSplashSparkle(30, 14, 2); }
+    return;
+  }
+  if (i < TIMER_END_JINGLE_FRAMES + TIMER_END_FLIP_FRAMES) { // spin 180 degrees, eased
+    const int ANG[TIMER_END_FLIP_FRAMES] = {20, 55, 90, 125, 160, 180};
+    int f = i - TIMER_END_JINGLE_FRAMES;
+    float a = ANG[f] * PI / 180;
+    drawEndHourglass(a, 0, 14);
+    if (f < TIMER_END_FLIP_FRAMES - 1) { // motion dots trailing the spin
+      for (int k = 0; k < 3; k++) {
+        float t = a + 0.5f + k * 0.25f;
+        display.drawPixel((int)lroundf(HG_CX + cosf(t) * 34), (int)lroundf(HG_CY + sinf(t) * 30), SH110X_WHITE);
+        display.drawPixel((int)lroundf(HG_CX + cosf(t + PI) * 34), (int)lroundf(HG_CY + sinf(t + PI) * 30), SH110X_WHITE);
+      }
+    }
+    return;
+  }
+  int f = i - TIMER_END_JINGLE_FRAMES - TIMER_END_FLIP_FRAMES; // upright again, sand starts running
+  int bot = (int)lroundf(f * 0.6f), top = 14 - bot;
+  drawEndHourglass(0, top, bot);
+  for (int y = HG_CY + 1 + (f % 2); y < HG_CY + 24 - bot; y += 2) display.drawPixel(HG_CX, y, SH110X_WHITE);
 }
 
 void playTimerEndAnimation() {
@@ -4526,15 +4560,9 @@ void playTimerEndAnimation() {
     drawTimerEndFrame(i);
     display.display();
     int frameMs, freq = 0, noteMs = 0;
-    if (i < END_MELODY_LENGTH) { freq = END_MELODY_NOTES[i]; noteMs = END_MELODY_DURATIONS[i]; frameMs = noteMs + 20; } // jingle, one note per flash
-    else if (i < TIMER_END_FLASH_FRAMES) frameMs = 120;
-    else {
-      int f = i - TIMER_END_FLASH_FRAMES;
-      frameMs = 85;
-      if (f == 0) { freq = 2093; noteMs = 30; }       // confetti pop, then two sparkles
-      else if (f == 2) { freq = 2637; noteMs = 25; }
-      else if (f == 4) { freq = 3136; noteMs = 25; }
-    }
+    if (i < TIMER_END_JINGLE_FRAMES) { freq = END_MELODY_NOTES[i]; noteMs = END_MELODY_DURATIONS[i]; frameMs = noteMs + (i < 3 ? 10 : 20); } // jingle, one note per sparkle
+    else if (i < TIMER_END_JINGLE_FRAMES + TIMER_END_FLIP_FRAMES) { frameMs = 70; freq = 600 + (i - TIMER_END_JINGLE_FRAMES) * 120; noteMs = 30; } // rising whoosh
+    else { frameMs = 110; if ((i % 2) == 0) { freq = 1400; noteMs = 8; } } // soft trickle ticks
     if (freq > 0) playNote(freq, noteMs);
     while (millis() - start < (unsigned long)frameMs) delay(1); // hold the frame even when muted
   }
