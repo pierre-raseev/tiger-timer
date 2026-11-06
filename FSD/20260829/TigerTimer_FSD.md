@@ -290,6 +290,9 @@ A two-phase animated wordmark, skippable by holding the arcade button at any poi
 - A vertically scrollable list, 3 rows visible at a time, each row showing a small icon (left)
   and the item's translated label (right of the icon). The highlighted row is shown inverted
   (filled background, dark text).
+- The two non-game entries have their own icons: **Instructions** — an open book with lines of
+  text on both pages (`INSTRUCTIONS_ICON_ART`); **Settings** — a cog with 8 teeth and a hole in
+  the middle (`SETTINGS_ICON_ART`). Every icon fits inside the 14 px highlight bar of a selected row.
 - **Default order** (used on first boot, or if saved order data is ever invalid): Timer,
   Toothbrush Timer, Dice, Reflex, Chess Clock, Pass the Bomb, Stopwatch, Trivia,
   Tetris, Star Drop, Snake, Pong, SimpleMorse, **Instructions**, **Settings** — Instructions and
@@ -323,8 +326,8 @@ own first screen appears:
     chess clock whose two buttons take turns going down while both hands tick.
   - *Stopwatch:* a big stopwatch (thick case, 12 tick marks); the crown and side button click down
     on the first frame and the hand sweeps one full turn.
-  - *Timer:* a dial with 12 tick dots and a filled wedge for the time left, shrinking clockwise;
-    a knob on top.
+  - *Timer:* a big hourglass in the same style as its icon; the sand drains from the top bulb
+    into a growing cone-shaped pile in the bottom one, with a dotted stream falling between them.
   - *Dice:* one outlined and one solid die tumble in from both sides, bouncing with their faces
     changing, land on 6 and 5, and sparkle.
   - *Quiz:* a speech bubble whose question mark pops up (growing from 1× to 3×, then a small
@@ -354,6 +357,9 @@ not menu-specific.)
 A 3-row list (same visual style as the main menu): **Language**, **Timer Step**, **Remote
 Config**.
 
+- The **Language** entry's icon (also shown at the top left of the Language screen) is two
+  overlapping speech bubbles: an outlined one behind with three dots of "text", and a solid one in
+  front with an "A" cut out of it.
 - **Language:** turning the encoder cycles through English, French ("Français"), Spanish
   ("Español") — each shown in its own native name regardless of the currently active language, so
   it's always readable. Confirming applies the choice immediately across the entire interface and
@@ -392,7 +398,7 @@ that game's translated name there, so no screen is ever left with a conspicuousl
 
 ### 5.1 Timer
 A simple countdown timer.
-- **Icon:** a dial with a filled wedge for the time left and a knob on top.
+- **Icon:** an hourglass with sand in both halves (13×12 px pixel art, `TIMER_ICON_ART`).
 - **Idle:** turning the encoder adjusts the target duration, moved by the step chosen in
   Settings (§4.5). Default 2:00. Range 0:10–90:00 (`MIN_TIME`=10s, `MAX_TIME`=5400s,
   `DEFAULT_TIME`=120s). The **Auto** ramp step scales the increment based on the current value

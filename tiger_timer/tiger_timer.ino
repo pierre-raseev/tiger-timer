@@ -1062,7 +1062,7 @@ void drawSplashClockFace(int cx, int cy, int r, float angle);
 void drawChessSplashFrame(int f);
 void drawStopwatchSplashFrame(int f);
 bool hasAnimatedGameSplash(int game);
-void fillPieWedge(int cx, int cy, int r, float a0, float a1, uint16_t color);
+int hourglassHalfWidth(int y);
 void drawTimerSplashFrame(int f);
 void drawSplashDie(int x, int y, int s, int value, bool filled);
 void drawDiceSplashFrame(int f);
@@ -1946,33 +1946,35 @@ void drawStopwatchSplashFrame(int f) {
   display.fillTriangle(76, 7 + pr, 83, 6 + pr, 79, 10 + pr, SH110X_WHITE);
 }
 
-// ---------------- Filled pie wedge: the pixels of a disc whose clockwise angle from 12 o'clock is
-// between a0 and a1 radians ----------------
-void fillPieWedge(int cx, int cy, int r, float a0, float a1, uint16_t color) {
-  for (int y = -r; y <= r; y++) {
-    for (int x = -r; x <= r; x++) {
-      if (x * x + y * y > r * r + r) continue;
-      float a = atan2f((float)x, (float)-y);
-      if (a < 0) a += 2 * PI;
-      if (a >= a0 && a <= a1) display.drawPixel(cx + x, cy + y, color);
-    }
-  }
+// Timer: a big hourglass in the icon's style; the sand drains from the top bulb into a growing
+// pile in the bottom one, a dotted stream falling between them.
+int hourglassHalfWidth(int y) { // inner wall position for row y (narrowest at the neck, y=21.5)
+  return (int)lroundf(2 + fabsf(y - 21.5f) / 18.0f * 12);
 }
-
-// Timer: a dial with 12 tick dots and a filled wedge for the time left, shrinking clockwise over the
-// second; a knob on top.
 void drawTimerSplashFrame(int f) {
-  const int cx = 64, cy = 23;
-  display.drawCircle(cx, cy, 19, SH110X_WHITE);
-  display.drawCircle(cx, cy, 18, SH110X_WHITE);
-  for (int i = 0; i < 12; i++) {
-    float a = i * PI / 6;
-    display.drawPixel(cx + (int)lroundf(sinf(a) * 16), cy - (int)lroundf(cosf(a) * 16), SH110X_WHITE);
+  const int cx = 64;
+  display.fillRect(cx - 16, 1, 33, 3, SH110X_WHITE);  // top cap
+  display.fillRect(cx - 16, 40, 33, 3, SH110X_WHITE); // bottom cap
+  for (int y = 4; y <= 39; y++) {                     // glass walls
+    int w = hourglassHalfWidth(y);
+    display.drawPixel(cx - w, y, SH110X_WHITE);
+    display.drawPixel(cx + w, y, SH110X_WHITE);
   }
-  float remaining = 2 * PI * (1.0f - f / 12.0f) * 0.85f + 0.001f;
-  fillPieWedge(cx, cy, 14, 2 * PI - remaining, 2 * PI, SH110X_WHITE);
-  display.fillRect(cx - 3, 1, 7, 3, SH110X_WHITE);
-  display.drawFastVLine(cx, 0, 2, SH110X_WHITE);
+  int top = (int)lroundf(14 - f * 1.1f);  // rows of sand left above the neck
+  int bottom = (int)lroundf(f * 1.1f);    // rows of the pile below
+  for (int y = 21 - top; y <= 20; y++) {
+    if (y < 6) continue;
+    int w = hourglassHalfWidth(y) - 1;
+    display.drawFastHLine(cx - w, y, 2 * w + 1, SH110X_WHITE);
+  }
+  for (int y = 39 - bottom; y <= 38; y++) {
+    int w = hourglassHalfWidth(y) - 1;
+    int pile = min(w, (int)lroundf((y - (39 - bottom)) * 1.6f) + 1); // cone-shaped pile
+    display.drawFastHLine(cx - pile, y, 2 * pile + 1, SH110X_WHITE);
+  }
+  if (f < 11) {
+    for (int y = 22; y < 39 - bottom; y += 2) display.drawPixel(cx, y + (f % 2), SH110X_WHITE); // falling stream
+  }
 }
 
 // Dice: one outlined and one solid die tumble in from both sides, bouncing, their faces changing,
@@ -6243,11 +6245,23 @@ void drawTimerStepScreen() {
 }
 
 // ---------------- Game icons ----------------
-// ---------------- Timer icon: a dial with a filled wedge for the time left, and the knob on top ----------------
+// ---------------- Timer icon: an hourglass with sand in both halves. 13x12 pixel art. ----------------
+const char* const TIMER_ICON_ART[] = {
+  "..#########..",
+  "...#.....#...",
+  "...##...##...",
+  "....#####....",
+  ".....###.....",
+  "......#......",
+  ".....#.#.....",
+  "....#...#....",
+  "...#..#..#...",
+  "...#.###.#...",
+  "...#######...",
+  "..#########..",
+};
 void drawTimerIcon(int cx, int cy, int r, uint16_t color) {
-  display.drawCircle(cx, cy + 1, 5, color);
-  fillPieWedge(cx, cy + 1, 4, 0, 2.2f, color);
-  display.fillRect(cx - 1, cy - 6, 3, 2, color);
+  drawPixelArt(TIMER_ICON_ART, sizeof(TIMER_ICON_ART) / sizeof(TIMER_ICON_ART[0]), cx - 6, cy - 6, 1, false, color);
 }
 
 // ---------------- Reflex icon: an arcade button seen from the side (dome on its bezel) with three
@@ -6524,19 +6538,41 @@ void drawArrowGlyph(int cx, int cy, uint16_t color, bool pointRight) {
   }
 }
 
+// ---------------- Language icon: two overlapping speech bubbles - an outlined one behind (with
+// three dots of "text") and a solid one in front with an "A" cut out of it. Spans cy-7..cy+5. ----------------
 void drawLanguageIcon(int cx, int cy, int r, uint16_t color) {
-  display.drawCircle(cx, cy, r, color);           // globe outline
-  display.drawLine(cx - r, cy, cx + r, cy, color); // equator
-  display.drawLine(cx, cy - r, cx, cy + r, color); // meridian
+  uint16_t inverse = (color == SH110X_WHITE) ? SH110X_BLACK : SH110X_WHITE;
+  display.drawRoundRect(cx - 6, cy - 7, 9, 7, 2, color); // back bubble
+  display.drawPixel(cx - 4, cy - 4, color);
+  display.drawPixel(cx - 2, cy - 4, color);
+  display.drawPixel(cx - 5, cy, color);                  // its tail
+  display.drawPixel(cx - 5, cy + 1, color);
+  display.fillRect(cx - 3, cy - 4, 11, 10, inverse);     // gap around the front bubble
+  display.fillRoundRect(cx - 2, cy - 3, 9, 8, 2, color); // front bubble
+  static const char* const LETTER_A[] = {".#.", "#.#", "###", "#.#", "#.#"};
+  drawPixelArt(LETTER_A, 5, cx + 1, cy - 2, 1, false, inverse);
+  display.drawPixel(cx + 5, cy + 5, color);              // its tail
 }
 
+// ---------------- Settings icon: a cog with 8 teeth and a hole in the middle. 13x13 pixel art,
+// spanning cy-7..cy+5 so it stays inside a selected row's highlight bar. ----------------
+const char* const SETTINGS_ICON_ART[] = {
+  ".....###.....",
+  "..#..###..#..",
+  ".###.###.###.",
+  "..#########..",
+  "..###...###..",
+  "####.....####",
+  "####.....####",
+  "####.....####",
+  "..###...###..",
+  "..#########..",
+  ".###.###.###.",
+  "..#..###..#..",
+  ".....###.....",
+};
 void drawSettingsIcon(int cx, int cy, int r, uint16_t color) {
-  display.drawCircle(cx, cy, r - 2, color); // gear body
-  display.drawLine(cx, cy - r, cx, cy - r + 3, color);     // teeth, N/E/S/W
-  display.drawLine(cx, cy + r - 3, cx, cy + r, color);
-  display.drawLine(cx - r, cy, cx - r + 3, cy, color);
-  display.drawLine(cx + r - 3, cy, cx + r, cy, color);
-  display.fillCircle(cx, cy, 1, color); // center dot
+  drawPixelArt(SETTINGS_ICON_ART, sizeof(SETTINGS_ICON_ART) / sizeof(SETTINGS_ICON_ART[0]), cx - 6, cy - 7, 1, false, color);
 }
 
 // simple WiFi glyph: two nested arcs plus a dot, drawn with short line segments (no arc primitive
@@ -6580,13 +6616,24 @@ void drawTimerStepIcon(int cx, int cy, int r, uint16_t color) {
   display.fillRect(cx + r - bw, bottom - (r * 3) / 2, bw, (r * 3) / 2, color); // tall step
 }
 
-// dispatches to the right icon function by menu entry - used by the scrolling menu list
+// ---------------- Instructions icon: an open book with lines of text on both pages. 13x10 pixel art. ----------------
+const char* const INSTRUCTIONS_ICON_ART[] = {
+  ".###.....###.",
+  "#...##.##...#",
+  "#.##..#..##.#",
+  "#.....#.....#",
+  "#.##..#..##.#",
+  "#.....#.....#",
+  "#.##..#..##.#",
+  "#.....#.....#",
+  "#####.#.#####",
+  ".....###.....",
+};
 void drawInstructionsIcon(int cx, int cy, int r, uint16_t color) {
-  display.drawCircle(cx, cy, r, color);
-  display.fillCircle(cx, cy - r / 2, 1, color);            // dot of the "i"
-  display.drawLine(cx, cy - r / 5, cx, cy + r / 2, color); // stem of the "i"
+  drawPixelArt(INSTRUCTIONS_ICON_ART, sizeof(INSTRUCTIONS_ICON_ART) / sizeof(INSTRUCTIONS_ICON_ART[0]), cx - 6, cy - 5, 1, false, color);
 }
 
+// dispatches to the right icon function by menu entry - used by the scrolling menu list
 void drawGameIcon(int gameIndex, int cx, int cy, int r, uint16_t color) {
   if (gameIndex == GAME_TIMER) drawTimerIcon(cx, cy, r, color);
   else if (gameIndex == GAME_REFLEX) drawReflexIcon(cx, cy, r, color);
