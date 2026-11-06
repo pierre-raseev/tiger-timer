@@ -6151,6 +6151,14 @@ const char* menuLabelForGame(int gameId) {
   }
 }
 
+// ---------------- Shared row layout for the main menu and Settings lists: the selection bar runs
+// x 4..123 with the icon centred at x 18 and the label from x 32, so the longest label
+// (15 chars at 6 px, "Config distante") still ends at x 121, inside the bar. ----------------
+const int LIST_BAR_X = 4;
+const int LIST_BAR_W = 120;
+const int LIST_ICON_CX = 18;
+const int LIST_TEXT_X = 32;
+
 void drawMenuScreen() {
   drawVolumeIconAt(2, 1);
 
@@ -6178,14 +6186,14 @@ void drawMenuScreen() {
     bool selected = (i == menuSelection);
 
     if (selected) {
-      display.fillRect(10, rowTop, 108, ROW_HEIGHT - 2, SH110X_WHITE);
+      display.fillRect(LIST_BAR_X, rowTop, LIST_BAR_W, ROW_HEIGHT - 2, SH110X_WHITE);
     }
     uint16_t fg = selected ? SH110X_BLACK : SH110X_WHITE;
 
-    drawGameIcon(visibleMenuOrder[i], 24, rowCenter, 6, fg);
+    drawGameIcon(visibleMenuOrder[i], LIST_ICON_CX, rowCenter, 6, fg);
 
     display.setTextColor(fg);
-    display.setCursor(40, rowCenter - 4);
+    display.setCursor(LIST_TEXT_X, rowCenter - 4);
     display.print(menuLabelForGame(visibleMenuOrder[i]));
   }
 
@@ -6279,16 +6287,16 @@ void drawSettingsScreen() {
     int rowTop = rowCenters[i] - 7;
 
     if (selected) {
-      display.fillRect(10, rowTop, 108, 14, SH110X_WHITE);
+      display.fillRect(LIST_BAR_X, rowTop, LIST_BAR_W, 14, SH110X_WHITE);
     }
     uint16_t fg = selected ? SH110X_BLACK : SH110X_WHITE;
 
-    if (i == SETTINGS_LANGUAGE) drawLanguageIcon(24, rowCenters[i], 5, fg);
-    else if (i == SETTINGS_TIMER_STEP) drawTimerStepIcon(24, rowCenters[i], 5, fg);
-    else drawConfigModeIcon(24, rowCenters[i], 5, fg);
+    if (i == SETTINGS_LANGUAGE) drawLanguageIcon(LIST_ICON_CX, rowCenters[i], 5, fg);
+    else if (i == SETTINGS_TIMER_STEP) drawTimerStepIcon(LIST_ICON_CX, rowCenters[i], 5, fg);
+    else drawConfigModeIcon(LIST_ICON_CX, rowCenters[i], 5, fg);
 
     display.setTextColor(fg);
-    display.setCursor(40, rowCenters[i] - 3);
+    display.setCursor(LIST_TEXT_X, rowCenters[i] - 3);
     display.print(labels[i]);
   }
 

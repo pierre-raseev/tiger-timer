@@ -290,6 +290,11 @@ A two-phase animated wordmark, skippable by holding the arcade button at any poi
 - A vertically scrollable list, 3 rows visible at a time, each row showing a small icon (left)
   and the item's translated label (right of the icon). The highlighted row is shown inverted
   (filled background, dark text).
+- **Row layout** (shared with the Settings list, §4.5): the highlight bar spans x 4–123, the icon
+  is centred at x 18, and the label starts at x 32. The longest label, 15 characters at 6 px
+  ("Config distante"), ends at x 121, so every label in every language stays inside the bar
+  (14-character French names like "Horloge Échecs" and "Passe la bombe" used to lose their
+  last letter past the old bar edge at x 117).
 - The two non-game entries have their own icons: **Instructions** — an open book with lines of
   text on both pages (`INSTRUCTIONS_ICON_ART`); **Settings** — a cog with 8 teeth and a hole in
   the middle (`SETTINGS_ICON_ART`). Every icon fits inside the 14 px highlight bar of a selected row.
