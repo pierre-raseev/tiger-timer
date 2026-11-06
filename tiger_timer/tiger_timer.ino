@@ -1207,6 +1207,10 @@ void updateCountdown();
 void updateReflexGame();
 void updateChessGame();
 void playBombAnimation();
+void fillStarburst(int cx, int cy, float R, float rot, int points, float inner, uint16_t color);
+void drawExplosionBomb(int fuse, int jx, int* tipX, int* tipY);
+void drawBombExplosionFrame(int i);
+int bombExplosionFrameCount();
 void drawBurst(int cx, int cy, int r);
 void playFireworkAnimation();
 bool splashSkipRequested();
@@ -1356,6 +1360,7 @@ void testSerialCommands() {
     else if (c == 'p') { if (currentGame == GAME_TOOTHBRUSH) handleToothbrushPress(); else dispatchButtonShortPress(); }
     else if (c == 'R') { inMenu = false; currentGame = GAME_STARDROP; initGameState(GAME_STARDROP); render(); }
     else if (c == 'T') { inMenu = false; currentGame = GAME_TETRIS; initGameState(GAME_TETRIS); render(); }
+    else if (c == 'X') { static int bombFxFrame = 0; drawBombExplosionFrame(bombFxFrame); display.display(); Serial.printf("[bombfx] frame %d\n", bombFxFrame); bombFxFrame = (bombFxFrame + 1) % bombExplosionFrameCount(); }
     else if (c == 'H') { stardropHighScore = 1234; tetrisHighScore = 1234; render(); } // RAM only - tests the wrapped score line
     else if (c == 'g' || c == 'h' || c == 'k' || c == 'c') { playGameSplashScreen(c == 'g' ? GAME_REFLEX : c == 'h' ? GAME_HOTPOTATO : c == 'k' ? GAME_CHESS : GAME_STOPWATCH); }
     else if (c == 'G') { // cycle through the newest animated splashes
@@ -4111,62 +4116,114 @@ void updateChessGame() {
   }
 }
 
-// ---------------- Reflex game: bomb animation for a false start - lit fuse, then it detonates ----------------
+// ---------------- Shared bomb explosion (Reflex false start + Pass the Bomb detonation) - the
+// "comic burst": the splash-screen bomb's fuse burns down, the bomb shakes and swells, a white
+// flash, then a spiky starburst (with a black counter-rotating star inside) grows and spins to
+// fill the screen and breaks into 7 smoke puffs that drift up and out, hollowing into rings as
+// they shrink. One frame table drives both the timing and the sound; drawBombExplosionFrame(i)
+// draws a single frame so the test build can capture each one. ----------------
+const int BOMB_FX_CX = 60, BOMB_FX_CY = 34;
+const int BOMB_FX_FUSE_FRAMES = 6;   // frames 0-5: fuse burning, 100ms each
+const int BOMB_FX_FLASH = 8;         // frames 6-7: shake + swell, frame 8: white flash
+const int BOMB_FX_STAR_FRAMES = 5;   // frames 9-13: growing starburst
+const int BOMB_FX_PUFF_FRAMES = 7;   // frames 14-20: smoke puffs
+const int BOMB_FX_FRAME_COUNT = BOMB_FX_FLASH + 1 + BOMB_FX_STAR_FRAMES + BOMB_FX_PUFF_FRAMES;
+const int BOMB_FX_STAR_R[BOMB_FX_STAR_FRAMES] = {14, 24, 34, 42, 46};
+const int8_t BOMB_FX_PUFFS[7][3] = {{-30, -6, 9}, {-14, -16, 10}, {8, -18, 11}, {28, -8, 9}, {22, 10, 8}, {-4, 12, 9}, {-24, 10, 8}}; // dx, dy, radius
+
+// A filled star with `points` tips, alternating between radius R and R*inner, drawn as a
+// triangle fan from the centre.
+void fillStarburst(int cx, int cy, float R, float rot, int points, float inner, uint16_t color) {
+  for (int i = 0; i < points * 2; i++) {
+    float a0 = rot + i * PI / points, a1 = rot + (i + 1) * PI / points;
+    float r0 = (i % 2) ? R * inner : R, r1 = (i % 2) ? R : R * inner;
+    display.fillTriangle(cx, cy,
+                         cx + (int)lroundf(cosf(a0) * r0), cy + (int)lroundf(sinf(a0) * r0),
+                         cx + (int)lroundf(cosf(a1) * r1), cy + (int)lroundf(sinf(a1) * r1), color);
+  }
+}
+
+// The Pass the Bomb splash bomb with `fuse` wavy segments left; returns the fuse tip.
+void drawExplosionBomb(int fuse, int jx, int* tipX, int* tipY) {
+  int x = BOMB_FX_CX + jx, cy = BOMB_FX_CY;
+  display.fillCircle(x, cy, 14, SH110X_WHITE);
+  display.fillRect(x - 5, cy - 17, 10, 4, SH110X_WHITE); // cap
+  display.fillCircle(x - 7, cy - 6, 3, SH110X_BLACK);   // shine ring
+  display.fillCircle(x - 8, cy - 7, 2, SH110X_WHITE);
+  display.drawPixel(x - 8, cy - 7, SH110X_BLACK);
+  int px = x + 4, py = cy - 16;
+  for (int i = 1; i <= fuse; i++) {
+    int nx = x + 4 + i * 2;
+    int ny = cy - 16 - (int)lroundf(sinf(i * 0.6f) * 3) - i;
+    display.drawLine(px, py, nx, ny, SH110X_WHITE);
+    px = nx; py = ny;
+  }
+  *tipX = px; *tipY = py;
+}
+
+int bombExplosionFrameCount() { return BOMB_FX_FRAME_COUNT; }
+
+void drawBombExplosionFrame(int i) {
+  const int cx = BOMB_FX_CX, cy = BOMB_FX_CY;
+  display.clearDisplay();
+  int tx, ty;
+  if (i < BOMB_FX_FUSE_FRAMES) {
+    drawExplosionBomb(10 - i * 2, 0, &tx, &ty);
+    drawSplashSparkle(tx, ty, (i % 2) ? 3 : 2);
+    if (i % 2 == 0) { display.drawPixel(tx + 4, ty - 3, SH110X_WHITE); display.drawPixel(tx - 3, ty - 4, SH110X_WHITE); }
+    else            { display.drawPixel(tx + 4, ty + 3, SH110X_WHITE); display.drawPixel(tx + 5, ty - 1, SH110X_WHITE); }
+  } else if (i == BOMB_FX_FUSE_FRAMES) {         // fuse gone: spark at the cap, bomb shakes right
+    drawExplosionBomb(0, 1, &tx, &ty);
+    drawSplashSparkle(cx + 4, cy - 17, 3);
+  } else if (i == BOMB_FX_FUSE_FRAMES + 1) {     // shakes left and swells
+    drawExplosionBomb(0, -1, &tx, &ty);
+    display.fillCircle(cx, cy, 16, SH110X_WHITE);
+  } else if (i == BOMB_FX_FLASH) {
+    display.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SH110X_WHITE);
+  } else if (i < BOMB_FX_FLASH + 1 + BOMB_FX_STAR_FRAMES) {
+    int f = i - BOMB_FX_FLASH - 1;
+    float R = BOMB_FX_STAR_R[f];
+    fillStarburst(cx, cy, R, f * 0.12f, 9, 0.55f, SH110X_WHITE);
+    if (f >= 1) fillStarburst(cx, cy, R * 0.5f, -f * 0.2f, 7, 0.55f, SH110X_BLACK);
+    if (f >= 3) display.fillCircle(cx, cy, (int)lroundf(R * 0.16f), SH110X_WHITE);
+  } else {
+    int f = i - BOMB_FX_FLASH - 1 - BOMB_FX_STAR_FRAMES;
+    float k = 1 + f * 0.18f;
+    for (int p = 0; p < 7; p++) {
+      int x = (int)lroundf(cx + BOMB_FX_PUFFS[p][0] * k);
+      int y = (int)lroundf(cy + BOMB_FX_PUFFS[p][1] * k - f * 1.5f);
+      int rr = (int)lroundf(BOMB_FX_PUFFS[p][2] - f * 1.3f);
+      if (rr <= 0) continue;
+      display.fillCircle(x, y, rr, SH110X_WHITE);
+      int hole = rr - 2 - (f - 2);
+      if (f >= 2 && hole >= 0) display.fillCircle(x + 1, y + 1, hole, SH110X_BLACK); // hollow into a smoke ring
+    }
+    if (f < 3) fillStarburst(cx, cy, 14 - f * 5, 0, 9, 0.55f, SH110X_WHITE); // last of the burst at the centre
+  }
+}
+
 void playBombAnimation() {
-  int cx = SCREEN_WIDTH / 2;
-  int cy = 36;
-
-  // Phase 1: round bomb body with a curved fuse and a blinking spark, sizzling
-  const int FUSE_FRAMES = 4;
-  for (int f = 0; f < FUSE_FRAMES; f++) {
-    display.clearDisplay();
-    display.setTextColor(SH110X_WHITE);
-
-    display.fillCircle(cx, cy + 4, 14, SH110X_WHITE); // bomb body
-
-    // fuse: two segments curving up and to the right from the top of the body
-    display.drawLine(cx - 2, cy - 10, cx + 6, cy - 18, SH110X_WHITE);
-    display.drawLine(cx + 6, cy - 18, cx + 13, cy - 14, SH110X_WHITE);
-
-    if (f % 2 == 0) { // blinking spark at the fuse tip
-      int sx = cx + 13, sy = cy - 14;
-      display.drawLine(sx - 3, sy, sx + 3, sy, SH110X_WHITE);
-      display.drawLine(sx, sy - 3, sx, sy + 3, SH110X_WHITE);
-      display.drawLine(sx - 2, sy - 2, sx + 2, sy + 2, SH110X_WHITE);
-      display.drawLine(sx - 2, sy + 2, sx + 2, sy - 2, SH110X_WHITE);
-    }
-
+  for (int i = 0; i < BOMB_FX_FRAME_COUNT; i++) {
+    unsigned long start = millis();
+    drawBombExplosionFrame(i);
     display.display();
-    playNote(1400 + random(0, 300), 40); // fizzling spark
-    delay(140);
-  }
 
-  // Phase 2: detonation - growing blast with radiating spikes, descending boom pitch
-  const int BLAST_FRAMES = 5;
-  for (int f = 0; f < BLAST_FRAMES; f++) {
-    display.clearDisplay();
-    display.setTextColor(SH110X_WHITE);
-
-    int r = 6 + f * 7;
-    display.fillCircle(cx, cy, r, SH110X_WHITE);
-
-    for (int a = 0; a < 10; a++) {
-      float angle = a * (360.0 / 10) * PI / 180.0;
-      int x2 = cx + (int)(cos(angle) * (r + 12));
-      int y2 = cy + (int)(sin(angle) * (r + 12));
-      display.drawLine(cx, cy, x2, y2, SH110X_WHITE);
+    int frameMs, freq = 0, noteMs = 0;
+    if (i < BOMB_FX_FUSE_FRAMES)      { frameMs = 100; freq = 1400 + random(0, 300); noteMs = 40; } // fizzling fuse
+    else if (i < BOMB_FX_FLASH)       { frameMs = 70;  freq = 1800 + random(0, 300); noteMs = 30; } // last hiss
+    else if (i == BOMB_FX_FLASH)      { frameMs = 60;  freq = 220; noteMs = 50; }
+    else if (i < BOMB_FX_FLASH + 1 + BOMB_FX_STAR_FRAMES) {
+      int f = i - BOMB_FX_FLASH - 1;
+      frameMs = 70; freq = 200 - f * 20; noteMs = 60; // pitch drops each frame, deepening boom
+    } else {
+      int f = i - BOMB_FX_FLASH - 1 - BOMB_FX_STAR_FRAMES;
+      frameMs = 80;
+      if (f == 0) { freq = 80; noteMs = 75; }       // low thud as the burst breaks up
+      else if (f == 1) { freq = 65; noteMs = 75; }
     }
-
-    display.display();
-    playNote(200 - f * 20, 60); // pitch drops each frame, deepening boom
-    delay(70);
+    if (freq > 0) playNote(freq, noteMs);
+    while (millis() - start < (unsigned long)frameMs) delay(1); // hold the frame even when muted
   }
-
-  // Phase 3: bright flash, then a low final thud as it clears
-  display.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SH110X_WHITE);
-  display.display();
-  playNote(80, 180);
-  delay(150);
   display.clearDisplay();
   display.display();
 }

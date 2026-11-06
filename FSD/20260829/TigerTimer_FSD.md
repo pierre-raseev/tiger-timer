@@ -510,6 +510,20 @@ A party "hot potato" game with a spoken category+letter challenge.
   fresh combo with the same slot-machine animation described above — turning the encoder during
   that 1-second pause skips straight past it. The arcade button also still works as an immediate
   alternative to waiting.
+- **Explosion animation** (`playBombAnimation()`, about 1.7 s, 21 frames, shared with Reflex's
+  false start; it blocks input while it plays):
+  1. **Fuse (6 × 100 ms):** the Pass the Bomb splash bomb appears, its wavy fuse burning 2
+     segments shorter each frame. A blinking spark sits at the tip, with a fizzing tone each frame.
+  2. **Lead-up (2 × 70 ms):** the fuse is gone and the bomb shakes, then swells.
+  3. **Flash (60 ms):** the whole screen turns white.
+  4. **Burst (5 × 70 ms):** a spiky 9-point starburst grows (radius 14 → 46 px, filling the
+     screen) and spins. A black 7-point star rotates the other way inside it, with a white core
+     on the last frames. The boom tone drops in pitch each frame.
+  5. **Smoke (7 × 80 ms):** the burst breaks into 7 puffs that drift up and outward and shrink,
+     hollowing into smoke rings, with a low two-note thud.
+
+  The screen then clears. Frame timing is held even when muted. `drawBombExplosionFrame(i)` draws
+  any single frame, and the test build's `X` serial command steps through them for screen dumps.
 
 ### 5.6 Stopwatch
 Standard count-up stopwatch with lap support.
