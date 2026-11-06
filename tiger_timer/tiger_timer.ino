@@ -1222,6 +1222,10 @@ void doDiceRoll();
 void updateLedBlink();
 void render();
 void drawMenuScreen();
+int listIconSlot(int kind);
+void drawListIcon(int kind, int cx, int cy, uint16_t color);
+void ensureListIconMetrics();
+void drawListIconInBar(int kind, int barTop, uint16_t color);
 void drawCenteredAutoFit(const char* text, int y, int maxSize);
 void drawTimerScreen();
 void drawReflexScreen();
@@ -6156,10 +6160,70 @@ const char* menuLabelForGame(int gameId) {
 // (15 chars at 6 px, "Config distante") still ends at x 121, inside the bar. ----------------
 const int LIST_BAR_X = 4;
 const int LIST_BAR_W = 120;
+const int LIST_BAR_H = 15;    // odd, so a 13 px icon gets 1 px above and below, and 7 px caps get 4 and 4
 const int LIST_ICON_CX = 18;
 const int LIST_TEXT_X = 32;
+const int LIST_TEXT_DY = 4;   // label cursor = bar top + 4: cap height centred in the 15 px bar
+
+// ---------------- List icons, centred by measurement: the icons differ in height (11-13 px) and
+// in where they sit relative to their cy, so each one's real vertical extent is measured once
+// (drawn at (64,32) into the cleared buffer, then scanned with getPixel) and every list draws it
+// with its lit pixels centred in the bar. Kinds: menu ids (games, MENU_SETTINGS,
+// MENU_INSTRUCTIONS) plus LIST_ICON_SETTINGS_BASE + a Settings row index. ----------------
+const int LIST_ICON_SETTINGS_BASE = 200;
+const int LIST_ICON_SLOTS = GAME_COUNT + 2 + SETTINGS_COUNT;
+int8_t listIconTop[LIST_ICON_SLOTS];   // first lit row, relative to cy
+int8_t listIconHeight[LIST_ICON_SLOTS];
+bool listIconsMeasured = false;
+
+int listIconSlot(int kind) {
+  if (kind >= LIST_ICON_SETTINGS_BASE) return GAME_COUNT + 2 + (kind - LIST_ICON_SETTINGS_BASE);
+  if (kind == MENU_SETTINGS) return GAME_COUNT;
+  if (kind == MENU_INSTRUCTIONS) return GAME_COUNT + 1;
+  return kind;
+}
+
+void drawListIcon(int kind, int cx, int cy, uint16_t color) {
+  if (kind >= LIST_ICON_SETTINGS_BASE) {
+    int row = kind - LIST_ICON_SETTINGS_BASE;
+    if (row == SETTINGS_LANGUAGE) drawLanguageIcon(cx, cy, 5, color);
+    else if (row == SETTINGS_TIMER_STEP) drawTimerStepIcon(cx, cy, 5, color);
+    else drawConfigModeIcon(cx, cy, 5, color);
+  } else {
+    drawGameIcon(kind, cx, cy, 6, color);
+  }
+}
+
+// Must be called on a freshly cleared buffer (it clears it again when done).
+void ensureListIconMetrics() {
+  if (listIconsMeasured) return;
+  for (int slot = 0; slot < LIST_ICON_SLOTS; slot++) {
+    int kind = (slot < GAME_COUNT) ? slot : (slot == GAME_COUNT) ? MENU_SETTINGS : (slot == GAME_COUNT + 1) ? MENU_INSTRUCTIONS : LIST_ICON_SETTINGS_BASE + (slot - GAME_COUNT - 2);
+    display.clearDisplay();
+    drawListIcon(kind, 64, 32, SH110X_WHITE);
+    int minY = 99, maxY = -99;
+    for (int y = 12; y <= 52; y++) {
+      for (int x = 44; x <= 84; x++) {
+        if (display.getPixel(x, y)) { if (y < minY) minY = y; if (y > maxY) maxY = y; break; }
+      }
+    }
+    if (maxY < minY) { minY = 32 - 6; maxY = 32 + 6; } // nothing drawn - assume a centred 13 px icon
+    listIconTop[slot] = minY - 32;
+    listIconHeight[slot] = maxY - minY + 1;
+  }
+  display.clearDisplay();
+  listIconsMeasured = true;
+}
+
+// Draws a list icon with its lit pixels vertically centred in a bar starting at barTop.
+void drawListIconInBar(int kind, int barTop, uint16_t color) {
+  int slot = listIconSlot(kind);
+  int cy = barTop + (LIST_BAR_H - listIconHeight[slot]) / 2 - listIconTop[slot];
+  drawListIcon(kind, LIST_ICON_CX, cy, color);
+}
 
 void drawMenuScreen() {
+  ensureListIconMetrics();
   drawVolumeIconAt(2, 1);
 
   display.setTextSize(1);
@@ -6182,18 +6246,17 @@ void drawMenuScreen() {
     if (i >= visibleMenuCount) break;
 
     int rowTop = LIST_TOP + row * ROW_HEIGHT;
-    int rowCenter = rowTop + ROW_HEIGHT / 2;
     bool selected = (i == menuSelection);
 
     if (selected) {
-      display.fillRect(LIST_BAR_X, rowTop, LIST_BAR_W, ROW_HEIGHT - 2, SH110X_WHITE);
+      display.fillRect(LIST_BAR_X, rowTop, LIST_BAR_W, LIST_BAR_H, SH110X_WHITE);
     }
     uint16_t fg = selected ? SH110X_BLACK : SH110X_WHITE;
 
-    drawGameIcon(visibleMenuOrder[i], LIST_ICON_CX, rowCenter, 6, fg);
+    drawListIconInBar(visibleMenuOrder[i], rowTop, fg);
 
     display.setTextColor(fg);
-    display.setCursor(LIST_TEXT_X, rowCenter - 4);
+    display.setCursor(LIST_TEXT_X, rowTop + LIST_TEXT_DY);
     display.print(menuLabelForGame(visibleMenuOrder[i]));
   }
 
@@ -6271,6 +6334,7 @@ void drawLanguageScreen() {
 
 // ---------------- Settings screen: pick Language or Timer Step, two-row list ----------------
 void drawSettingsScreen() {
+  ensureListIconMetrics();
   display.setTextSize(1);
   const char* title = T(STR_SETTINGS_TITLE);
   int16_t x1, y1;
@@ -6287,16 +6351,14 @@ void drawSettingsScreen() {
     int rowTop = rowCenters[i] - 7;
 
     if (selected) {
-      display.fillRect(LIST_BAR_X, rowTop, LIST_BAR_W, 14, SH110X_WHITE);
+      display.fillRect(LIST_BAR_X, rowTop, LIST_BAR_W, LIST_BAR_H, SH110X_WHITE);
     }
     uint16_t fg = selected ? SH110X_BLACK : SH110X_WHITE;
 
-    if (i == SETTINGS_LANGUAGE) drawLanguageIcon(LIST_ICON_CX, rowCenters[i], 5, fg);
-    else if (i == SETTINGS_TIMER_STEP) drawTimerStepIcon(LIST_ICON_CX, rowCenters[i], 5, fg);
-    else drawConfigModeIcon(LIST_ICON_CX, rowCenters[i], 5, fg);
+    drawListIconInBar(LIST_ICON_SETTINGS_BASE + i, rowTop, fg);
 
     display.setTextColor(fg);
-    display.setCursor(LIST_TEXT_X, rowCenters[i] - 3);
+    display.setCursor(LIST_TEXT_X, rowTop + LIST_TEXT_DY);
     display.print(labels[i]);
   }
 
@@ -6409,7 +6471,7 @@ void drawHotPotatoIcon(int cx, int cy, int r, uint16_t color) {
   display.drawFastHLine(cx + 3, cy - 5, 3, color);    // spark
   display.drawFastVLine(cx + 4, cy - 6, 3, color);
   display.drawPixel(cx + 6, cy - 4, color);
-  display.drawPixel(cx + 5, cy - 7, color);
+  display.drawPixel(cx + 6, cy - 6, color);           // (was cy-7: kept the icon to 13 px tall)
   display.drawPixel(cx - 4, cy + 1, inverse);         // shine
   display.drawPixel(cx - 4, cy, inverse);
   display.drawPixel(cx - 3, cy - 1, inverse);
