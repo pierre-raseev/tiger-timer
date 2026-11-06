@@ -48,7 +48,7 @@ and persisted across power cycles.
 - Orientation: normally landscape (128 wide × 64 tall). Two specific games (Tetris and Star
   Drop — see §5.9, §5.10) temporarily rotate the display 90° in software only while their own
   screens are drawn, then rotate back to normal before returning control — no other screen is
-  ever affected by this. All other games, including Snake and SimpleMorse, deliberately stay in
+  ever affected by this. All other games, including Snake, Pong and SimpleMorse, deliberately stay in
   normal orientation.
 
 ### 2.3 Input: Arcade Button
@@ -170,7 +170,7 @@ Two important interaction guarantees:
   or encoder activity, *unless* something "time-critical" is actively running (a countdown, an
   armed reflex round, a running chess clock with an active player, an armed bomb, a running
   stopwatch, an active trivia buzz-in window, a running toothbrush timer, an in-progress
-  Tetris/Star Drop/Snake game, or SimpleMorse actively waiting for input) — those are never
+  Tetris/Star Drop/Snake/Pong game, or SimpleMorse actively waiting for input) — those are never
   allowed to go dark mid-round. Any button/encoder activity wakes the screen immediately.
   **The gesture that wakes the screen is consumed and does nothing else**: an arcade press that
   wakes it fires no action on release, an encoder detent that wakes it doesn't move anything,
@@ -200,7 +200,7 @@ Triggered only by the encoder's 1-second long-press (§3.2) while inside any gam
   safe teardown of whatever was running (pauses the timer, resets an armed reflex round to
   ready, pauses the chess clock, defuses an armed bomb, stops the stopwatch, cancels a trivia
   answer-reveal window, stops a running toothbrush timer, resets Tetris/Star Drop/Snake/
-  SimpleMorse to their Ready state, turns off the button LED and any live tone) and returns to
+  Pong/SimpleMorse to their Ready state, turns off the button LED and any live tone) and returns to
   the main menu with the cursor positioned on the game just left.
 - Leaving is **not** a suspend: re-entering any game from the menu starts it fresh from its
   just-opened state (`initGameState()`, the same reset a direct boot into that game uses). So
@@ -228,15 +228,20 @@ Arduino `Preferences` library). Keys and what they store:
 | `ttHigh` | uint16 | Tetris's persisted high score | 0 |
 | `sdHigh` | uint16 | Star Drop's persisted high score | 0 |
 | `skHigh` | uint16 | Snake's persisted high score | 0 |
+| `pgHigh` | uint16 | Pong's persisted high score | 0 |
 
-**Game ids and the one-time migration.** `startGame`, `menuOrd` and `gameEn` store raw game ids
+**Game ids and the one-time migrations.** `startGame`, `menuOrd` and `gameEn` store raw game ids
 (Timer 0, Reflex 1, Dice 2, Chess Clock 3, Pass the Bomb 4, Stopwatch 5, Trivia 6, Toothbrush 7,
-Tetris 8, Star Drop 9, Snake 10, SimpleMorse 11; sentinels Settings 100, Instructions 101). The
-Turn Order game was removed from the device entirely; it was id 5 and the games after it have
-moved down by one. Settings saved by older firmware (`idVer` absent) are converted once at boot
-by `migrateSavedGameIds()`: Turn Order is dropped from the saved menu order and enable flags,
-later ids are shifted down, and a start-up game of Turn Order falls back to booting to the menu.
-The user's menu order, enabled games and start-up choice are otherwise kept. Then `idVer`=2.
+Tetris 8, Star Drop 9, Snake 10, SimpleMorse 11, Pong 12; sentinels Settings 100, Instructions
+101). When the id list changes, settings saved by older firmware are converted once at boot by
+`migrateSavedGameIds()`, one version step at a time, and `idVer` records the result (absent = 1):
+- **v1 → v2:** the Turn Order game was removed from the device entirely; it was id 5 and the
+  games after it moved down by one. It's dropped from the saved menu order and enable flags,
+  later ids are shifted down, and a start-up game of Turn Order falls back to booting to the menu.
+- **v2 → v3:** Pong added as id 12. It's inserted into a saved menu order right after Snake, and
+  added as enabled.
+
+The user's menu order, enabled games and start-up choice are otherwise kept. Current: `idVer`=3.
 
 Design rule enforced everywhere a set of things can be toggled off (games in the menu, Pass the
 Bomb categories): **at least one must always remain enabled.** If a save would disable the last
@@ -279,7 +284,7 @@ A two-phase animated wordmark, skippable by holding the arcade button at any poi
   (filled background, dark text).
 - **Default order** (used on first boot, or if saved order data is ever invalid): Timer,
   Toothbrush Timer, Dice, Reflex, Chess Clock, Pass the Bomb, Stopwatch, Trivia,
-  Tetris, Star Drop, Snake, SimpleMorse, **Instructions**, **Settings** — Instructions and
+  Tetris, Star Drop, Snake, Pong, SimpleMorse, **Instructions**, **Settings** — Instructions and
   Settings are always the last two entries by default, and (like any entry) can be reordered via
   Remote Config but can never be disabled/hidden (§3.5).
 - On boot into the menu, the cursor highlights the **first entry in the list**, not any
@@ -718,6 +723,47 @@ presses (dots) and long presses (dashes) — for a randomly chosen word, rather 
 
 ---
 
+### 5.13 Pong
+One player against the computer, in the normal (unrotated) orientation. *(Added after SimpleMorse, so
+numbered after it; in the menu it sits between Snake and SimpleMorse.)*
+- **Court:** the area below the standard header/divider, y=16–63 (48 px tall). The player's
+  paddle is on the left (x=1–2), the computer's on the right (x=125–126); both are 2×12 px. The
+  ball is a 2×2 square. A dashed net runs down the middle.
+- **Controls:** the **encoder wheel** moves the player's paddle **4 px per detent**
+  (`PONG_PADDLE_STEP`), clockwise = down (same as scrolling down a menu), clamped to the court.
+  Turning only moves the paddle; the screen redraws at its own frame rate (below) so a fast spin
+  isn't slowed by a screen transfer per detent. The **arcade button** — or an encoder short
+  click, same as Snake — starts from Ready/Game Over and pauses/resumes during play.
+- **Rules and score:** 3 lives, shown as small balls in the header (hollow once lost).
+  **+1 point for every return**; **+5 points for getting the ball past the computer**. Letting
+  the ball past your paddle costs a life; losing the last one ends the game. After each point the
+  ball waits 0.8 s in the middle, then serves toward the player (after the player lost a life) or
+  toward the computer (after the player scored).
+- **Ball physics:** fixed 10 ms physics steps (`PONG_STEP_MS`) with floating-point positions.
+  Each serve starts at 0.70 px/step (70 px/s), creeping up slightly with the score; every player
+  return speeds it up 6 %, capped at 2.2 px/step. Classic Pong aiming: the further from the
+  paddle's centre the ball hits, the steeper it leaves (up to 55°). It bounces off the top and
+  bottom walls.
+- **Computer:** follows the ball only once it's heading its way and past the first third of the
+  court (otherwise drifts back to centre), with a deliberate aiming error re-rolled on each player
+  return. Its top speed starts at 0.40 px/step and grows with the player's returns (max 0.95), and
+  its aim gets tighter as a rally goes on — so it misses steep or fast shots early on and gets
+  harder over a game.
+- **Sounds:** short ticks for wall (600 Hz) and paddle hits (player 900 Hz, computer 750 Hz), a
+  low note on a lost life, a rising two-note chime on scoring past the computer, and the same
+  game-over notes as Snake.
+- **Screen:** standard icon + header + divider. Header shows the lives and, on the right,
+  "Score: N" / Ready / Paused / Game Over. Ready and Game Over screens follow Snake's layout
+  exactly (press-to-start prompt, Best score). Redraws are capped at ~30 fps (`PONG_FRAME_MS`=33)
+  or happen immediately after a hit/point; the I2C display transfer takes ~25 ms per frame.
+- **High score:** persisted to flash (`pgHigh`), shown on Ready and Game Over, updated as soon as
+  a game ends with a better score. Resettable only via Remote Config (§7.2), like Tetris.
+- Counts as "time-critical" while playing (no screen sleep), and leaving mid-game resets it to
+  Ready (§3.3, §3.4).
+- **Bench-testing:** `TT_SCREEN_DUMP` builds add `P` (open Pong), `u`/`j` (paddle up/down one
+  detent), `s` (state snapshot), `A` (autopilot: the paddle tracks the ball, for soak-testing the
+  physics) and `Z` (clear the Pong high score).
+
 ## 6. Volume Indicator System
 
 Two distinct renderings of the same speaker-and-sound-waves icon concept, sharing one design
@@ -816,7 +862,7 @@ Remote Config", with these sections:
 5. **Pass the Bomb categories** — all 20 categories (§5.5) listed with their English name and
    French/Spanish translations shown beneath each, and a toggle per category (same
    "at least one enabled" rule).
-6. **High scores** — Tetris, Star Drop, and Snake each listed with their current best and an
+6. **High scores** — Tetris, Star Drop, Snake and Pong each listed with their current best and an
    individual **Reset** button (browser-confirmed before applying, since this is destructive and
    has no on-device equivalent). Resetting updates the number shown on this same page
    immediately. This is the *only* way to reset a high score — there is deliberately no
@@ -828,7 +874,7 @@ exact routes, only the equivalent capability)
 - `GET /` — serves the config page itself.
 - `GET /api/config` — returns current menu order, per-game enabled state, startup settings,
   default timer length, trivia category/level lists, the full Pass the Bomb category list (with
-  translations and enabled state), and the current Tetris/Star Drop/Snake high scores, as JSON.
+  translations and enabled state), and the current Tetris/Star Drop/Snake/Pong high scores, as JSON.
 - `POST /api/config` — accepts a partial update to any of the settings above (not the high
   scores, which use their own endpoint below); applies and persists immediately; enforces the
   "at least one enabled" rule per toggle-able group independently, reporting a non-fatal warning
@@ -841,7 +887,7 @@ exact routes, only the equivalent capability)
   converted to UTF-8 with a BOM (see the Download CSV rationale above).
 - All text the device sends to the page (including the Pass the Bomb category names) is UTF-8;
   see §5.7 "Text encoding" for the conversion rules.
-- `POST /api/reset-highscore` — body `{"game": "tetris"|"stardrop"|"snake"}`; resets that one
+- `POST /api/reset-highscore` — body `{"game": "tetris"|"stardrop"|"snake"|"pong"}`; resets that one
   game's persisted high score to 0. A dedicated endpoint rather than folding this into the
   general config save, since it's a one-shot destructive action, not a settings change.
 
@@ -863,7 +909,7 @@ exact routes, only the equivalent capability)
   (`lang` setting, §3.5).
 - A handful of names are intentionally **not** translated and appear identical in all 3 language
   columns, being treated as proper nouns/brand names: "Tetris", "Star Drop", "Snake",
-  "SimpleMorse".
+  "SimpleMorse", "Pong".
 - **Word-wrapping is always word-boundary-aware, never mid-word** — this matters because
   translated strings vary substantially in length (e.g. Spanish "Temporizador" vs English
   "Timer"), and several screens (splash screens, Tetris/Star Drop's inverted title bars, Pass

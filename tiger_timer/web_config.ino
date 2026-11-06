@@ -32,44 +32,75 @@ const char* CONFIG_TRIVIA_FIELD_NAMES[15] = {
   "es_q", "es_correct", "es_wrong1", "es_wrong2", "es_wrong3"
 };
 
-// ---------------- Saved-settings migration: game ids v1 -> v2 ----------------
-// Firmware before the Turn Order removal used game id 5 for Turn Order and 6-12 for the games
-// after it (13 games, 15 menu entries). Saved settings store those raw ids, so on the first boot
-// of newer firmware they're converted once: Turn Order is dropped and ids above 5 move down by
-// one. Keeps the user's menu order, enabled/disabled games and start-up game. "idVer" marks it done.
+// ---------------- Saved-settings migration ----------------
+// Saved settings ("startGame", "menuOrd", "gameEn") store raw game ids, so whenever the id list
+// changes they're converted once at boot, one version at a time; "idVer" records how far along a
+// device is (absent = 1).
+//   v1 -> v2: Turn Order (id 5) removed; ids 6-12 moved down by one (13 -> 12 games, 15 -> 14 menu entries).
+//   v2 -> v3: Pong added as id 12 (12 -> 13 games, 14 -> 15 menu entries); it's inserted into a
+//             saved menu order right after Snake, and enabled.
+// Keeps the user's menu order, enabled/disabled games and start-up game across updates.
 void migrateSavedGameIds() {
-  if (prefs.getUChar("idVer", 1) >= 2) return;
-  const int OLD_TURNORDER = 5, OLD_MENU_COUNT = 15, OLD_GAME_COUNT = 13;
+  int ver = prefs.getUChar("idVer", 1);
+  if (ver >= 3) return;
 
-  uint8_t oldMenu[OLD_MENU_COUNT];
-  if (prefs.getBytes("menuOrd", oldMenu, OLD_MENU_COUNT) == OLD_MENU_COUNT) {
-    uint8_t newMenu[MENU_COUNT];
-    int n = 0;
-    for (int i = 0; i < OLD_MENU_COUNT; i++) {
-      int id = oldMenu[i];
-      if (id == OLD_TURNORDER) continue;
-      if (id > OLD_TURNORDER && id < OLD_GAME_COUNT) id--;
-      if (n < MENU_COUNT) newMenu[n++] = (uint8_t)id;
+  if (ver < 2) {
+    const int OLD_TURNORDER = 5, V1_MENU = 15, V1_GAMES = 13, V2_MENU = 14, V2_GAMES = 12;
+    uint8_t oldMenu[V1_MENU];
+    if (prefs.getBytes("menuOrd", oldMenu, V1_MENU) == V1_MENU) {
+      uint8_t newMenu[V2_MENU];
+      int n = 0;
+      for (int i = 0; i < V1_MENU; i++) {
+        int id = oldMenu[i];
+        if (id == OLD_TURNORDER) continue;
+        if (id > OLD_TURNORDER && id < V1_GAMES) id--;
+        if (n < V2_MENU) newMenu[n++] = (uint8_t)id;
+      }
+      if (n == V2_MENU) prefs.putBytes("menuOrd", newMenu, V2_MENU);
+      else prefs.remove("menuOrd"); // unexpected shape - fall back to the default order
     }
-    if (n == MENU_COUNT) prefs.putBytes("menuOrd", newMenu, MENU_COUNT);
-    else prefs.remove("menuOrd"); // unexpected shape - fall back to the default order
+    uint8_t oldEn[V1_GAMES];
+    if (prefs.getBytes("gameEn", oldEn, V1_GAMES) == V1_GAMES) {
+      uint8_t newEn[V2_GAMES];
+      int n = 0;
+      for (int i = 0; i < V1_GAMES; i++) if (i != OLD_TURNORDER && n < V2_GAMES) newEn[n++] = oldEn[i];
+      prefs.putBytes("gameEn", newEn, V2_GAMES);
+    }
+    if (prefs.isKey("startGame")) {
+      int g = prefs.getUChar("startGame", GAME_TIMER);
+      if (g == OLD_TURNORDER) { prefs.putUChar("startGame", GAME_TIMER); prefs.putUChar("startMode", 0); } // its game is gone - boot to the menu
+      else if (g > OLD_TURNORDER) prefs.putUChar("startGame", (uint8_t)(g - 1));
+    }
   }
 
-  uint8_t oldEn[OLD_GAME_COUNT];
-  if (prefs.getBytes("gameEn", oldEn, OLD_GAME_COUNT) == OLD_GAME_COUNT) {
-    uint8_t newEn[GAME_COUNT];
-    int n = 0;
-    for (int i = 0; i < OLD_GAME_COUNT; i++) if (i != OLD_TURNORDER && n < GAME_COUNT) newEn[n++] = oldEn[i];
-    prefs.putBytes("gameEn", newEn, GAME_COUNT);
+  // v2 -> v3: add Pong
+  {
+    const int V2_MENU = 14, V2_GAMES = 12, SNAKE_ID = 10, PONG_ID = 12;
+    uint8_t oldMenu[V2_MENU];
+    if (prefs.getBytes("menuOrd", oldMenu, V2_MENU) == V2_MENU) {
+      uint8_t newMenu[V2_MENU + 1];
+      int n = 0;
+      bool placed = false;
+      for (int i = 0; i < V2_MENU; i++) {
+        newMenu[n++] = oldMenu[i];
+        if (oldMenu[i] == SNAKE_ID) { newMenu[n++] = PONG_ID; placed = true; }
+      }
+      if (!placed) { // no Snake in the saved list (shouldn't happen) - put Pong first
+        for (int i = V2_MENU; i > 0; i--) newMenu[i] = newMenu[i - 1];
+        newMenu[0] = PONG_ID;
+      }
+      prefs.putBytes("menuOrd", newMenu, V2_MENU + 1);
+    }
+    uint8_t oldEn[V2_GAMES];
+    if (prefs.getBytes("gameEn", oldEn, V2_GAMES) == V2_GAMES) {
+      uint8_t newEn[V2_GAMES + 1];
+      for (int i = 0; i < V2_GAMES; i++) newEn[i] = oldEn[i];
+      newEn[V2_GAMES] = 1; // Pong starts enabled
+      prefs.putBytes("gameEn", newEn, V2_GAMES + 1);
+    }
   }
 
-  if (prefs.isKey("startGame")) {
-    int g = prefs.getUChar("startGame", GAME_TIMER);
-    if (g == OLD_TURNORDER) { prefs.putUChar("startGame", GAME_TIMER); prefs.putUChar("startMode", 0); } // its game is gone - boot to the menu
-    else if (g > OLD_TURNORDER) prefs.putUChar("startGame", (uint8_t)(g - 1));
-  }
-
-  prefs.putUChar("idVer", 2);
+  prefs.putUChar("idVer", 3);
 }
 
 // ---------------- Menu order: load/save/validate ----------------
@@ -216,8 +247,8 @@ void handleGetConfig() {
   for (int i = 0; i < MENU_COUNT; i++) menu.add(MENU_ORDER[i]);
 
   JsonArray games = doc["games"].to<JsonArray>();
-  const int allGameIds[GAME_COUNT] = {GAME_TIMER, GAME_REFLEX, GAME_DICE, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_TRIVIA, GAME_TOOTHBRUSH, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_SIMPLEMORSE};
-  const char* allGameNames[GAME_COUNT] = {"Timer", "Reflex", "Dice", "Chess Clock", "Pass the Bomb", "Stopwatch", "Trivia", "Toothbrush Timer", "Tetris", "Star Drop", "Snake", "SimpleMorse"};
+  const int allGameIds[GAME_COUNT] = {GAME_TIMER, GAME_REFLEX, GAME_DICE, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_TRIVIA, GAME_TOOTHBRUSH, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_SIMPLEMORSE, GAME_PONG};
+  const char* allGameNames[GAME_COUNT] = {"Timer", "Reflex", "Dice", "Chess Clock", "Pass the Bomb", "Stopwatch", "Trivia", "Toothbrush Timer", "Tetris", "Star Drop", "Snake", "SimpleMorse", "Pong"};
   for (int i = 0; i < GAME_COUNT; i++) {
     JsonObject g = games.add<JsonObject>();
     g["id"] = allGameIds[i];
@@ -252,6 +283,7 @@ void handleGetConfig() {
   highScores["tetris"] = tetrisHighScore;
   highScores["stardrop"] = stardropHighScore;
   highScores["snake"] = snakeHighScore;
+  highScores["pong"] = pongHighScore;
 
   String out;
   serializeJson(doc, out);
@@ -459,7 +491,7 @@ void handleGetTriviaCsv() {
   configServer.send(200, "text/csv; charset=utf-8", body);
 }
 
-// ---------------- Route: POST /api/reset-highscore - body {"game":"tetris"|"stardrop"|"snake"} -
+// ---------------- Route: POST /api/reset-highscore - body {"game":"tetris"|"stardrop"|"snake"|"pong"} -
 // resets that one game's persisted high score to 0. A dedicated endpoint rather than folding this
 // into POST /api/config, since it's a one-shot action, not a settings save. ----------------
 void handleResetHighScore() {
@@ -485,6 +517,9 @@ void handleResetHighScore() {
   } else if (game == "snake") {
     snakeHighScore = 0;
     prefs.putUShort("skHigh", 0);
+  } else if (game == "pong") {
+    pongHighScore = 0;
+    prefs.putUShort("pgHigh", 0);
   } else {
     configServer.send(400, "application/json", "{\"ok\":false,\"error\":\"unknown game\"}");
     return;

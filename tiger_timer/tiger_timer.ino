@@ -218,14 +218,15 @@ const int GAME_TETRIS     = 8;
 const int GAME_STARDROP   = 9;
 const int GAME_SNAKE      = 10;
 const int GAME_SIMPLEMORSE = 11;
-const int GAME_COUNT      = 12;
+const int GAME_PONG       = 12; // added after the Turn Order removal - see migrateSavedGameIds (idVer 3)
+const int GAME_COUNT      = 13;
 int currentGame = GAME_TIMER;
 
 const int MENU_SETTINGS = 100; // sentinel: a menu entry that isn't a playable game
 const int MENU_INSTRUCTIONS = 101; // sentinel: another non-game entry, the global instructions screen
-const int MENU_COUNT = 14;
+const int MENU_COUNT = 15;
 // Default/fallback order, used on first boot and whenever a saved order in flash is missing or invalid.
-const int DEFAULT_MENU_ORDER[MENU_COUNT] = {GAME_TIMER, GAME_TOOTHBRUSH, GAME_DICE, GAME_REFLEX, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_TRIVIA, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_SIMPLEMORSE, MENU_INSTRUCTIONS, MENU_SETTINGS};
+const int DEFAULT_MENU_ORDER[MENU_COUNT] = {GAME_TIMER, GAME_TOOTHBRUSH, GAME_DICE, GAME_REFLEX, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_TRIVIA, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_PONG, GAME_SIMPLEMORSE, MENU_INSTRUCTIONS, MENU_SETTINGS};
 // Actual display order - no longer const: Config Mode (web_config.ino) can rewrite this at runtime
 // and persist it to flash. Everything that reads MENU_ORDER elsewhere in the sketch is unaffected,
 // since it's still just an array of GAME_* ids in display order.
@@ -416,7 +417,8 @@ const int STR_SIMON_YOUR_TURN = 124;
 const int STR_SIMON_COMPLETE = 125;
 const int STR_SIMON_ROUND = 126;
 const int STR_ZONE_FRONT = 127; // toothbrush zone label, line 2
-const int NUM_STRINGS = 128;
+const int STR_MENU_PONG = 128;
+const int NUM_STRINGS = 129;
 
 const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SELECT_GAME          */{"Choose Option", "Choisir option", "Elegir opcion"},
@@ -547,6 +549,7 @@ const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SIMON_COMPLETE       */{"Complete!", "Reussi !", "Completo!"},
   /* STR_SIMON_ROUND          */{"Round", "Manche", "Ronda"},
   /* STR_ZONE_FRONT           */{"front", "devant", "frente"},
+  /* STR_MENU_PONG            */{"Pong", "Pong", "Pong"},
 
 };
 
@@ -803,6 +806,43 @@ int snakeFoodCol = 0;
 int snakeScore = 0;
 int snakeHighScore = 0; // loaded from flash in setup()
 unsigned long snakeLastMoveTime = 0;
+
+// ---- Pong state ----
+// One player (left paddle, encoder wheel) against the computer (right paddle). 3 lives; +1 point
+// per return, +5 for getting the ball past the computer. The ball speeds up on every return and
+// the computer gets quicker as the score climbs. Physics runs in fixed 10 ms steps (positions in
+// floating-point pixels), the screen redraws at most every PONG_FRAME_MS so the I2C transfer
+// (~25 ms per full frame) doesn't starve the encoder polling.
+const int PONG_FIELD_TOP = 16;     // just under the standard header/divider at y=14
+const int PONG_FIELD_BOTTOM = 63;  // inclusive
+const int PONG_PADDLE_H = 12;
+const int PONG_PADDLE_W = 2;
+const int PONG_PLAYER_X = 1;       // left paddle occupies x=1..2
+const int PONG_CPU_X = 125;        // right paddle occupies x=125..126
+const int PONG_BALL = 2;           // ball is a 2x2 square
+const int PONG_PADDLE_STEP = 4;    // pixels per encoder detent
+const int PONG_LIVES = 3;
+const unsigned long PONG_STEP_MS = 10;
+const unsigned long PONG_FRAME_MS = 33;   // ~30 fps redraw cap
+const unsigned long PONG_SERVE_DELAY_MS = 800;
+const int PONG_READY = 0;
+const int PONG_PLAYING = 1;
+const int PONG_PAUSED = 2;
+const int PONG_GAME_OVER = 3;
+int pongState = PONG_READY;
+float pongBallX = 0, pongBallY = 0, pongBallVX = 0, pongBallVY = 0; // px, px per 10 ms step
+float pongBallSpeed = 0;
+int pongPlayerY = 0;               // top of the player's paddle
+float pongCpuY = 0;                // top of the computer's paddle
+float pongCpuAimOffset = 0;        // computer's deliberate aiming error, re-rolled on each player return
+int pongScore = 0;
+int pongHighScore = 0;             // loaded from flash in setup()
+int pongLives = PONG_LIVES;
+int pongReturns = 0;               // player returns this game, drives the computer's speed
+unsigned long pongLastStepTime = 0;
+unsigned long pongLastFrameTime = 0;
+unsigned long pongServeAt = 0;     // ball waits in the middle until this time after each point
+bool pongTestAutopilot = false;    // bench-test only (TT_SCREEN_DUMP builds): paddle follows the ball
 
 // ---- SimpleMorse state ----
 // Standard International Morse code for A-Z, as dot/dash strings.
@@ -1069,6 +1109,12 @@ void drawTetrisIcon(int cx, int cy, int r, uint16_t color);
 void drawStarDropIcon(int cx, int cy, int r, uint16_t color);
 void drawSnakeIcon(int cx, int cy, int r, uint16_t color);
 void drawSnakeScreen();
+void pongStart();
+void pongServe(int direction);
+void handlePongButtonPress();
+void updatePong();
+void drawPongScreen();
+void drawPongIcon(int cx, int cy, int r, uint16_t color);
 void drawSimonScreen();
 void drawWordWithCode(const char* word, int yTop);
 void drawWordProgress(const char* word, int yTop);
@@ -1195,13 +1241,14 @@ void setup() {
   prefs.begin("gametimer", false);
   currentLanguage = constrain((int)prefs.getUChar("lang", LANG_EN), 0, LANG_COUNT - 1);
   currentTimerStepIndex = constrain((int)prefs.getUChar("step", TIMER_STEP_DEFAULT_INDEX), 0, TIMER_STEP_OPTION_COUNT - 1);
-  migrateSavedGameIds();    // web_config.ino - one-time conversion of settings saved by older firmware
+  migrateSavedGameIds();    // web_config.ino - one-time conversion of settings saved by older firmware (idVer)
   loadMenuOrderFromPrefs(); // web_config.ino - fills MENU_ORDER from flash, or DEFAULT_MENU_ORDER if unset/invalid
   loadGameEnabledFromPrefs(); // web_config.ino - fills gameEnabled[] from flash, or all-enabled if unset
   rebuildVisibleMenu(); // web_config.ino - filters MENU_ORDER by gameEnabled into visibleMenuOrder
   stardropHighScore = prefs.getUShort("sdHigh", 0);
   tetrisHighScore = prefs.getUShort("ttHigh", 0);
   snakeHighScore = prefs.getUShort("skHigh", 0);
+  pongHighScore = prefs.getUShort("pgHigh", 0);
   loadHpCategoryEnabledFromPrefs(); // web_config.ino
 
   long defaultTimerSeconds = constrain((long)prefs.getUShort("deftime", (uint16_t)DEFAULT_TIME), MIN_TIME, MAX_TIME);
@@ -1259,12 +1306,27 @@ void setup() {
 // USB serial and dump the OLED buffer as text, so a computer can check the drawing without
 // eyes on the panel. t = open Toothbrush, p = arcade press, f = skip 20s ahead, d = dump,
 // m = list the visible menu, w = 10 SimpleMorse word picks,
-// L = cycle the language in RAM only (not saved). ----------------
+// L = cycle the language in RAM only (not saved), P = open Pong, u/j = paddle up/down,
+// s = Pong state, A = Pong autopilot on/off, Z = clear the Pong high score. ----------------
 void testSerialCommands() {
   while (Serial.available()) {
     char c = Serial.read();
     if (c == 't') { inMenu = false; currentGame = GAME_TOOTHBRUSH; initGameState(GAME_TOOTHBRUSH); render(); }
-    else if (c == 'p') { handleToothbrushPress(); }
+    else if (c == 'p') { if (currentGame == GAME_TOOTHBRUSH) handleToothbrushPress(); else dispatchButtonShortPress(); }
+    else if (c == 'P') { inMenu = false; currentGame = GAME_PONG; initGameState(GAME_PONG); render(); }
+    else if (c == 'u' || c == 'j') { // Pong paddle up / down one detent
+      if (currentGame == GAME_PONG && pongState == PONG_PLAYING)
+        pongPlayerY = constrain(pongPlayerY + (c == 'j' ? 1 : -1) * PONG_PADDLE_STEP, PONG_FIELD_TOP, PONG_FIELD_BOTTOM - PONG_PADDLE_H + 1);
+    }
+    else if (c == 's') { // Pong state snapshot
+      Serial.printf("[pong] state=%d score=%d lives=%d high=%d ball=(%.1f,%.1f) v=(%.2f,%.2f) player=%d cpu=%.1f returns=%d\n",
+        pongState, pongScore, pongLives, pongHighScore, pongBallX, pongBallY, pongBallVX, pongBallVY, pongPlayerY, pongCpuY, pongReturns);
+    }
+    else if (c == 'Z') { pongHighScore = 0; prefs.putUShort("pgHigh", 0); Serial.println("[pong] high score cleared"); }
+    else if (c == 'A') { // autopilot toggle: Pong paddle tracks the ball by itself (for soak-testing physics)
+      pongTestAutopilot = !pongTestAutopilot;
+      Serial.printf("[pong] autopilot %s\n", pongTestAutopilot ? "on" : "off");
+    }
     else if (c == 'f') { toothbrushRemainingSeconds = max(1L, toothbrushRemainingSeconds - 20); toothbrushLastTick = millis() - 1000; }
     else if (c == 'm') { // visible menu, in order, with the ids behind it
       Serial.print("[menu]");
@@ -1328,6 +1390,9 @@ void loop() {
   if (!inMenu && currentGame == GAME_STARDROP) {
     updateStarDrop();
   }
+  if (!inMenu && currentGame == GAME_PONG) {
+    updatePong();
+  }
   if (!inMenu && currentGame == GAME_SNAKE) {
     updateSnake();
   }
@@ -1361,6 +1426,7 @@ bool isTimeCriticalActive() {
          (currentGame == GAME_TETRIS && tetrisState == TETRIS_PLAYING) ||
          (currentGame == GAME_STARDROP && stardropState == STARDROP_PLAYING) ||
          (currentGame == GAME_SNAKE && snakeState == SNAKE_PLAYING) ||
+         (currentGame == GAME_PONG && pongState == PONG_PLAYING) ||
          (currentGame == GAME_SIMPLEMORSE && simonState == SIMON_INPUT);
 }
 
@@ -1491,6 +1557,14 @@ void readEncoder() {
         snakeDirection = ((snakeDirection + direction) % 4 + 4) % 4; // relative turn: +1 = right, -1 = left
         snakeTurnedThisTick = true;
       }
+    } else if (currentGame == GAME_PONG) {
+      // move the paddle only - updatePong() redraws at its own frame rate, so a fast spin isn't
+      // slowed down by a full screen transfer on every detent. Clockwise = down, like the menus.
+      if (pongState == PONG_PLAYING) {
+        pongPlayerY = constrain(pongPlayerY + direction * PONG_PADDLE_STEP, PONG_FIELD_TOP, PONG_FIELD_BOTTOM - PONG_PADDLE_H + 1);
+      }
+      lastClkState = clkState;
+      return;
     } else if (currentGame == GAME_HOTPOTATO && hpState == HP_READY) {
       hpRerollWithAnimation(); // blocking - already renders itself throughout
       lastClkState = clkState;
@@ -1549,6 +1623,8 @@ void initGameState(int game) {
     tetrisState = TETRIS_READY;
   } else if (game == GAME_STARDROP) {
     stardropState = STARDROP_READY;
+  } else if (game == GAME_PONG) {
+    pongState = PONG_READY;
   } else if (game == GAME_SNAKE) {
     snakeState = SNAKE_READY;
   } else if (game == GAME_SIMPLEMORSE) {
@@ -2557,6 +2633,163 @@ void updateSnake() {
   render();
 }
 
+// ================= Pong =================
+// ---------------- Puts the ball back in the middle and launches it after a short pause, toward
+// direction (-1 = the player, +1 = the computer). Base speed creeps up slowly with the score. ----------------
+void pongServe(int direction) {
+  pongBallX = (SCREEN_WIDTH - PONG_BALL) / 2.0f;
+  pongBallY = (PONG_FIELD_TOP + PONG_FIELD_BOTTOM + 1 - PONG_BALL) / 2.0f;
+  pongBallSpeed = 0.70f + min(pongScore, 60) * 0.005f;
+  float angle = (random(-35, 36)) * 0.01745f; // up to +/-35 degrees
+  pongBallVX = direction * pongBallSpeed * cos(angle);
+  pongBallVY = pongBallSpeed * sin(angle);
+  pongCpuAimOffset = random(-5, 6);
+  pongServeAt = millis() + PONG_SERVE_DELAY_MS;
+}
+
+// ---------------- New game: centered paddles, full lives, first serve toward the player ----------------
+void pongStart() {
+  pongScore = 0;
+  pongLives = PONG_LIVES;
+  pongReturns = 0;
+  pongPlayerY = (PONG_FIELD_TOP + PONG_FIELD_BOTTOM + 1 - PONG_PADDLE_H) / 2;
+  pongCpuY = pongPlayerY;
+  pongState = PONG_PLAYING;
+  pongServe(-1);
+  pongLastStepTime = millis();
+  pongLastFrameTime = 0;
+  render();
+}
+
+// ---------------- Arcade button (or encoder click): start/restart from Ready or Game Over, or
+// pause/resume during play - same pattern as Snake ----------------
+void handlePongButtonPress() {
+  if (pongState == PONG_READY || pongState == PONG_GAME_OVER) {
+    pongStart();
+  } else if (pongState == PONG_PLAYING) {
+    pongState = PONG_PAUSED;
+    render();
+  } else if (pongState == PONG_PAUSED) {
+    pongState = PONG_PLAYING;
+    pongLastStepTime = millis();                // paused time doesn't count as missed physics steps
+    if (pongServeAt > millis()) pongServeAt = millis() + PONG_SERVE_DELAY_MS;
+    render();
+  }
+}
+
+// ---------------- Bounces the ball off a paddle: the further from the paddle's center it hits,
+// the steeper it leaves (up to 55 degrees), classic Pong-style aiming ----------------
+void pongBounce(float paddleTop, int direction) {
+  float rel = ((pongBallY + PONG_BALL / 2.0f) - (paddleTop + PONG_PADDLE_H / 2.0f)) / (PONG_PADDLE_H / 2.0f);
+  rel = constrain(rel, -1.0f, 1.0f);
+  float angle = rel * 55.0f * 0.01745f;
+  pongBallVX = direction * pongBallSpeed * cos(angle);
+  pongBallVY = pongBallSpeed * sin(angle);
+}
+
+void pongGameOver() {
+  pongState = PONG_GAME_OVER;
+  if (pongScore > pongHighScore) {
+    pongHighScore = pongScore;
+    prefs.putUShort("pgHigh", (uint16_t)min(pongHighScore, 65535)); // stored as 16-bit - clamp instead of wrapping
+  }
+  playNote(300, 90);
+  playNote(220, 140);
+}
+
+// ---------------- One fixed 10 ms physics step: computer paddle, ball movement, wall and paddle
+// bounces, and points. Returns true if something happened that should redraw right away. ----------------
+bool pongStep() {
+  // computer: follows the ball (plus its aiming error) only once the ball is heading its way and
+  // past the first third of the court, otherwise drifts back to the middle. Its top speed grows
+  // with the player's returns, so long rallies get harder.
+  float cpuSpeed = min(0.40f + pongReturns * 0.012f, 0.95f);
+  float target;
+  if (pongBallVX > 0 && pongBallX > SCREEN_WIDTH / 3) target = pongBallY + PONG_BALL / 2.0f - PONG_PADDLE_H / 2.0f + pongCpuAimOffset;
+  else target = (PONG_FIELD_TOP + PONG_FIELD_BOTTOM + 1 - PONG_PADDLE_H) / 2.0f;
+  if (pongCpuY < target) pongCpuY = min(pongCpuY + cpuSpeed, target);
+  else pongCpuY = max(pongCpuY - cpuSpeed, target);
+  pongCpuY = constrain(pongCpuY, (float)PONG_FIELD_TOP, (float)(PONG_FIELD_BOTTOM - PONG_PADDLE_H + 1));
+
+  if (millis() < pongServeAt) return false;
+
+  float prevX = pongBallX;
+  pongBallX += pongBallVX;
+  pongBallY += pongBallVY;
+
+  // top/bottom walls
+  if (pongBallY < PONG_FIELD_TOP) { pongBallY = 2 * PONG_FIELD_TOP - pongBallY; pongBallVY = -pongBallVY; playNote(600, 8); }
+  float maxY = PONG_FIELD_BOTTOM + 1 - PONG_BALL;
+  if (pongBallY > maxY) { pongBallY = 2 * maxY - pongBallY; pongBallVY = -pongBallVY; playNote(600, 8); }
+
+  // player paddle (left): only when crossing its front face this step
+  float playerFace = PONG_PLAYER_X + PONG_PADDLE_W;
+  if (pongBallVX < 0 && prevX >= playerFace && pongBallX < playerFace) {
+    if (pongBallY + PONG_BALL > pongPlayerY && pongBallY < pongPlayerY + PONG_PADDLE_H) {
+      pongBallX = playerFace;
+      pongBallSpeed = min(pongBallSpeed * 1.06f, 2.2f);
+      pongBounce(pongPlayerY, 1);
+      pongScore++;
+      pongReturns++;
+      pongCpuAimOffset = random(-7, 8) * max(0.3f, 1.0f - pongReturns * 0.03f); // aims better as rallies go on
+      playNote(900, 12);
+      return true;
+    }
+  }
+  // computer paddle (right)
+  float cpuFace = PONG_CPU_X - PONG_BALL;
+  if (pongBallVX > 0 && prevX <= cpuFace && pongBallX > cpuFace) {
+    if (pongBallY + PONG_BALL > pongCpuY && pongBallY < pongCpuY + PONG_PADDLE_H) {
+      pongBallX = cpuFace;
+      pongBounce(pongCpuY, -1);
+      playNote(750, 12);
+      return true;
+    }
+  }
+
+  // out of play
+  if (pongBallX < -PONG_BALL) { // player missed
+    pongLives--;
+    playNote(220, 120);
+    if (pongLives <= 0) { pongGameOver(); return true; }
+    pongServe(-1);
+    return true;
+  }
+  if (pongBallX > SCREEN_WIDTH) { // got it past the computer
+    pongScore += 5;
+    playNote(1200, 40);
+    playNote(1600, 60);
+    pongServe(1);
+    return true;
+  }
+  return false;
+}
+
+// ---------------- Called every loop() pass: catches up on physics steps, then redraws at most
+// once per PONG_FRAME_MS (or right away after a hit/point) ----------------
+void updatePong() {
+  if (pongState != PONG_PLAYING) return;
+  if (inLeaveConfirm) { pongLastStepTime = millis(); return; }
+#ifdef TT_SCREEN_DUMP
+  if (pongTestAutopilot) pongPlayerY = constrain((int)(pongBallY + PONG_BALL / 2 - PONG_PADDLE_H / 2), PONG_FIELD_TOP, PONG_FIELD_BOTTOM - PONG_PADDLE_H + 1);
+#endif
+
+  bool urgent = false;
+  int steps = 0;
+  while (millis() - pongLastStepTime >= PONG_STEP_MS && steps < 10) { // cap the catch-up after a long blocking redraw/sound
+    pongLastStepTime += PONG_STEP_MS;
+    steps++;
+    if (pongStep()) urgent = true;
+    if (pongState != PONG_PLAYING) break;
+  }
+  if (steps == 10) pongLastStepTime = millis();
+
+  if (urgent || millis() - pongLastFrameTime >= PONG_FRAME_MS) {
+    pongLastFrameTime = millis();
+    render();
+  }
+}
+
 // ================= SimpleMorse =================
 // ---------------- Picks a random word and flattens its Morse code into a single dot/dash
 // sequence (letter boundaries aren't preserved - the whole word is one continuous pattern to
@@ -3003,6 +3236,7 @@ void leaveToMenu() {
   tetrisState = TETRIS_READY;       // these don't have partial progress worth preserving like
   stardropState = STARDROP_READY;   // Chess/Stopwatch do - leaving mid-round just ends the round,
   snakeState = SNAKE_READY;         // same as a game over would
+  pongState = PONG_READY;
   simonState = SIMON_READY;
   stopTone(); // in case the arcade button was mid-hold (live dot/dash tone) when this happened
   digitalWrite(BUTTON_LED, LOW);
@@ -3092,6 +3326,8 @@ void dispatchButtonShortPress() {
     handleStarDropButtonPress();
   } else if (currentGame == GAME_SNAKE) {
     handleSnakeButtonPress();
+  } else if (currentGame == GAME_PONG) {
+    handlePongButtonPress();
   } else { // GAME_SIMPLEMORSE
     handleSimonButtonPress();
   }
@@ -3193,6 +3429,8 @@ void readEncoderButton() {
               handleStarDropButtonPress(); // start/restart, same as the arcade button
             } else if (currentGame == GAME_SNAKE) {
               handleSnakeButtonPress(); // start/restart/pause/resume, same as the arcade button
+            } else if (currentGame == GAME_PONG) {
+              handlePongButtonPress(); // start/restart/pause/resume, same as the arcade button
             }
             // otherwise: no assigned action on this screen, click does nothing
           }
@@ -3765,6 +4003,8 @@ void render() {
     }
   } else if (currentGame == GAME_SNAKE) {
     drawSnakeScreen();
+  } else if (currentGame == GAME_PONG) {
+    drawPongScreen();
   } else { // GAME_SIMPLEMORSE
     drawSimonScreen();
   }
@@ -4938,6 +5178,69 @@ void drawSnakeScreen() {
   display.fillCircle(fx, fy, max(1, SNAKE_CELL_SIZE / 2 - 1), SH110X_WHITE);
 }
 
+// ================= Pong screen =================
+// Header: icon, lives as small balls (hollow once lost), and Score / Ready / Paused / Game Over
+// on the right. Ready and Game Over screens follow Snake's layout exactly.
+void drawPongScreen() {
+  drawPongIcon(7, 7, 6, SH110X_WHITE);
+  for (int i = 0; i < PONG_LIVES; i++) {
+    int lx = 20 + i * 7;
+    if (i < pongLives || pongState == PONG_READY) display.fillCircle(lx, 7, 2, SH110X_WHITE);
+    else display.drawCircle(lx, 7, 2, SH110X_WHITE);
+  }
+
+  display.setTextSize(1);
+  char scoreBuf[16];
+  const char* status;
+  if (pongState == PONG_READY) status = T(STR_READY);
+  else if (pongState == PONG_GAME_OVER) status = T(STR_TETRIS_GAME_OVER);
+  else if (pongState == PONG_PAUSED) status = T(STR_PAUSED);
+  else { snprintf(scoreBuf, sizeof(scoreBuf), "%s: %d", T(STR_TETRIS_SCORE), pongScore); status = scoreBuf; }
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(status, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor(SCREEN_WIDTH - w - 2, 4);
+  display.print(status);
+  display.drawLine(0, 14, SCREEN_WIDTH, 14, SH110X_WHITE);
+
+  if (pongState == PONG_READY) {
+    const char* prompt = T(STR_TETRIS_PRESS_START);
+    display.getTextBounds(prompt, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor((SCREEN_WIDTH - w) / 2, 30);
+    display.print(prompt);
+    if (pongHighScore > 0) {
+      char buf[24];
+      snprintf(buf, sizeof(buf), "%s: %d", T(STR_STARDROP_HIGH), pongHighScore);
+      display.getTextBounds(buf, 0, 0, &x1, &y1, &w, &h);
+      display.setCursor((SCREEN_WIDTH - w) / 2, 44);
+      display.print(buf);
+    }
+    return;
+  }
+  if (pongState == PONG_GAME_OVER) {
+    char buf[24];
+    snprintf(buf, sizeof(buf), "%s: %d", T(STR_TETRIS_SCORE), pongScore);
+    display.getTextBounds(buf, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor((SCREEN_WIDTH - w) / 2, 24);
+    display.print(buf);
+    snprintf(buf, sizeof(buf), "%s: %d", T(STR_STARDROP_HIGH), pongHighScore);
+    display.getTextBounds(buf, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor((SCREEN_WIDTH - w) / 2, 38);
+    display.print(buf);
+    const char* prompt = T(STR_TETRIS_PRESS_START);
+    display.getTextBounds(prompt, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor((SCREEN_WIDTH - w) / 2, 52);
+    display.print(prompt);
+    return;
+  }
+
+  // PLAYING or PAUSED: dashed center net, both paddles, the ball
+  for (int y = PONG_FIELD_TOP; y <= PONG_FIELD_BOTTOM; y += 4) display.drawFastVLine(SCREEN_WIDTH / 2, y, 2, SH110X_WHITE);
+  display.fillRect(PONG_PLAYER_X, pongPlayerY, PONG_PADDLE_W, PONG_PADDLE_H, SH110X_WHITE);
+  display.fillRect(PONG_CPU_X, (int)(pongCpuY + 0.5f), PONG_PADDLE_W, PONG_PADDLE_H, SH110X_WHITE);
+  display.fillRect((int)(pongBallX + 0.5f), (int)(pongBallY + 0.5f), PONG_BALL, PONG_BALL, SH110X_WHITE);
+}
+
 // ================= SimpleMorse screen =================
 // ---------------- Draws a word with each letter's Morse code centered underneath it, one column
 // per letter (column width = screen width / letter count, so it scales for any word length).
@@ -5251,6 +5554,7 @@ const char* menuLabelForGame(int gameId) {
     case GAME_TETRIS:     return T(STR_MENU_TETRIS);
     case GAME_STARDROP:   return T(STR_MENU_STARDROP);
     case GAME_SNAKE:      return T(STR_MENU_SNAKE);
+    case GAME_PONG:       return T(STR_MENU_PONG);
     case GAME_SIMPLEMORSE: return T(STR_MENU_SIMPLEMORSE);
     case GAME_DICE:       return T(STR_MENU_DICE);
     case GAME_REFLEX:     return T(STR_MENU_REFLEX);
@@ -5556,6 +5860,14 @@ void drawSnakeIcon(int cx, int cy, int r, uint16_t color) {
   display.fillCircle(cx + r, cy - r / 2, hr, color);
 }
 
+// ---------------- Pong icon: two paddles facing each other with the ball between them ----------------
+void drawPongIcon(int cx, int cy, int r, uint16_t color) {
+  int ph = max(4, r);
+  display.fillRect(cx - r, cy - ph / 2 - 1, 2, ph, color);
+  display.fillRect(cx + r - 1, cy - ph / 2 + 2, 2, ph, color);
+  display.fillRect(cx - 1, cy - 2, 2, 2, color);
+}
+
 // ---------------- SimpleMorse menu icon: a tiny walrus - reuses drawWalrusFace, just always the
 // non-wounded version and at icon scale ----------------
 void drawSimpleMorseIcon(int cx, int cy, int r, uint16_t color) {
@@ -5693,6 +6005,7 @@ void drawGameIcon(int gameIndex, int cx, int cy, int r, uint16_t color) {
   else if (gameIndex == GAME_TETRIS) drawTetrisIcon(cx, cy, r, color);
   else if (gameIndex == GAME_STARDROP) drawStarDropIcon(cx, cy, r, color);
   else if (gameIndex == GAME_SNAKE) drawSnakeIcon(cx, cy, r, color);
+  else if (gameIndex == GAME_PONG) drawPongIcon(cx, cy, r, color);
   else if (gameIndex == GAME_SIMPLEMORSE) drawSimpleMorseIcon(cx, cy, r, color);
   else if (gameIndex == MENU_INSTRUCTIONS) drawInstructionsIcon(cx, cy, r, color);
   else drawSettingsIcon(cx, cy, r, color); // MENU_SETTINGS
