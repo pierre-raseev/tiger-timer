@@ -313,6 +313,11 @@ own first screen appears:
 - The game's translated name below it, in the same pixel/arcade font used for the boot splash
   (§4.1, §9) — sized as large as fits on one line, automatically splitting onto two lines at a
   word boundary (never mid-word) if the translated name is too wide for one line at that size.
+- **Exception — Star Drop:** instead of the big menu icon it shows its own animated scene above
+  the name: a ringed planet in the centre (the ring is a tilted ellipse whose back half hides
+  behind the planet and whose front half crosses in front of it), a crescent moon top-right, and
+  a fixed starfield whose stars twinkle (each briefly becomes a small cross) over 8 frames of
+  125 ms — still 1 second in total.
 
 ### 4.4 (see §3.4 — Leave-confirmation dialog is documented there since it's a global mechanism,
 not menu-specific.)
@@ -605,7 +610,10 @@ A falling-catch game, also played rotated 90° (same rotation approach as Tetris
 - **Objects:** stars, planets, and moons fall from the top in random lanes. Weighted spawn:
   60% star (worth 10 points), 30% planet (worth 20), 10% moon (worth 30) — rarer objects are
   worth more. Up to 6 objects can be falling simultaneously (`STARDROP_MAX_OBJECTS`=6).
-- **Controls:** turning the encoder moves a "telescope" catcher between the 4 lanes. No other
+- **Controls:** turning the encoder moves a telescope catcher between the 4 lanes. The
+  telescope is a 15×13 px pixel-art refractor on a tripod (`STARDROP_TELESCOPE_ART`): the tube
+  tilts up and to the right with the wider objective end at the top, standing on the bottom edge
+  of its lane. No other
   control is used during play.
 - **Catching:** when a falling object reaches the catcher's row (`STARDROP_CATCHER_Y`=116, near
   the bottom of the 128px rotated height) it's resolved instantly: if the catcher is in the same

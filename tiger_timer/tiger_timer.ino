@@ -1050,6 +1050,9 @@ void IRAM_ATTR encoderIsr();
 void initGameState(int game);
 void confirmMenuSelection();
 void playGameSplashScreen(int game);
+void drawSplashGameName(const char* name);
+void playStarDropSplash();
+void drawStarDropSplashRing(int cx, int cy, bool frontHalf, bool gap);
 void confirmSettingsSelection();
 void confirmLanguageSelection();
 void confirmTimerStepSelection();
@@ -1326,6 +1329,8 @@ void testSerialCommands() {
     char c = Serial.read();
     if (c == 't') { inMenu = false; currentGame = GAME_TOOTHBRUSH; initGameState(GAME_TOOTHBRUSH); render(); }
     else if (c == 'p') { if (currentGame == GAME_TOOTHBRUSH) handleToothbrushPress(); else dispatchButtonShortPress(); }
+    else if (c == 'R') { inMenu = false; currentGame = GAME_STARDROP; initGameState(GAME_STARDROP); render(); }
+    else if (c == 'Q') { playGameSplashScreen(GAME_STARDROP); }
     else if (c == 'P') { inMenu = false; currentGame = GAME_PONG; initGameState(GAME_PONG); render(); }
     else if (c == 'u' || c == 'j') { // Pong paddle up / down one detent
       if (currentGame == GAME_PONG && pongState == PONG_PLAYING)
@@ -1705,6 +1710,10 @@ void confirmMenuSelection() {
 // ---------------- Brief (1s) splash shown right after picking a game from the menu: its icon big
 // on the left, the game's name next to it. Blocking, like the sketch's other short animations. ----------------
 void playGameSplashScreen(int game) {
+  if (game == GAME_STARDROP) { // has its own animated scene instead of the big menu icon
+    playStarDropSplash();
+    return;
+  }
   display.clearDisplay();
   display.setTextColor(SH110X_WHITE);
 
@@ -1714,10 +1723,16 @@ void playGameSplashScreen(int game) {
   int iconR = 20;
   drawGameIcon(game, iconCx, iconCy, iconR, SH110X_WHITE);
 
-  // name at the bottom, in the same Press Start 2P font as the boot splash's TIGER/TIMER wordmark.
-  // At its native 8px size this comfortably fits every current game name on one line (that's what
-  // was getting cut off before, e.g. Spanish "Temporizador") - the wrap below is just a safety net.
-  const char* name = menuLabelForGame(game);
+  drawSplashGameName(menuLabelForGame(game));
+  display.display();
+  delay(1000);
+}
+
+// ---------------- Per-game splash: the game's name along the bottom, in the same Press Start 2P font
+// as the boot splash's TIGER/TIMER wordmark. At its native 8px size this comfortably fits every
+// current game name on one line (that's what was getting cut off before, e.g. Spanish
+// "Temporizador") - the wrap below is just a safety net. ----------------
+void drawSplashGameName(const char* name) {
   display.setFont(&PressStart2P8pt);
   display.setTextSize(1);
 
@@ -1752,8 +1767,55 @@ void playGameSplashScreen(int game) {
   }
 
   display.setFont(); // back to the normal built-in font for every other screen
-  display.display();
-  delay(1000);
+}
+
+// ---------------- Star Drop splash: a ringed planet with a crescent moon in a starfield, the
+// stars twinkling for the 1 s it's shown (8 frames). The ring is a tilted ellipse: its back half is
+// hidden behind the planet, its front half drawn over it with a dark gap line under it. ----------------
+const uint8_t STARDROP_SPLASH_STARS[][2] = {
+  {6,4},{19,13},{33,3},{47,18},{58,7},{72,2},{86,15},{99,5},{113,12},{122,3},
+  {10,28},{28,34},{64,30},{92,34},{118,26},{40,9},{105,22}
+};
+const int STARDROP_SPLASH_STAR_COUNT = sizeof(STARDROP_SPLASH_STARS) / sizeof(STARDROP_SPLASH_STARS[0]);
+
+void drawStarDropSplashRing(int cx, int cy, bool frontHalf, bool gap) {
+  for (int a = 0; a < 360; a += 2) {
+    float r = a * PI / 180.0f;
+    float ex = cosf(r) * 21, ey = sinf(r) * 5;
+    int x = (int)(cx + ex * 0.97f - ey * 0.25f);
+    int y = (int)(cy + ex * 0.25f + ey * 0.97f);
+    bool front = sinf(r) >= 0;
+    if (front != frontHalf) continue;
+    if (!front && (x - cx) * (x - cx) + (y - cy) * (y - cy) <= 132) continue; // behind the planet
+    display.drawPixel(x, y, SH110X_WHITE);
+    if (gap) display.drawPixel(x, y + 1, SH110X_BLACK); // gap separating the ring from the body
+  }
+}
+
+void playStarDropSplash() {
+  const int planetX = 64, planetY = 21;
+  for (int frame = 0; frame < 8; frame++) {
+    display.clearDisplay();
+    for (int i = 0; i < STARDROP_SPLASH_STAR_COUNT; i++) {
+      int x = STARDROP_SPLASH_STARS[i][0], y = STARDROP_SPLASH_STARS[i][1];
+      if ((i + frame) % 4 == 0) { // twinkle: a small cross instead of a dot
+        display.drawFastHLine(x - 1, y, 3, SH110X_WHITE);
+        display.drawFastVLine(x, y - 1, 3, SH110X_WHITE);
+      } else {
+        display.drawPixel(x, y, SH110X_WHITE);
+      }
+    }
+    display.fillCircle(planetX, planetY, 12, SH110X_BLACK); // clear stars just around the planet
+    drawStarDropSplashRing(planetX, planetY, false, false);
+    display.fillCircle(planetX, planetY, 11, SH110X_WHITE);
+    drawStarDropSplashRing(planetX, planetY, true, true);
+    drawStarDropSplashRing(planetX, planetY, true, false); // restores ring pixels a neighbour's gap erased
+    display.fillCircle(104, 10, 6, SH110X_WHITE);   // crescent moon
+    display.fillCircle(107, 8, 6, SH110X_BLACK);
+    drawSplashGameName(menuLabelForGame(GAME_STARDROP));
+    display.display();
+    delay(125);
+  }
 }
 
 // ---------------- Instructions screen: closes back to the menu (arcade button, or encoder click
@@ -5932,12 +5994,33 @@ void drawStarDropObjectIcon(int cx, int cy, int type, uint16_t color) {
   }
 }
 
-// ---------------- Star Drop: the telescope catcher, drawn at the bottom of the active lane ----------------
+// ---------------- Star Drop: the telescope catcher - a refractor on a tripod, tube tilted up with
+// the wider objective end at the top. 15 px wide (the lane is 16), 13 px tall, bottom row on baseY. ----------------
+const char* const STARDROP_TELESCOPE_ART[] = {
+  "...........##..",
+  "..........####.",
+  ".........#####.",
+  "........####...",
+  ".......####....",
+  "......####.....",
+  ".....####......",
+  "...#####.......",
+  "..##.#.#.......",
+  ".....###.......",
+  "....#.#.#......",
+  "...#..#..#.....",
+  "..#...#...#....",
+};
+const int STARDROP_TELESCOPE_ROWS = sizeof(STARDROP_TELESCOPE_ART) / sizeof(STARDROP_TELESCOPE_ART[0]);
+
 void drawStarDropTelescopeIcon(int laneCenterX, int baseY, uint16_t color) {
-  display.drawLine(laneCenterX - 6, baseY, laneCenterX + 2, baseY - 8, color);
-  display.drawLine(laneCenterX - 4, baseY, laneCenterX + 4, baseY - 8, color);
-  display.drawLine(laneCenterX - 6, baseY, laneCenterX - 4, baseY, color);
-  display.drawLine(laneCenterX + 2, baseY - 8, laneCenterX + 4, baseY - 8, color);
+  int top = baseY - (STARDROP_TELESCOPE_ROWS - 1);
+  for (int j = 0; j < STARDROP_TELESCOPE_ROWS; j++) {
+    const char* row = STARDROP_TELESCOPE_ART[j];
+    for (int i = 0; row[i]; i++) {
+      if (row[i] == '#') display.drawPixel(laneCenterX - 7 + i, top + j, color);
+    }
+  }
 }
 
 // ---------------- Display: inverts every pixel within a rectangular region - same technique as
