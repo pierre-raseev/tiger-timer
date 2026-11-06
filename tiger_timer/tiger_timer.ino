@@ -6219,6 +6219,9 @@ void ensureListIconMetrics() {
 void drawListIconInBar(int kind, int barTop, uint16_t color) {
   int slot = listIconSlot(kind);
   int cy = barTop + (LIST_BAR_H - listIconHeight[slot]) / 2 - listIconTop[slot];
+  // optical nudges: the hourglass's heavy caps and the quiz bubble's tail make these two read
+  // high when centred by pixel extent alone
+  if (kind == GAME_TIMER || kind == GAME_TRIVIA) cy += 1;
   drawListIcon(kind, LIST_ICON_CX, cy, color);
 }
 

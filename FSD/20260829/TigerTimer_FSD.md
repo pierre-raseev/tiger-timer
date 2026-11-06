@@ -298,7 +298,9 @@ A two-phase animated wordmark, skippable by holding the arcade button at any poi
   Settings draw (`ensureListIconMetrics()`). It draws each icon into the cleared buffer and scans
   it with `getPixel`. Every row then places its icon so the lit pixels are centred in the bar:
   equal margins, or 1 px more below when the leftover is odd. A redesigned icon is centred
-  automatically. The longest label, 15 characters at 6 px
+  automatically.
+  Two icons get a 1 px optical nudge down on top of that: **Timer** (the hourglass's heavy caps)
+  and **Quiz** (the speech bubble's tail). Centred by pixel extent alone, both read slightly high. The longest label, 15 characters at 6 px
   ("Config distante"), ends at x 121, so every label in every language stays inside the bar
   (14-character French names like "Horloge Échecs" and "Passe la bombe" used to lose their
   last letter past the old bar edge at x 117).
