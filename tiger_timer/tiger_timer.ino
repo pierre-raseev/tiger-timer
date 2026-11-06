@@ -6936,7 +6936,7 @@ void drawThickX(int cx, int cy, int s, int t, uint16_t color) {
 // ---------------- Full-screen volume indicator, shown live while holding the encoder and
 // turning it - the big version of the menu-corner speaker: a 14x21 box and a cone flaring over
 // 17px to 57px tall, then 4px-thick sound waves (radius 12, plus 24 for high) or a 4px X. The
-// speaker stays anchored at the same x for every level. Replaces the normal
+// speaker stays anchored at the same x for every level, with the whole image centred. Replaces the normal
 // screen only while actively adjusting; the caller restores the normal screen (a plain
 // render()) once the encoder is released. ----------------
 void drawVolumeOverlay() {
@@ -6944,14 +6944,17 @@ void drawVolumeOverlay() {
   display.setTextColor(SH110X_WHITE);
 
   const int cy = SCREEN_HEIGHT / 2;
-  const int x = 20; // same spot at every level, so only the waves/X change while turning
+  // Same spot at every level, so only the waves/X change while turning. x = 35 centres the
+  // composition as a whole: the speaker plus the widest thing ever drawn beside it (the X, ending
+  // at mouth+26) spans x..x+57, i.e. 35..92 around the screen centre.
+  const int x = 35;
   display.fillRect(x, cy - 10, 14, 21, SH110X_WHITE);                         // box
   int narrowX = x + 14, mouthX = narrowX + 17;
   display.fillTriangle(narrowX, cy - 10, narrowX, cy + 10, mouthX, cy + 28, SH110X_WHITE); // cone
   display.fillTriangle(narrowX, cy - 10, mouthX, cy + 28, mouthX, cy - 28, SH110X_WHITE);
 
   if (volumeLevel == 0) {
-    drawThickX(mouthX + 20, cy, 10, 4, SH110X_WHITE);
+    drawThickX(mouthX + 16, cy, 10, 4, SH110X_WHITE);
   } else {
     drawThickArcRight(mouthX - 4, cy, 12, 4, 50, SH110X_WHITE);
     if (volumeLevel == 2) drawThickArcRight(mouthX - 4, cy, 24, 4, 50, SH110X_WHITE);

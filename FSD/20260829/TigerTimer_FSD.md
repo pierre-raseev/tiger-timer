@@ -907,8 +907,12 @@ mid-game. A large version of the same speaker:
 - **Low and high:** 4 px-thick sound waves (radius 12, plus 24 for high), each spanning ±50°. They
   are drawn per pixel by `drawThickArcRight()`, since the display library has no arc primitive.
 - **Mute:** a 4 px-thick X (`drawThickX()`).
-- **Fixed position:** the speaker is anchored at the same spot (box at x 20) for every level, so
-  turning between mute, low and high only swaps the waves/X beside it. Nothing jumps. Updates live with every encoder detent
+- **Fixed position:** the speaker is anchored at the same spot for every level, so turning
+  between mute, low and high only swaps the waves/X beside it. Nothing jumps.
+- **Centring:** the anchor (box at x 35) centres the whole composition rather than the speaker
+  alone. The speaker plus the widest element ever drawn beside it spans x 35–92 around the
+  screen centre. That widest element is the X, placed 16 px past the cone's mouth. The high
+  level (two waves) spans x 35–89, and everything spans y 4–60. Updates live with every encoder detent
 while held. Render()'s dispatcher itself is aware of this state (checking whether the encoder is
 still physically held down at the moment of any redraw, not just at the moment the gesture
 started) — this specifically prevents a real bug where a game's own periodic redraw (e.g. a
