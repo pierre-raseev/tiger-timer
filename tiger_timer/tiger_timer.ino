@@ -1254,9 +1254,8 @@ void rebuildVisibleMenu(); // web_config.ino
 void drawTimerStepIcon(int cx, int cy, int r, uint16_t color);
 void drawGameIcon(int gameIndex, int cx, int cy, int r, uint16_t color);
 void drawInstructionsIcon(int cx, int cy, int r, uint16_t color);
-void drawSoundArc(int cx, int cy, int r, uint16_t color);
-void drawThickX(int cx, int cy, int size, uint16_t color);
-int drawSpeakerShape(int boxLeftX, int cy, int boxSize, int boxRadius, int coneLen, int wideHalfH, int cornerR, uint16_t color);
+void drawThickArcRight(int cx, int cy, int r, int t, float halfDeg, uint16_t color);
+void drawThickX(int cx, int cy, int s, int t, uint16_t color);
 void drawVolumeIconAt(int x, int y);
 void drawVolumeOverlay();
 
@@ -1361,6 +1360,7 @@ void testSerialCommands() {
     else if (c == 'R') { inMenu = false; currentGame = GAME_STARDROP; initGameState(GAME_STARDROP); render(); }
     else if (c == 'T') { inMenu = false; currentGame = GAME_TETRIS; initGameState(GAME_TETRIS); render(); }
     else if (c == 'X') { static int bombFxFrame = 0; drawBombExplosionFrame(bombFxFrame); display.display(); Serial.printf("[bombfx] frame %d\n", bombFxFrame); bombFxFrame = (bombFxFrame + 1) % bombExplosionFrameCount(); }
+    else if (c == 'V') { volumeLevel = (volumeLevel + 1) % 3; drawVolumeOverlay(); Serial.printf("[vol] %d (RAM only)\n", volumeLevel); }
     else if (c == 'H') { stardropHighScore = 1234; tetrisHighScore = 1234; render(); } // RAM only - tests the wrapped score line
     else if (c == 'g' || c == 'h' || c == 'k' || c == 'c') { playGameSplashScreen(c == 'g' ? GAME_REFLEX : c == 'h' ? GAME_HOTPOTATO : c == 'k' ? GAME_CHESS : GAME_STOPWATCH); }
     else if (c == 'G') { // cycle through the newest animated splashes
@@ -6417,7 +6417,7 @@ void drawHotPotatoIcon(int cx, int cy, int r, uint16_t color) {
 
 // ---------------- Rotate/refresh icon: a ~270-degree circular arc with a small arrowhead at its
 // open end (tangent to the direction of travel), used by Pass the Bomb's "rotate to shuffle
-// again" hint row - built from connected line segments, same technique as drawSoundArc/the WiFi
+// again" hint row - built from connected line segments, same technique as the WiFi
 // icon, since Adafruit_GFX has no arc primitive. ----------------
 void drawRotateIcon(int cx, int cy, int r, uint16_t color) {
   const int SEGMENTS = 10;
@@ -6669,7 +6669,7 @@ void drawConfigModeIcon(int cx, int cy, int r, uint16_t color) {
   int baseY = cy + r;
   display.fillCircle(cx, baseY, 1, color);
 
-  const float startAngle = -140.0 * PI / 180.0; // 100-degree span (same width as drawSoundArc), rotated to open upward
+  const float startAngle = -140.0 * PI / 180.0; // 100-degree span (same width as the volume sound waves), rotated to open upward
   const float endAngle = -40.0 * PI / 180.0;
   const int SEGMENTS = 8;
   int radii[2] = {2, max(4, r + 1)};
@@ -6734,114 +6734,83 @@ void drawGameIcon(int gameIndex, int cx, int cy, int r, uint16_t color) {
   else drawSettingsIcon(cx, cy, r, color); // MENU_SETTINGS
 }
 
-// ---------------- Volume/mute icon: speaker box, cone pointing right, then 0-2 wave marks (or an
-// "x" if muted) - same size and style as the icon that used to sit at the top-right of every game
-// screen, now only shown at the top-left of the menu list ----------------
-// ---------------- Draws one curved "sound wave" arc, centered at (cx,cy), opening to the right -
-// approximated with line segments (Adafruit_GFX has no arc primitive), and drawn at two adjacent
-// radii to read as a clearly thick stroke rather than a hairline. Shared by both the small menu
-// icon and the big full-screen overlay, just called at different radii. ----------------
-void drawSoundArc(int cx, int cy, int r, uint16_t color) {
-  const float startAngle = -50.0 * PI / 180.0;
-  const float endAngle = 50.0 * PI / 180.0;
-  const int SEGMENTS = 8;
-  for (int rr = r; rr <= r + 1; rr++) { // two adjacent radii = a thick stroke
-    int prevX = cx + (int)(rr * cos(startAngle));
-    int prevY = cy + (int)(rr * sin(startAngle));
-    for (int i = 1; i <= SEGMENTS; i++) {
-      float t = startAngle + (endAngle - startAngle) * i / SEGMENTS;
-      int x = cx + (int)(rr * cos(t));
-      int y = cy + (int)(rr * sin(t));
-      display.drawLine(prevX, prevY, x, y, color);
-      prevX = x;
-      prevY = y;
+// ---------------- Volume icons: the standard solid speaker symbol - a slim box flush against a
+// wide cone (Material proportions: box ~2/3 the cone length, ~3/8 the cone mouth height), with
+// 1 or 2 curved sound waves for low/high or an X for mute. Two renderings of the same design:
+// a pixel-art one for the menu corner and a geometric one for the full-screen overlay. ----------------
+const char* const VOLUME_SPEAKER_ART[] = { // 7x11
+  "......#",
+  ".....##",
+  "....###",
+  "#######",
+  "#######",
+  "#######",
+  "#######",
+  "#######",
+  "....###",
+  ".....##",
+  "......#",
+};
+const char* const VOLUME_WAVE_SMALL_ART[] = {"#..", ".#.", ".#.", ".#.", "#.."};
+const char* const VOLUME_WAVE_BIG_ART[] = {"#...", ".#..", "..#.", "..#.", "..#.", "..#.", "..#.", ".#..", "#..."};
+const char* const VOLUME_MUTE_ART[] = {"#...#", ".#.#.", "..#..", ".#.#.", "#...#"};
+
+// Small icon at the menu's top-left: 7x11 speaker at (x,y), waves/X to its right (ends by x+15,
+// clear of the centred title).
+void drawVolumeIconAt(int x, int y) {
+  drawPixelArt(VOLUME_SPEAKER_ART, 11, x, y, 1, false, SH110X_WHITE);
+  if (volumeLevel == 0) {
+    drawPixelArt(VOLUME_MUTE_ART, 5, x + 9, y + 3, 1, false, SH110X_WHITE);
+  } else {
+    drawPixelArt(VOLUME_WAVE_SMALL_ART, 5, x + 8, y + 3, 1, false, SH110X_WHITE);
+    if (volumeLevel == 2) drawPixelArt(VOLUME_WAVE_BIG_ART, 9, x + 11, y + 1, 1, false, SH110X_WHITE);
+  }
+}
+
+// A thick arc opening to the right: every pixel whose distance from (cx,cy) is in [r, r+t) and
+// whose angle is within +-halfDeg of horizontal. A per-pixel test gives a cleaner, evenly thick
+// curve than chained line segments (Adafruit_GFX has no arc primitive).
+void drawThickArcRight(int cx, int cy, int r, int t, float halfDeg, uint16_t color) {
+  float maxA = halfDeg * PI / 180.0f;
+  for (int y = cy - r - t; y <= cy + r + t; y++) {
+    for (int x = cx; x <= cx + r + t; x++) {
+      int dx = x - cx, dy = y - cy;
+      float d = sqrtf((float)(dx * dx + dy * dy));
+      if (d >= r && d < r + t && fabsf(atan2f((float)dy, (float)dx)) <= maxA) display.drawPixel(x, y, color);
     }
   }
 }
 
-// ---------------- Draws a thick X mark, centered at (cx,cy) with the given half-size ----------------
-void drawThickX(int cx, int cy, int size, uint16_t color) {
-  display.drawLine(cx - size, cy - size, cx + size, cy + size, color);
-  display.drawLine(cx - size + 1, cy - size, cx + size + 1, cy + size, color);
-  display.drawLine(cx - size, cy + size, cx + size, cy - size, color);
-  display.drawLine(cx - size + 1, cy + size, cx + size + 1, cy - size, color);
-}
-
-// ---------------- Speaker shape: a rounded box flush against a steep flare (a 6-sided trapezoid
-// with its two outer corners rounded), vertically centered at cy. The box and flare share an edge
-// (same height, no point/notch), and the flare's outer corners are rounded by inset polygon
-// vertices plus two tangent filled circles - the standard rounded-corner construction, just built
-// from the triangle/circle primitives Adafruit_GFX actually has (no arbitrary polygon fill).
-// Returns the x coordinate of the flare's flat outer edge, for positioning arcs/X next to it. ----------------
-int drawSpeakerShape(int boxLeftX, int cy, int boxSize, int boxRadius, int coneLen, int wideHalfH, int cornerR, uint16_t color) {
-  int boxY = cy - boxSize / 2;
-  display.fillRoundRect(boxLeftX, boxY, boxSize, boxSize, boxRadius, color);
-
-  int narrowX = boxLeftX + boxSize;
-  int narrowHalfH = boxSize / 2;
-  int wideX = narrowX + coneLen;
-
-  int p0x = narrowX,          p0y = cy - narrowHalfH;
-  int p1x = narrowX,          p1y = cy + narrowHalfH;
-  int p2x = wideX - cornerR,  p2y = cy + wideHalfH;
-  int p3x = wideX,            p3y = cy + wideHalfH - cornerR;
-  int p4x = wideX,            p4y = cy - wideHalfH + cornerR;
-  int p5x = wideX - cornerR,  p5y = cy - wideHalfH;
-
-  display.fillTriangle(p0x, p0y, p1x, p1y, p2x, p2y, color);
-  display.fillTriangle(p0x, p0y, p2x, p2y, p3x, p3y, color);
-  display.fillTriangle(p0x, p0y, p3x, p3y, p4x, p4y, color);
-  display.fillTriangle(p0x, p0y, p4x, p4y, p5x, p5y, color);
-
-  display.fillCircle(wideX - cornerR, cy - wideHalfH + cornerR, cornerR, color);
-  display.fillCircle(wideX - cornerR, cy + wideHalfH - cornerR, cornerR, color);
-
-  return wideX;
-}
-
-// ---------------- Small volume icon (menu top-left): the exact original design, unmirrored -
-// same relative geometry as the icon that used to sit at the top-right of every game screen,
-// just repositioned here instead of re-oriented ----------------
-void drawVolumeIconAt(int x, int y) {
-  int markAnchor = x + 8;
-  int apexY = y + 5;
-
-  display.fillRect(markAnchor - 3, y + 2, 3, 6, SH110X_WHITE);
-  display.fillTriangle(markAnchor - 3, y, markAnchor - 3, y + 10, x, apexY, SH110X_WHITE);
-
-  display.setTextSize(1);
-  if (volumeLevel == 0) {
-    display.setCursor(markAnchor + 3, y + 1);
-    display.print("x");
-  } else if (volumeLevel == 1) {
-    display.setCursor(markAnchor + 2, y + 2);
-    display.print(")");
-  } else {
-    display.setCursor(markAnchor + 2, y + 2);
-    display.print(")");
-    display.setCursor(markAnchor + 6, y + 2);
-    display.print(")");
+// A t-px thick X centred at (cx,cy) with half-size s.
+void drawThickX(int cx, int cy, int s, int t, uint16_t color) {
+  for (int k = 0; k < t; k++) {
+    display.drawLine(cx - s + k, cy - s, cx + s + k - t + 1, cy + s, color);
+    display.drawLine(cx - s + k, cy + s, cx + s + k - t + 1, cy - s, color);
   }
 }
 
 // ---------------- Full-screen volume indicator, shown live while holding the encoder and
-// turning it - a big version of the same speaker+waves icon, so it's obvious what's changing.
-// Replaces the normal screen only while actively adjusting; the caller restores the normal
-// screen (a plain render()) once the encoder is released. ----------------
+// turning it - the big version of the menu-corner speaker: a 14x21 box and a cone flaring over
+// 17px to 57px tall, then 4px-thick sound waves (radius 12, plus 24 for high) or a 4px X. The
+// speaker shifts right when muted so the speaker+X group stays centred. Replaces the normal
+// screen only while actively adjusting; the caller restores the normal screen (a plain
+// render()) once the encoder is released. ----------------
 void drawVolumeOverlay() {
   display.clearDisplay();
   display.setTextColor(SH110X_WHITE);
 
-  int cy = SCREEN_HEIGHT / 2;
-  int wideX = drawSpeakerShape(26, cy, 22, 5, 22, 26, 5, SH110X_WHITE);
+  const int cy = SCREEN_HEIGHT / 2;
+  int x = (volumeLevel == 0) ? 28 : 20;
+  display.fillRect(x, cy - 10, 14, 21, SH110X_WHITE);                         // box
+  int narrowX = x + 14, mouthX = narrowX + 17;
+  display.fillTriangle(narrowX, cy - 10, narrowX, cy + 10, mouthX, cy + 28, SH110X_WHITE); // cone
+  display.fillTriangle(narrowX, cy - 10, mouthX, cy + 28, mouthX, cy - 28, SH110X_WHITE);
 
   if (volumeLevel == 0) {
-    drawThickX(wideX + 24, cy, 16, SH110X_WHITE);
-  } else if (volumeLevel == 1) {
-    drawSoundArc(wideX, cy, 20, SH110X_WHITE);
+    drawThickX(mouthX + 20, cy, 10, 4, SH110X_WHITE);
   } else {
-    drawSoundArc(wideX, cy, 16, SH110X_WHITE);
-    drawSoundArc(wideX, cy, 32, SH110X_WHITE);
+    drawThickArcRight(mouthX - 4, cy, 12, 4, 50, SH110X_WHITE);
+    if (volumeLevel == 2) drawThickArcRight(mouthX - 4, cy, 24, 4, 50, SH110X_WHITE);
   }
 
   display.display();

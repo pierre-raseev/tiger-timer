@@ -863,24 +863,28 @@ numbered after it; in the menu it sits between Snake and SimpleMorse.)*
 
 ## 6. Volume Indicator System
 
-Two distinct renderings of the same speaker-and-sound-waves icon concept, sharing one design
-language: a small rounded box seamlessly merged with a steep, rounded-corner triangular flare
-(no visible seam between the two shapes, built from a hexagonal outline plus two corner-filling
-circles — the display library has no native rounded-polygon primitive), pointed in whichever
-direction suits its placement, with the "sound wave" arcs drawn as short connected line
-segments at two adjacent radii each (again, no native arc primitive — the double-radius pass is
-what makes each arc read as a clearly thick stroke rather than a hairline).
+Two renderings of the same design: the standard solid speaker symbol. A slim rectangular box
+sits flush against a wide cone, in Material-icon proportions (the box about 2/3 the cone's
+length and about 3/8 the height of its mouth). It points right, with curved sound waves (one
+for low, two for high) or an X for mute.
 
 ### 6.1 Persistent Small Icon (main menu, top-left)
-Always visible on the main menu screen (not shown inside individual games — see below). Shows:
-- Mute: an "x" mark.
-- Low: one wave arc.
-- High: two wave arcs.
+Always visible on the main menu screen (not shown inside individual games — see below). A 7×11
+pixel-art speaker (`VOLUME_SPEAKER_ART`) at (2,1), followed by:
+- Mute: a 5×5 "x" (`VOLUME_MUTE_ART`).
+- Low: one small wave, 5 px tall (`VOLUME_WAVE_SMALL_ART`).
+- High: the small wave plus a big wave, 9 px tall (`VOLUME_WAVE_BIG_ART`).
+
+The icon ends by x 17, clear of the centred menu title.
 
 ### 6.2 Full-Screen Overlay (shown live while adjusting)
 Triggered exactly by the "hold encoder + turn" gesture (§3.2), from any screen, including
-mid-game. A large-scale version of the same speaker glyph, filling most of the screen, with
-correspondingly large wave marks or a large X for mute. Updates live with every encoder detent
+mid-game. A large version of the same speaker:
+- **Speaker:** a 14×21 box and a cone flaring over 17 px to the full 57 px height.
+- **Low and high:** 4 px-thick sound waves (radius 12, plus 24 for high), each spanning ±50°. They
+  are drawn per pixel by `drawThickArcRight()`, since the display library has no arc primitive.
+- **Mute:** a 4 px-thick X (`drawThickX()`), with the speaker shifted right so the speaker+X
+  group stays centred. Updates live with every encoder detent
 while held. Render()'s dispatcher itself is aware of this state (checking whether the encoder is
 still physically held down at the moment of any redraw, not just at the moment the gesture
 started) — this specifically prevents a real bug where a game's own periodic redraw (e.g. a
@@ -888,9 +892,11 @@ running timer's blinking LED update) could flicker the normal screen back over t
 mid-adjustment; instead, any redraw that happens while the hold is still active redraws the
 overlay again. The previous screen is restored the instant the encoder is released.
 
-The WiFi icon used for the Remote Config menu entry (§4.5) deliberately reuses this same
-"thick double-radius arc" technique, rotated 90° to open upward from a small dot instead of
-rightward, specifically so the two icons read as visually related.
+The WiFi icon used for the Remote Config menu entry (§4.5) uses the same 100° arc span, opening
+upward from a small dot instead of to the right, so the two icons read as related.
+
+- **Bench-testing:** `TT_SCREEN_DUMP` builds add `V`, which cycles the volume level (RAM only, not
+  saved) and draws the full-screen indicator for screen dumps.
 
 ---
 
