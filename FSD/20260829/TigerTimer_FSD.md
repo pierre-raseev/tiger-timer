@@ -777,8 +777,8 @@ presses (dots) and long presses (dashes) — for a randomly chosen word, rather 
 - **Winning:** completing the full sequence triggers the same celebratory "firework" animation
   used by Toothbrush Timer's completion (§5.8), held on screen for the same 1.5 seconds, then
   automatically replaced by the same solution reveal described above.
-- Both the walrus (in its normal, non-wounded form) and a simplified version of it are reused as
-  this game's menu icon.
+- The walrus is the game's mascot on its own screens; the menu icon is the telegraph key (see
+  the Icon bullet above).
 - Uses the standard icon+header+divider screen template; the header shows "Ready" while idle,
   "Watch!" during playback, "Round *N*" during input, "Game Over" or "Complete!" for the two
   results.
