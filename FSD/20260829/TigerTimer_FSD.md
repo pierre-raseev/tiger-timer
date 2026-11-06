@@ -64,8 +64,16 @@ and persisted across power cycles.
 ### 2.4 Input: Rotary Encoder
 - A standard EC11-style incremental rotary encoder with integrated push-button.
 - CLK → `D10`, DT → `D8`, SW (push button) → `D9`, wired `INPUT_PULLUP` (LOW = pressed).
-- Rotation direction: reading `DT` on a `CLK` falling edge; `DT == HIGH` = clockwise
-  (`direction = +1`), `DT == LOW` = counter-clockwise (`direction = -1`).
+- Rotation is decoded in a pin-change interrupt on **both** `CLK` and `DT` (full quadrature,
+  Gray-code transition table), so detents aren't lost while the main loop is busy with a screen
+  transfer (~25 ms) or a blocking sound. One detent = one full cycle of the two contacts, counted
+  when they return to rest (both HIGH) after moving at least half a cycle one way: contact bounce
+  alternates +1/−1 and nets to zero instead of reading as a turn backwards, and an impossible
+  jump (both contacts changing at once) counts nothing. Clockwise (`CLK` falls while `DT` is HIGH)
+  = `direction = +1`, counter-clockwise = `−1`.
+- The main loop takes every detent counted since its last pass in one batch and applies them one
+  at a time to the current screen, redrawing once at the end. Pong applies the whole batch to the
+  paddle in one move (see §5.13). A batch of detents that wakes a sleeping screen is discarded.
 - The encoder's own push button is debounced independently from the arcade button and supports
   three distinct gestures: **short click**, **long-press (1 second)**, and **hold+turn**. See
   §3.2.
@@ -732,7 +740,9 @@ numbered after it; in the menu it sits between Snake and SimpleMorse.)*
 - **Controls:** the **encoder wheel** moves the player's paddle **4 px per detent**
   (`PONG_PADDLE_STEP`), clockwise = down (same as scrolling down a menu), clamped to the court.
   Turning only moves the paddle; the screen redraws at its own frame rate (below) so a fast spin
-  isn't slowed by a screen transfer per detent. The **arcade button** — or an encoder short
+  isn't slowed by a screen transfer per detent. Detents counted by the encoder interrupt during a
+  redraw are applied together on the next pass (§2.4), so a fast spin moves the paddle the full
+  distance in one go rather than skipping or jittering. The **arcade button** — or an encoder short
   click, same as Snake — starts from Ready/Game Over and pauses/resumes during play.
 - **Rules and score:** 3 lives, shown as small balls in the header (hollow once lost).
   **+1 point for every return**; **+5 points for getting the ball past the computer**. Letting
@@ -761,7 +771,7 @@ numbered after it; in the menu it sits between Snake and SimpleMorse.)*
 - Counts as "time-critical" while playing (no screen sleep), and leaving mid-game resets it to
   Ready (§3.3, §3.4).
 - **Bench-testing:** `TT_SCREEN_DUMP` builds add `P` (open Pong), `u`/`j` (paddle up/down one
-  detent), `s` (state snapshot), `A` (autopilot: the paddle tracks the ball, for soak-testing the
+  detent), `s` (state snapshot), `e` (raw encoder pins and pending detents), `A` (autopilot: the paddle tracks the ball, for soak-testing the
   physics) and `Z` (clear the Pong high score).
 
 ## 6. Volume Indicator System

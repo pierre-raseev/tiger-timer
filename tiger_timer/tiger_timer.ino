@@ -108,6 +108,7 @@
 #include <LittleFS.h>
 #include "esp_sleep.h"
 #include "driver/rtc_io.h" // LP-IO pull-up for the deep-sleep wake pin
+#include "driver/gpio.h"   // gpio_get_level() - IRAM-safe pin read for the encoder interrupt
 #include <WiFi.h>
 #include <WebServer.h>
 #include <DNSServer.h> // used by web_config.ino for the captive-portal redirect
@@ -585,8 +586,14 @@ unsigned long buttonPressStart = 0;
 bool buttonPressConsumed = false; // true once this press already did its job on the way DOWN (e.g. a Reflex
                                   // false start, or waking the screen) - its release then dispatches nothing
 
-// encoder state
-int lastClkState;
+// encoder state: decoded in a pin-change interrupt on both CLK and DT (full quadrature), so a fast
+// spin isn't missed while loop() is busy with a screen transfer or a sound, and contact bounce
+// cancels itself out (+1 then -1) instead of reading as a turn the wrong way. readEncoder() then
+// consumes encoderPendingDetents.
+volatile int encoderPendingDetents = 0; // + clockwise, - counter-clockwise, not yet acted on
+volatile uint8_t encoderLastAB = 3;     // last (CLK<<1)|DT, 3 = both high = detent rest position
+volatile int8_t encoderStepAcc = 0;     // quarter-steps since the last rest position
+gpio_num_t encoderClkGpio, encoderDtGpio;
 
 // encoder push-button: plain click = context action (confirm / pause / etc); hold+turn = volume;
 // hold 1s alone (no turn) = open/close the menu
@@ -1038,6 +1045,8 @@ void checkScreenSleep();
 void checkDeepSleep();
 void enterDeepSleep();
 void readEncoder();
+bool applyEncoderDetent(int direction);
+void IRAM_ATTR encoderIsr();
 void initGameState(int game);
 void confirmMenuSelection();
 void playGameSplashScreen(int game);
@@ -1232,7 +1241,11 @@ void setup() {
   pinMode(ENCODER_SW, INPUT_PULLUP);
 
   digitalWrite(BUTTON_LED, LOW);
-  lastClkState = digitalRead(ENCODER_CLK);
+  encoderClkGpio = (gpio_num_t)digitalPinToGPIONumber(ENCODER_CLK);
+  encoderDtGpio = (gpio_num_t)digitalPinToGPIONumber(ENCODER_DT);
+  encoderLastAB = (gpio_get_level(encoderClkGpio) << 1) | gpio_get_level(encoderDtGpio);
+  attachInterrupt(digitalPinToInterrupt(ENCODER_CLK), encoderIsr, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ENCODER_DT), encoderIsr, CHANGE);
 
   Serial.begin(115200);
   randomSeed(esp_random() ^ micros()); // hardware RNG: micros() alone is nearly identical every boot,
@@ -1323,6 +1336,7 @@ void testSerialCommands() {
         pongState, pongScore, pongLives, pongHighScore, pongBallX, pongBallY, pongBallVX, pongBallVY, pongPlayerY, pongCpuY, pongReturns);
     }
     else if (c == 'Z') { pongHighScore = 0; prefs.putUShort("pgHigh", 0); Serial.println("[pong] high score cleared"); }
+    else if (c == 'e') { Serial.printf("[enc] clk=%d dt=%d last=%d acc=%d pending=%d paddle=%d\n", digitalRead(ENCODER_CLK), digitalRead(ENCODER_DT), encoderLastAB, encoderStepAcc, encoderPendingDetents, pongPlayerY); }
     else if (c == 'A') { // autopilot toggle: Pong paddle tracks the ball by itself (for soak-testing physics)
       pongTestAutopilot = !pongTestAutopilot;
       Serial.printf("[pong] autopilot %s\n", pongTestAutopilot ? "on" : "off");
@@ -1474,20 +1488,61 @@ void enterDeepSleep() {
   esp_deep_sleep_start();
 }
 
+// ---------------- Encoder interrupt: Gray-code quadrature decoder. One detent = one full cycle
+// 3 -> 1 -> 0 -> 2 -> 3 (clockwise; the reverse is counter-clockwise), counted when the contacts
+// come back to rest at 3 having moved at least half a cycle in one direction. Bounce on one
+// contact alternates +1/-1 and nets to zero; an illegal jump (both bits changed) counts nothing. ----------------
+void IRAM_ATTR encoderIsr() {
+  static const int8_t QUARTER_STEP[16] = {
+    //  to: 0   1   2   3     from:
+            0, -1, +1,  0,  // 0
+           +1,  0,  0, -1,  // 1
+           -1,  0,  0, +1,  // 2
+            0, +1, -1,  0   // 3
+  };
+  uint8_t ab = (gpio_get_level(encoderClkGpio) << 1) | gpio_get_level(encoderDtGpio);
+  if (ab == encoderLastAB) return;
+  encoderStepAcc += QUARTER_STEP[(encoderLastAB << 2) | ab];
+  encoderLastAB = ab;
+  if (ab == 3) {
+    if (encoderStepAcc >= 2) encoderPendingDetents++;
+    else if (encoderStepAcc <= -2) encoderPendingDetents--;
+    encoderStepAcc = 0;
+  }
+}
+
 // ---------------- Encoder: hold the SW button and turn for volume; otherwise navigates whichever screen is active ----------------
 void readEncoder() {
-  int clkState = digitalRead(ENCODER_CLK);
+  // take every detent the interrupt has counted since the last pass (several, after a blocking
+  // screen transfer or sound during a fast spin)
+  noInterrupts();
+  int pending = encoderPendingDetents;
+  encoderPendingDetents = 0;
+  interrupts();
+  if (pending == 0) return;
+  if (registerActivity()) return; // these detents only woke the screen - don't also act on them
 
-  // Only act on the falling edge of CLK (HIGH -> LOW). A full detent toggles
-  // CLK twice (once each direction), so reacting to every change double-counts.
-  if (clkState == LOW && lastClkState == HIGH) {
-    if (registerActivity()) { // this detent only woke the screen - don't also act on it
-      lastClkState = clkState;
-      return;
+  if (currentGame == GAME_PONG && !inMenu && !inLeaveConfirm && !inInstructions && swState != LOW) {
+    // the whole batch moves the paddle at once - updatePong() redraws at its own frame rate, so a
+    // fast spin isn't slowed down by a full screen transfer on every detent. Clockwise = down.
+    if (pongState == PONG_PLAYING) {
+      pongPlayerY = constrain(pongPlayerY + pending * PONG_PADDLE_STEP, PONG_FIELD_TOP, PONG_FIELD_BOTTOM - PONG_PADDLE_H + 1);
     }
-    int dtState = digitalRead(ENCODER_DT);
-    int direction = (dtState == HIGH) ? 1 : -1; // +1 clockwise, -1 counter-clockwise
+    return;
+  }
 
+  int direction = (pending > 0) ? 1 : -1; // +1 clockwise, -1 counter-clockwise
+  bool needsRender = false;
+  for (int i = 0; i < abs(pending); i++) {
+    needsRender = applyEncoderDetent(direction) || needsRender;
+  }
+  if (needsRender) render(); // one redraw for the whole batch
+}
+
+// ---------------- Encoder: one detent's worth of action on whichever screen is active. Returns
+// true when the caller still has to render(); branches that already draw themselves return false. ----------------
+bool applyEncoderDetent(int direction) {
+  {
     if (swState == LOW && !swLongFired) {
       // encoder button is currently held (and hasn't already opened the menu via long-press) -
       // this turn adjusts volume instead of anything else, and claims the hold so releasing it
@@ -1496,8 +1551,7 @@ void readEncoder() {
       ledcWrite(BUZZER_PIN, 0); // silence anything currently sounding
       swClaimedByVolume = true;
       drawVolumeOverlay(); // full-screen, live - readEncoderButton() restores the normal screen on release
-      lastClkState = clkState;
-      return;
+      return false;
     } else if (inLeaveConfirm) {
       leaveConfirmSelection = 1 - leaveConfirmSelection; // only Yes/No - either direction toggles
     } else if (inInstructions) {
@@ -1539,49 +1593,36 @@ void readEncoder() {
         triviaLevel = constrain(triviaLevel + direction, 0, TRIVIA_LEVEL_COUNT - 1);
       } else if (triviaScreenState == TRIVIA_PLAYING) {
         moveTriviaStep(direction); // Question <-> Answers <-> next/previous Question, one step per detent
-        lastClkState = clkState;
-        return; // moveTriviaStep() already renders and plays its own confirmation sound
+        return false; // moveTriviaStep() already renders and plays its own confirmation sound
       }
     } else if (currentGame == GAME_TOOTHBRUSH && toothbrushScreenState == TOOTHBRUSH_SELECT_TIME) {
       toothbrushMinutes = constrain(toothbrushMinutes + direction, 1, 5);
     } else if (currentGame == GAME_TETRIS) {
       tetrisMove(direction); // already renders itself only if the move was actually valid
-      lastClkState = clkState;
-      return;
+      return false;
     } else if (currentGame == GAME_STARDROP) {
       stardropMoveCatcher(direction); // already renders itself
-      lastClkState = clkState;
-      return;
+      return false;
     } else if (currentGame == GAME_SNAKE && snakeState == SNAKE_PLAYING) {
       if (!snakeTurnedThisTick) {
         snakeDirection = ((snakeDirection + direction) % 4 + 4) % 4; // relative turn: +1 = right, -1 = left
         snakeTurnedThisTick = true;
       }
     } else if (currentGame == GAME_PONG) {
-      // move the paddle only - updatePong() redraws at its own frame rate, so a fast spin isn't
-      // slowed down by a full screen transfer on every detent. Clockwise = down, like the menus.
-      if (pongState == PONG_PLAYING) {
-        pongPlayerY = constrain(pongPlayerY + direction * PONG_PADDLE_STEP, PONG_FIELD_TOP, PONG_FIELD_BOTTOM - PONG_PADDLE_H + 1);
-      }
-      lastClkState = clkState;
-      return;
+      return false; // handled as a batch in readEncoder()
     } else if (currentGame == GAME_HOTPOTATO && hpState == HP_READY) {
       hpRerollWithAnimation(); // blocking - already renders itself throughout
-      lastClkState = clkState;
-      return;
+      return false;
     } else if (currentGame == GAME_HOTPOTATO && hpState == HP_EXPLODED) {
       hpState = HP_READY;
       hpRerollWithAnimation(); // skips straight past the post-explosion pause in updateHotPotato()
       digitalWrite(BUTTON_LED, LOW);
-      lastClkState = clkState;
-      return;
+      return false;
     }
     // GAME_REFLEX, GAME_STOPWATCH: encoder rotation has no effect
 
-    render();
+    return true;
   }
-
-  lastClkState = clkState;
 }
 
 // ---------------- Menu: confirms the highlighted entry - a game, or opens the settings submenu ----------------
