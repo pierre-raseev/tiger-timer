@@ -332,8 +332,10 @@ own first screen appears:
   word boundary (never mid-word) if the translated name is too wide for one line at that size.
 - **Exception — every other game:** each plays its own animated scene above the name (12 frames
   of ~83 ms, 1 second in total; `playAnimatedGameSplash`):
-  - *Reflex:* a big arcade button on its bezel presses down and springs back, with click lines
-    around it at the bottom of the press.
+  - *Reflex:* a big arcade button presses down and springs back, with click lines around it at
+    the bottom of the press. It has a tall round dome (a 45×15 half-ellipse with a curved shine
+    on its upper left) on a short collar, sitting in its bezel. The dome sinks up to 3 px as it
+    is pressed.
   - *Pass the Bomb:* a big round bomb with a shine; its wavy fuse burns shorter every frame down
     to the cap, the spark at its tip flickering and throwing off stray sparks.
   - *Chess Clock:* a white king (outline) and a black king (solid) face each other across a small

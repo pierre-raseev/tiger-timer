@@ -1391,6 +1391,7 @@ void testSerialCommands() {
     else if (c == 'Y') { static int timerEndFrame = 0; drawTimerEndFrame(timerEndFrame); display.display(); Serial.printf("[timerend] frame %d\n", timerEndFrame); timerEndFrame = (timerEndFrame + 1) % timerEndFrameCount(); }
     else if (c == 'O') { static int totoroFrame = 0; unsigned long t0 = micros(); drawTotoroDoneFrame(totoroFrame); unsigned long dt = micros() - t0; display.display(); Serial.printf("[totoro] frame %d drawn in %lu us\n", totoroFrame, dt); totoroFrame = (totoroFrame + 1) % totoroDoneFrameCount(); }
     else if (c == 'W') { static int recFrame = 0; drawReflexRecordFrame(recFrame); display.display(); Serial.printf("[record] frame %d\n", recFrame); recFrame = (recFrame + 1) % 13; }
+    else if (c == 'J') { display.clearDisplay(); drawReflexSplashFrame(4); drawSplashGameName(T(STR_MENU_REFLEX)); display.display(); } // Reflex splash, fully pressed
     else if (c == 'H') { stardropHighScore = 1234; tetrisHighScore = 1234; render(); } // RAM only - tests the wrapped score line
     else if (c == 'g' || c == 'h' || c == 'k' || c == 'c') { playGameSplashScreen(c == 'g' ? GAME_REFLEX : c == 'h' ? GAME_HOTPOTATO : c == 'k' ? GAME_CHESS : GAME_STOPWATCH); }
     else if (c == 'G') { // cycle through the newest animated splashes
@@ -1879,17 +1880,26 @@ void fillEllipseSpans(int cx, int cy, int rx, int ry, uint16_t color) {
 const int GAME_SPLASH_FRAMES = 12;
 const int GAME_SPLASH_FRAME_MS = 83;
 
-// Reflex: a big arcade button on its bezel presses down and springs back, with click lines at the
-// bottom of the press.
+// Reflex: a big arcade button - a tall round dome on a short collar, sitting in its bezel - presses
+// down and springs back, with click lines at the bottom of the press.
 void drawReflexSplashFrame(int f) {
   static const uint8_t PRESS[GAME_SPLASH_FRAMES] = {0, 0, 1, 2, 3, 3, 2, 1, 0, 0, 0, 0};
   int press = PRESS[f];
   fillEllipseSpans(64, 36, 30, 6, SH110X_WHITE); // bezel ring
   fillEllipseSpans(64, 35, 26, 4, SH110X_BLACK);
-  display.fillRect(42, 18 + press, 45, 14 - press, SH110X_WHITE); // button body
-  fillEllipseSpans(64, 18 + press, 22, 6, SH110X_WHITE);          // dome top
-  fillEllipseSpans(64, 31, 22, 4, SH110X_WHITE);                  // rounded bottom
-  display.drawFastHLine(46, 22 + press, 6, SH110X_BLACK);         // shine
+  const int domeBase = 27 + press;                                 // the cap sinks as it's pressed
+  display.fillRect(42, domeBase, 45, 32 - domeBase, SH110X_WHITE); // short collar under the cap
+  fillEllipseSpans(64, 31, 22, 4, SH110X_WHITE);                   // rounded bottom
+  for (int dy = -14; dy <= 0; dy++) {                              // tall round dome: upper half-ellipse 45x15 (apex row skipped: it would be a 1px nub)
+    float t = 1.0f - (float)(dy * dy) / (15 * 15);
+    int w = (int)lroundf(22 * sqrtf(t));
+    display.drawFastHLine(64 - w, domeBase + dy, 2 * w + 1, SH110X_WHITE);
+  }
+  for (int a = 200; a <= 245; a += 3) {                            // curved shine on the upper left
+    float r = a * PI / 180;
+    display.drawPixel((int)lroundf(64 + cosf(r) * 16), (int)lroundf(domeBase + sinf(r) * 10), SH110X_BLACK);
+  }
+  display.drawPixel(52, domeBase - 10, SH110X_BLACK);
   if (press >= 3) {
     display.drawLine(30, 8, 36, 14, SH110X_WHITE);
     display.drawLine(98, 8, 92, 14, SH110X_WHITE);
