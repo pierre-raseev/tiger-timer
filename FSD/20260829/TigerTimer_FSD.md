@@ -435,10 +435,11 @@ A simple countdown timer.
      The last two grains fall through the neck, and a sparkle pops on each of the 4 notes of
      the end jingle (A5 B5 D6 G6).
   2. **Flip (6 × 70 ms):** it spins 180° (eased: 20°, 55°, 90°, 125°, 160°, 180°) with motion
-     dots trailing the turn and a rising whoosh.
+     dots trailing the turn.
   3. **Run (6 × 110 ms):** upright again, the sand starts running from the top bulb in a dotted
-     stream while a small pile builds below, with soft trickle ticks. The timer is ready for
-     another round.
+     stream while a small pile builds below. The timer is ready for another round.
+
+  The end jingle is the only sound. The flip and the running sand are silent.
 
   The screen then returns to the Timer screen showing the preset again ("Set time"). The
   geometry is in hourglass-local coordinates, rotated per frame: caps 33 px wide, walls

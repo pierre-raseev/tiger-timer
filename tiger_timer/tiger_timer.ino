@@ -4561,8 +4561,8 @@ void playTimerEndAnimation() {
     display.display();
     int frameMs, freq = 0, noteMs = 0;
     if (i < TIMER_END_JINGLE_FRAMES) { freq = END_MELODY_NOTES[i]; noteMs = END_MELODY_DURATIONS[i]; frameMs = noteMs + (i < 3 ? 10 : 20); } // jingle, one note per sparkle
-    else if (i < TIMER_END_JINGLE_FRAMES + TIMER_END_FLIP_FRAMES) { frameMs = 70; freq = 600 + (i - TIMER_END_JINGLE_FRAMES) * 120; noteMs = 30; } // rising whoosh
-    else { frameMs = 110; if ((i % 2) == 0) { freq = 1400; noteMs = 8; } } // soft trickle ticks
+    else if (i < TIMER_END_JINGLE_FRAMES + TIMER_END_FLIP_FRAMES) frameMs = 70; // silent - the jingle is the only sound
+    else frameMs = 110;
     if (freq > 0) playNote(freq, noteMs);
     while (millis() - start < (unsigned long)frameMs) delay(1); // hold the frame even when muted
   }
