@@ -1062,6 +1062,16 @@ void drawSplashClockFace(int cx, int cy, int r, float angle);
 void drawChessSplashFrame(int f);
 void drawStopwatchSplashFrame(int f);
 bool hasAnimatedGameSplash(int game);
+void fillPieWedge(int cx, int cy, int r, float a0, float a1, uint16_t color);
+void drawTimerSplashFrame(int f);
+void drawSplashDie(int x, int y, int s, int value, bool filled);
+void drawDiceSplashFrame(int f);
+void drawTriviaSplashFrame(int f);
+void drawTetrisSplashFrame(int f);
+void snakeArenaTrackPoint(int i, int &x, int &y);
+void drawSnakeSplashFrame(int f);
+void drawPongSplashFrame(int f);
+void drawSimpleMorseSplashFrame(int f);
 void playAnimatedGameSplash(int game);
 void drawToothbrushSplashBrush(int x, int y);
 void drawToothbrushSplashTube(int x, int y);
@@ -1344,6 +1354,12 @@ void testSerialCommands() {
     else if (c == 'p') { if (currentGame == GAME_TOOTHBRUSH) handleToothbrushPress(); else dispatchButtonShortPress(); }
     else if (c == 'R') { inMenu = false; currentGame = GAME_STARDROP; initGameState(GAME_STARDROP); render(); }
     else if (c == 'g' || c == 'h' || c == 'k' || c == 'c') { playGameSplashScreen(c == 'g' ? GAME_REFLEX : c == 'h' ? GAME_HOTPOTATO : c == 'k' ? GAME_CHESS : GAME_STOPWATCH); }
+    else if (c == 'G') { // cycle through the newest animated splashes
+      static const int GAMES[] = {GAME_TIMER, GAME_DICE, GAME_TRIVIA, GAME_TETRIS, GAME_SNAKE, GAME_PONG, GAME_SIMPLEMORSE};
+      static int next = 0;
+      playGameSplashScreen(GAMES[next]);
+      next = (next + 1) % 7;
+    }
     else if (c == 'n') { if (inMenu) { menuSelection = (menuSelection + 1) % visibleMenuCount; render(); } }
     else if (c == 'B') { playGameSplashScreen(GAME_TOOTHBRUSH); }
     else if (c == 'Q') { playGameSplashScreen(GAME_STARDROP); }
@@ -1930,9 +1946,165 @@ void drawStopwatchSplashFrame(int f) {
   display.fillTriangle(76, 7 + pr, 83, 6 + pr, 79, 10 + pr, SH110X_WHITE);
 }
 
+// ---------------- Filled pie wedge: the pixels of a disc whose clockwise angle from 12 o'clock is
+// between a0 and a1 radians ----------------
+void fillPieWedge(int cx, int cy, int r, float a0, float a1, uint16_t color) {
+  for (int y = -r; y <= r; y++) {
+    for (int x = -r; x <= r; x++) {
+      if (x * x + y * y > r * r + r) continue;
+      float a = atan2f((float)x, (float)-y);
+      if (a < 0) a += 2 * PI;
+      if (a >= a0 && a <= a1) display.drawPixel(cx + x, cy + y, color);
+    }
+  }
+}
+
+// Timer: a dial with 12 tick dots and a filled wedge for the time left, shrinking clockwise over the
+// second; a knob on top.
+void drawTimerSplashFrame(int f) {
+  const int cx = 64, cy = 23;
+  display.drawCircle(cx, cy, 19, SH110X_WHITE);
+  display.drawCircle(cx, cy, 18, SH110X_WHITE);
+  for (int i = 0; i < 12; i++) {
+    float a = i * PI / 6;
+    display.drawPixel(cx + (int)lroundf(sinf(a) * 16), cy - (int)lroundf(cosf(a) * 16), SH110X_WHITE);
+  }
+  float remaining = 2 * PI * (1.0f - f / 12.0f) * 0.85f + 0.001f;
+  fillPieWedge(cx, cy, 14, 2 * PI - remaining, 2 * PI, SH110X_WHITE);
+  display.fillRect(cx - 3, 1, 7, 3, SH110X_WHITE);
+  display.drawFastVLine(cx, 0, 2, SH110X_WHITE);
+}
+
+// Dice: one outlined and one solid die tumble in from both sides, bouncing, their faces changing,
+// and land on 6 and 5; sparkles once they settle.
+void drawSplashDie(int x, int y, int s, int value, bool filled) {
+  uint16_t pip = filled ? SH110X_BLACK : SH110X_WHITE;
+  if (filled) display.fillRoundRect(x, y, s, s, 3, SH110X_WHITE);
+  else display.drawRoundRect(x, y, s, s, 3, SH110X_WHITE);
+  int lo = s / 4, mid = s / 2, hi = s - 1 - s / 4, pr = max(1, s / 10);
+  // pip positions as (column, row) indices into {lo, mid, hi}, per face value
+  static const char* const FACES[7] = {"", "11", "0022", "001122", "00200222", "0020110222", "002001210222"};
+  const char* face = FACES[value];
+  int pos[3] = {lo, mid, hi};
+  for (int i = 0; face[i] && face[i + 1]; i += 2) {
+    display.fillCircle(x + pos[face[i] - '0'], y + pos[face[i + 1] - '0'], pr, pip);
+  }
+}
+void drawDiceSplashFrame(int f) {
+  const int land = 7;
+  float t = min(f, land) / (float)land;
+  int bounce1 = (f < land) ? (int)lroundf(fabsf(sinf(t * 2 * PI)) * -8) : 0;
+  int bounce2 = (f < land) ? (int)lroundf(fabsf(cosf(t * 2 * PI)) * -6) : 0;
+  int x1 = (int)lroundf(-24 + t * 58), x2 = (int)lroundf(128 - t * 58);
+  int v1 = (f < land) ? 1 + (f * 5) % 6 : 6;
+  int v2 = (f < land) ? 1 + (f * 3 + 2) % 6 : 5;
+  drawSplashDie(x1, 14 + bounce1, 24, v1, false);
+  drawSplashDie(x2, 16 + bounce2, 24, v2, true);
+  if (f >= land + 1) { drawSplashSparkle(30, 6, 2); drawSplashSparkle(100, 8, 3); }
+}
+
+// Quiz: a speech bubble whose question mark pops up (growing 1x -> 3x, then a small bounce);
+// sparkles around it at the end.
+void drawTriviaSplashFrame(int f) {
+  display.drawRoundRect(34, 2, 60, 34, 8, SH110X_WHITE);
+  display.drawRoundRect(35, 3, 58, 32, 7, SH110X_WHITE);
+  display.fillTriangle(44, 34, 52, 34, 40, 43, SH110X_WHITE); // tail
+  display.fillTriangle(46, 33, 50, 33, 43, 39, SH110X_BLACK);
+  int sc = (f == 0) ? 1 : (f == 1) ? 2 : 3;
+  int dy = (f >= 3 && f < 6) ? (f == 3 ? -2 : f == 4 ? 0 : -1) : 0;
+  display.setTextSize(sc);
+  display.setTextColor(SH110X_WHITE);
+  display.setCursor(64 - (5 * sc) / 2, 19 - (8 * sc) / 2 + dy);
+  display.print('?');
+  display.setTextSize(1);
+  if (f >= 8) {
+    drawSplashSparkle(104, 8, 2);
+    drawSplashSparkle(24, 14, (f % 2) ? 3 : 2);
+    drawSplashSparkle(108, 30, (f % 2) ? 2 : 3);
+  }
+}
+
+// Tetris: a big T piece of bevelled blocks falls toward a floor line, turning a quarter every
+// 3 frames.
+void drawTetrisSplashFrame(int f) {
+  const int S = 10, cx = 64;
+  int rot = (f / 3) % 4;
+  int cy = (int)lroundf(-10 + f * 1.9f);
+  static const int8_t BASE[4][2] = {{-1, 0}, {0, 0}, {1, 0}, {0, -1}};
+  for (int i = 0; i < 4; i++) {
+    int a = BASE[i][0], b = BASE[i][1];
+    for (int k = 0; k < rot; k++) { int t = a; a = -b; b = t; }
+    int x = cx - 5 + a * S, y = cy + 12 + b * S;
+    display.fillRect(x, y, S - 1, S - 1, SH110X_WHITE);
+    display.drawRect(x + 2, y + 2, S - 5, S - 5, SH110X_BLACK);
+  }
+  display.drawFastHLine(20, 43, 88, SH110X_WHITE);
+}
+
+// Snake: a walled arena; a 7-segment snake runs laps along a rectangular track inside it, chasing
+// a food dot that stays 9 steps ahead.
+void snakeArenaTrackPoint(int i, int &x, int &y) { // 44 points: top, right, bottom, left
+  if (i < 17) { x = 30 + i * 4; y = 8; return; }
+  i -= 17;
+  if (i < 6) { x = 96; y = 12 + i * 4; return; }
+  i -= 6;
+  if (i < 16) { x = 92 - i * 4; y = 34; return; }
+  i -= 16;
+  x = 30; y = 30 - i * 4;
+}
+void drawSnakeSplashFrame(int f) {
+  const int n = 44;
+  display.drawRect(24, 2, 80, 40, SH110X_WHITE);
+  int head = (f * 3) % n, x, y;
+  for (int k = 0; k < 7; k++) {
+    snakeArenaTrackPoint((head - k + n) % n, x, y);
+    display.fillRect(x, y, 3, 3, SH110X_WHITE);
+  }
+  snakeArenaTrackPoint((head + 9) % n, x, y);
+  display.fillRect(x, y, 3, 3, SH110X_WHITE);
+  display.drawPixel(x + 1, y + 1, SH110X_BLACK);
+}
+
+// Pong: a rally - the ball crosses to the right and back over the dashed centre line, bouncing
+// between top and bottom, both paddles following it.
+void drawPongSplashFrame(int f) {
+  for (int y = 0; y < 44; y += 4) display.drawFastVLine(64, y, 2, SH110X_WHITE);
+  int bx = 10 + ((f < 6) ? f * 18 : (12 - f) * 18);
+  int by = (int)lroundf(8 + abs(((f * 7) % 24) - 12) * 2.3f);
+  display.fillRect(bx, by, 3, 3, SH110X_WHITE);
+  display.fillRect(4, constrain(by - 6, 2, 30), 3, 12, SH110X_WHITE);
+  display.fillRect(121, constrain(by - 4 + (f % 3), 2, 30), 3, 12, SH110X_WHITE);
+}
+
+// SimpleMorse: a big telegraph key taps out a pattern (lever and knob dip on key-down frames) while
+// the dots and dashes it has sent so far grow to its right.
+void drawSimpleMorseSplashFrame(int f) {
+  static const uint8_t PATTERN[GAME_SPLASH_FRAMES] = {1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1};
+  int ly = PATTERN[f] ? 3 : 0;
+  display.fillRect(6, 36, 56, 6, SH110X_WHITE);  // base
+  display.fillRect(40, 26, 6, 10, SH110X_WHITE); // pivot post
+  display.drawLine(10, 22 + ly, 54, 28, SH110X_WHITE); // lever
+  display.drawLine(10, 23 + ly, 54, 29, SH110X_WHITE);
+  display.drawLine(10, 24 + ly, 54, 30, SH110X_WHITE);
+  display.fillCircle(12, 20 + ly, 5, SH110X_WHITE); // knob
+  display.fillRect(46, 33, 8, 3, SH110X_WHITE);     // contact
+  int x = 70;
+  for (int i = 0; i <= f; i++) {
+    if (PATTERN[i] && (i == 0 || !PATTERN[i - 1])) { // start of a key-down run
+      int n = 0;
+      while (i + n <= f && i + n < GAME_SPLASH_FRAMES && PATTERN[i + n]) n++;
+      int w = (n >= 3) ? 10 : 3; // a dash once the key has been held 3 frames
+      display.fillRect(x, 22, w, 3, SH110X_WHITE);
+      x += w + 4;
+    }
+  }
+}
+
 // true if the game has an animated splash above (drawn by playAnimatedGameSplash)
 bool hasAnimatedGameSplash(int game) {
-  return game == GAME_REFLEX || game == GAME_HOTPOTATO || game == GAME_CHESS || game == GAME_STOPWATCH;
+  return game == GAME_REFLEX || game == GAME_HOTPOTATO || game == GAME_CHESS || game == GAME_STOPWATCH ||
+         game == GAME_TIMER || game == GAME_DICE || game == GAME_TRIVIA || game == GAME_TETRIS ||
+         game == GAME_SNAKE || game == GAME_PONG || game == GAME_SIMPLEMORSE;
 }
 
 void playAnimatedGameSplash(int game) {
@@ -1942,6 +2114,13 @@ void playAnimatedGameSplash(int game) {
     else if (game == GAME_HOTPOTATO) drawHotPotatoSplashFrame(f);
     else if (game == GAME_CHESS) drawChessSplashFrame(f);
     else if (game == GAME_STOPWATCH) drawStopwatchSplashFrame(f);
+    else if (game == GAME_TIMER) drawTimerSplashFrame(f);
+    else if (game == GAME_DICE) drawDiceSplashFrame(f);
+    else if (game == GAME_TRIVIA) drawTriviaSplashFrame(f);
+    else if (game == GAME_TETRIS) drawTetrisSplashFrame(f);
+    else if (game == GAME_SNAKE) drawSnakeSplashFrame(f);
+    else if (game == GAME_PONG) drawPongSplashFrame(f);
+    else if (game == GAME_SIMPLEMORSE) drawSimpleMorseSplashFrame(f);
     drawSplashGameName(menuLabelForGame(game));
     display.display();
     delay(GAME_SPLASH_FRAME_MS);
@@ -6064,10 +6243,11 @@ void drawTimerStepScreen() {
 }
 
 // ---------------- Game icons ----------------
+// ---------------- Timer icon: a dial with a filled wedge for the time left, and the knob on top ----------------
 void drawTimerIcon(int cx, int cy, int r, uint16_t color) {
-  display.drawCircle(cx, cy, r, color);
-  display.drawLine(cx, cy, cx, cy - r + 2, color);     // minute hand
-  display.drawLine(cx, cy, cx + r - 3, cy, color);      // hour hand
+  display.drawCircle(cx, cy + 1, 5, color);
+  fillPieWedge(cx, cy + 1, 4, 0, 2.2f, color);
+  display.fillRect(cx - 1, cy - 6, 3, 2, color);
 }
 
 // ---------------- Reflex icon: an arcade button seen from the side (dome on its bezel) with three
@@ -6088,15 +6268,19 @@ void drawReflexIcon(int cx, int cy, int r, uint16_t color) {
   drawPixelArt(REFLEX_ICON_ART, sizeof(REFLEX_ICON_ART) / sizeof(REFLEX_ICON_ART[0]), cx - 6, cy - 5, 1, false, color);
 }
 
+// ---------------- Dice icon: an outlined die behind a solid one (4 pips), the solid one overlapping
+// its corner ----------------
 void drawDiceIcon(int cx, int cy, int r, uint16_t color) {
-  display.drawRoundRect(cx - r, cy - r, r * 2, r * 2, 3, color);
-  int off = r / 2;
-  int pr = max(1, r / 5);
-  display.fillCircle(cx - off, cy - off, pr, color);
-  display.fillCircle(cx + off, cy - off, pr, color);
-  display.fillCircle(cx - off, cy + off, pr, color);
-  display.fillCircle(cx + off, cy + off, pr, color);
-  display.fillCircle(cx, cy, pr, color);
+  // spans cy-7..cy+5 so it stays inside the 14px highlight bar of a selected menu row
+  uint16_t inverse = (color == SH110X_WHITE) ? SH110X_BLACK : SH110X_WHITE;
+  display.drawRect(cx - 6, cy - 7, 8, 8, color);
+  display.drawPixel(cx - 4, cy - 5, color);
+  display.fillRect(cx - 2, cy - 3, 9, 9, inverse); // gap where the front die overlaps the back one
+  display.fillRect(cx - 1, cy - 2, 8, 8, color);
+  display.drawPixel(cx + 1, cy, inverse);
+  display.drawPixel(cx + 4, cy, inverse);
+  display.drawPixel(cx + 1, cy + 3, inverse);
+  display.drawPixel(cx + 4, cy + 3, inverse);
 }
 
 // ---------------- Chess Clock icon: a king chess piece. 13x12 pixel art. ----------------
@@ -6205,13 +6389,17 @@ void drawToothbrushIcon(int cx, int cy, int r, uint16_t color) {
   }
 }
 
-// small S-tetromino silhouette - instantly reads as "Tetris" at a glance
+// ---------------- Tetris icon: a T piece of four outlined blocks, each with a centre dot. 13x9 at
+// menu size (r=6), scaled up in whole steps for larger r (the rotated Ready screen uses r=14). ----------------
 void drawTetrisIcon(int cx, int cy, int r, uint16_t color) {
-  int s = max(2, r / 2); // block size
-  display.fillRect(cx, cy - s, s, s, color);
-  display.fillRect(cx + s, cy - s, s, s, color);
-  display.fillRect(cx - s, cy, s, s, color);
-  display.fillRect(cx, cy, s, s, color);
+  int sc = max(1, r / 6);
+  static const int8_t CELLS[4][2] = {{0, 0}, {1, 0}, {2, 0}, {1, 1}};
+  for (int i = 0; i < 4; i++) {
+    int x = cx - 6 * sc + CELLS[i][0] * 4 * sc;
+    int y = cy - 4 * sc + CELLS[i][1] * 4 * sc;
+    display.drawRect(x, y, 4 * sc + 1, 4 * sc + 1, color);
+    display.fillRect(x + 2 * sc, y + 2 * sc, sc, sc, color);
+  }
 }
 
 // small 4-point sparkle - menu icon for Star Drop
@@ -6223,27 +6411,31 @@ void drawStarDropIcon(int cx, int cy, int r, uint16_t color) {
   display.drawLine(cx - d, cy + d, cx + d, cy - d, color);
 }
 
-// ---------------- Snake icon: a zigzag body with a small round head at one end ----------------
+// ---------------- Snake icon: a walled board with a little snake turning inside it and a food dot ----------------
 void drawSnakeIcon(int cx, int cy, int r, uint16_t color) {
-  display.drawLine(cx - r, cy + r / 2, cx - r / 3, cy - r / 2, color);
-  display.drawLine(cx - r / 3, cy - r / 2, cx + r / 3, cy + r / 2, color);
-  display.drawLine(cx + r / 3, cy + r / 2, cx + r, cy - r / 2, color);
-  int hr = max(1, r / 4);
-  display.fillCircle(cx + r, cy - r / 2, hr, color);
+  display.drawRect(cx - 6, cy - 5, 13, 11, color);
+  display.drawFastHLine(cx - 4, cy + 2, 5, color);
+  display.drawFastVLine(cx, cy - 2, 4, color);
+  display.drawFastHLine(cx, cy - 2, 3, color);
+  display.drawPixel(cx + 3, cy - 3, color);
+  display.drawPixel(cx + 3, cy + 2, color);
 }
 
-// ---------------- Pong icon: two paddles facing each other with the ball between them ----------------
+// ---------------- Pong icon: two paddles at different heights, the ball, and the dashed centre line ----------------
 void drawPongIcon(int cx, int cy, int r, uint16_t color) {
-  int ph = max(4, r);
-  display.fillRect(cx - r, cy - ph / 2 - 1, 2, ph, color);
-  display.fillRect(cx + r - 1, cy - ph / 2 + 2, 2, ph, color);
-  display.fillRect(cx - 1, cy - 2, 2, 2, color);
+  display.fillRect(cx - 6, cy - 4, 2, 5, color);
+  display.fillRect(cx + 5, cy - 1, 2, 5, color);
+  for (int y = -5; y <= 5; y += 2) display.drawPixel(cx, cy + y, color);
+  display.fillRect(cx - 3, cy + 1, 2, 2, color);
 }
 
-// ---------------- SimpleMorse menu icon: a tiny walrus - reuses drawWalrusFace, just always the
-// non-wounded version and at icon scale ----------------
+// ---------------- SimpleMorse icon: a telegraph (Morse) key - base, pivot post, lever and its knob ----------------
 void drawSimpleMorseIcon(int cx, int cy, int r, uint16_t color) {
-  drawWalrusFace(cx, cy - 2, max(3, r - 2), false, color);
+  display.fillRect(cx - 6, cy + 4, 13, 2, color);
+  display.fillRect(cx + 2, cy + 1, 2, 3, color);
+  display.drawLine(cx - 5, cy - 1, cx + 5, cy + 1, color);
+  display.drawLine(cx - 5, cy, cx + 5, cy + 2, color);
+  display.fillCircle(cx - 4, cy - 2, 2, color);
 }
 
 // ---------------- Star Drop: falling-object glyphs, drawn small (radius ~3px) so several can be
@@ -6303,14 +6495,23 @@ void invertScreenRegion(int x0, int y0, int x1, int y1) {
   }
 }
 
+// ---------------- Quiz icon: a speech bubble with a question mark, tail at the bottom left.
+// 13x11 pixel art. ----------------
+const char* const TRIVIA_ICON_ART[] = {
+  ".###########.",
+  "#...........#",
+  "#....###....#",
+  "#...#...#...#",
+  "#......#....#",
+  "#.....#.....#",
+  "#...........#",
+  "#.....#.....#",
+  ".###.#######.",
+  "...##........",
+  "...#.........",
+};
 void drawTriviaIcon(int cx, int cy, int r, uint16_t color) {
-  display.setTextColor(color);
-  display.setTextSize(1);
-  int16_t x1, y1;
-  uint16_t w, h;
-  display.getTextBounds("?", 0, 0, &x1, &y1, &w, &h);
-  display.setCursor(cx - w / 2, cy - h / 2 - y1);
-  display.print("?");
+  drawPixelArt(TRIVIA_ICON_ART, sizeof(TRIVIA_ICON_ART) / sizeof(TRIVIA_ICON_ART[0]), cx - 6, cy - 5, 1, false, color);
 }
 
 // single-direction arrow glyph, for the trivia play screen's bottom row (left = back, right = forward

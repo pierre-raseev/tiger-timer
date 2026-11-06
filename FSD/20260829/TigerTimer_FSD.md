@@ -313,8 +313,8 @@ own first screen appears:
 - The game's translated name below it, in the same pixel/arcade font used for the boot splash
   (§4.1, §9) — sized as large as fits on one line, automatically splitting onto two lines at a
   word boundary (never mid-word) if the translated name is too wide for one line at that size.
-- **Exception — Reflex, Pass the Bomb, Chess Clock, Stopwatch:** each plays its own animated scene
-  above the name (12 frames of ~83 ms, 1 second in total; `playAnimatedGameSplash`):
+- **Exception — every other game:** each plays its own animated scene above the name (12 frames
+  of ~83 ms, 1 second in total; `playAnimatedGameSplash`):
   - *Reflex:* a big arcade button on its bezel presses down and springs back, with click lines
     around it at the bottom of the press.
   - *Pass the Bomb:* a big round bomb with a shine; its wavy fuse burns shorter every frame down
@@ -323,6 +323,20 @@ own first screen appears:
     chess clock whose two buttons take turns going down while both hands tick.
   - *Stopwatch:* a big stopwatch (thick case, 12 tick marks); the crown and side button click down
     on the first frame and the hand sweeps one full turn.
+  - *Timer:* a dial with 12 tick dots and a filled wedge for the time left, shrinking clockwise;
+    a knob on top.
+  - *Dice:* one outlined and one solid die tumble in from both sides, bouncing with their faces
+    changing, land on 6 and 5, and sparkle.
+  - *Quiz:* a speech bubble whose question mark pops up (growing from 1× to 3×, then a small
+    bounce), with sparkles at the end.
+  - *Tetris:* a big T piece of bevelled blocks falls toward a floor line, turning a quarter every
+    3 frames.
+  - *Snake:* a walled arena; a 7-segment snake runs laps along a track inside it, chasing a food
+    dot that stays 9 steps ahead.
+  - *Pong:* a rally — the ball crosses the dashed centre line and back, bouncing off top and
+    bottom, both paddles following it.
+  - *SimpleMorse:* a big telegraph key taps out a pattern (the lever and knob dip on key-down
+    frames) while the dots and dashes sent so far grow to its right.
 - **Exception — Toothbrush:** instead of the big menu icon it shows its own animated scene: a
   big toothbrush lying across the screen (head on the left, bristles up) while a toothpaste tube
   travels along it from left to right, squeezing a wavy ribbon of paste onto the bristles; a
@@ -378,6 +392,7 @@ that game's translated name there, so no screen is ever left with a conspicuousl
 
 ### 5.1 Timer
 A simple countdown timer.
+- **Icon:** a dial with a filled wedge for the time left and a knob on top.
 - **Idle:** turning the encoder adjusts the target duration, moved by the step chosen in
   Settings (§4.5). Default 2:00. Range 0:10–90:00 (`MIN_TIME`=10s, `MAX_TIME`=5400s,
   `DEFAULT_TIME`=120s). The **Auto** ramp step scales the increment based on the current value
@@ -419,6 +434,8 @@ A reaction-time light/buzzer game.
 
 ### 5.3 Dice
 Rolls 1–5 dice of a chosen type.
+- **Icon:** an outlined die behind a solid four-pip die that overlaps its corner (kept within
+  the 14 px highlight bar of a selected menu row).
 - **Selection screen:** turning the encoder cycles the die type (the available face counts,
   e.g. d4/d6/d8/d10/d12/d20 — implement whatever standard tabletop die set makes sense; the
   original build supports the common D&D-style set). Confirm with the arcade button (or encoder
@@ -501,6 +518,7 @@ Standard count-up stopwatch with lap support.
 
 ### 5.7 Trivia
 Buzzer-style multiple-choice trivia with a physical "buzz in" mechanic.
+- **Icon:** a speech bubble with a question mark (13×11 px pixel art, `TRIVIA_ICON_ART`).
 - **Setup:** pick a category (8 available: Sports, Geography, Science, History, General,
   Mythology, Art, Animals — `TRIVIA_REAL_CATEGORY_COUNT`=8) then a difficulty level (3 levels:
   Junior, Curious, Master — `TRIVIA_LEVEL_COUNT`=3), each via encoder-turn + confirm.
@@ -591,6 +609,8 @@ lower right**, in that order.
 
 ### 5.9 Tetris
 A compact falling-block game, played with the whole device rotated 90°.
+- **Icon:** a T piece of four outlined blocks, each with a centre dot; scaled ×2 on the rotated
+  Ready screen.
 - **Display orientation:** the screen is temporarily rotated in software so the physical panel's
   long 128px axis becomes the vertical "falling" axis and the short 64px axis becomes the
   board's width. The board is **8 columns × 15 rows**, 8px square cells (`TETRIS_BOARD_COLS`=8,
@@ -659,6 +679,7 @@ A falling-catch game, also played rotated 90° (same rotation approach as Tetris
 A classic grid-based snake game, played in the normal (unrotated) orientation, since a wide
 grid suits the panel's natural landscape shape fine without needing Tetris/Star Drop's rotation
 trick.
+- **Icon:** a walled board with a little snake turning inside it and a food dot.
 - **Board:** 32 columns × 12 rows, 4px square cells (`SNAKE_CELL_SIZE`=4), content starting
   just below the standard header/divider at y=16 (`SNAKE_HUD_HEIGHT`=16). Up to 200 body
   segments (`SNAKE_MAX_LENGTH`=200 — comfortably under the board's 384-cell total).
@@ -695,6 +716,7 @@ trick.
 ### 5.12 SimpleMorse
 A Simon-Says-style memory game where the growing pattern to repeat is Morse code — short
 presses (dots) and long presses (dashes) — for a randomly chosen word, rather than colors.
+- **Icon:** a telegraph (Morse) key — base, pivot post, lever and knob.
 - **Word selection:** on entering the game (and on each replay), one word is chosen at random
   from a fixed pool of short, everyday words **in the currently selected language** — animals,
   food, nature, toys and music, home objects, vehicles, colours, fun words, 3–7 letters:
@@ -766,6 +788,7 @@ presses (dots) and long presses (dashes) — for a randomly chosen word, rather 
 ### 5.13 Pong
 One player against the computer, in the normal (unrotated) orientation. *(Added after SimpleMorse, so
 numbered after it; in the menu it sits between Snake and SimpleMorse.)*
+- **Icon:** two paddles at different heights, the ball, and the dashed centre line.
 - **Court:** the area below the standard header/divider, y=16–63 (48 px tall). The player's
   paddle is on the left (x=1–2), the computer's on the right (x=125–126); both are 2×12 px. The
   ball is a 2×2 square. A dashed net runs down the middle.
