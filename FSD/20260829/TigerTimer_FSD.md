@@ -313,6 +313,16 @@ own first screen appears:
 - The game's translated name below it, in the same pixel/arcade font used for the boot splash
   (§4.1, §9) — sized as large as fits on one line, automatically splitting onto two lines at a
   word boundary (never mid-word) if the translated name is too wide for one line at that size.
+- **Exception — Reflex, Pass the Bomb, Chess Clock, Stopwatch:** each plays its own animated scene
+  above the name (12 frames of ~83 ms, 1 second in total; `playAnimatedGameSplash`):
+  - *Reflex:* a big arcade button on its bezel presses down and springs back, with click lines
+    around it at the bottom of the press.
+  - *Pass the Bomb:* a big round bomb with a shine; its wavy fuse burns shorter every frame down
+    to the cap, the spark at its tip flickering and throwing off stray sparks.
+  - *Chess Clock:* a white king (outline) and a black king (solid) face each other across a small
+    chess clock whose two buttons take turns going down while both hands tick.
+  - *Stopwatch:* a big stopwatch (thick case, 12 tick marks); the crown and side button click down
+    on the first frame and the hand sweeps one full turn.
 - **Exception — Toothbrush:** instead of the big menu icon it shows its own animated scene: a
   big toothbrush lying across the screen (head on the left, bristles up) while a toothpaste tube
   travels along it from left to right, squeezing a wavy ribbon of paste onto the bristles; a
@@ -388,6 +398,8 @@ A simple countdown timer.
 
 ### 5.2 Reflex
 A reaction-time light/buzzer game.
+- **Icon:** an arcade button seen from the side (dome on its bezel) with three click lines above
+  it (13×10 px pixel art, `REFLEX_ICON_ART`).
 - Press the arcade button to arm a round (short start jingle).
 - After a random delay, the LED turns on with a sharp cue sound — press the button as fast as
   possible; reaction time in milliseconds is measured from the exact instant of the physical
@@ -418,6 +430,7 @@ Rolls 1–5 dice of a chosen type.
 
 ### 5.4 Chess Clock
 Two-player countdown clock with increment.
+- **Icon:** a king chess piece (13×12 px pixel art, `CHESS_ICON_ART`).
 - **Setup (two steps):** first pick the starting time per player (range 0:30–90:00,
   `CHESS_START_MIN_SECONDS`=30, `CHESS_START_MAX_SECONDS`=5400, using the same Auto-ramp step
   logic as the Timer game), then pick the increment added per move (0–60 seconds, in 10-second
@@ -433,6 +446,7 @@ Two-player countdown clock with increment.
 
 ### 5.5 Pass the Bomb
 A party "hot potato" game with a spoken category+letter challenge.
+- **Icon:** a solid round bomb with a small shine, its cap, and a short fuse ending in a spark.
 - On **entering the game** (from the menu or a direct boot), volume is forced to maximum —
   deliberate, since this is the one game whose whole mechanic depends on the explosion actually
   being heard. It's only forced once per session (entering the game), not on every individual
@@ -476,6 +490,8 @@ A party "hot potato" game with a spoken category+letter challenge.
 
 ### 5.6 Stopwatch
 Standard count-up stopwatch with lap support.
+- **Icon:** a thick round stopwatch case with its hand, the crown on top and the side button at
+  the top right.
 - The arcade button cycles three states: **Ready** (0:00) → **Running** → **Stopped** (shows the
   final elapsed time) → back to **Ready** (cleared). There is no pause/resume: pressing again
   after stopping resets to 0:00 rather than continuing the count.

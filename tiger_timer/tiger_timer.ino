@@ -1053,6 +1053,16 @@ void playGameSplashScreen(int game);
 void drawSplashGameName(const char* name);
 void playStarDropSplash();
 void playToothbrushSplash();
+void drawPixelArt(const char* const* rows, int rowCount, int x, int y, int scale, bool filled, uint16_t color);
+void fillEllipseSpans(int cx, int cy, int rx, int ry, uint16_t color);
+void drawReflexSplashFrame(int f);
+void drawSplashSparkle(int x, int y, int r);
+void drawHotPotatoSplashFrame(int f);
+void drawSplashClockFace(int cx, int cy, int r, float angle);
+void drawChessSplashFrame(int f);
+void drawStopwatchSplashFrame(int f);
+bool hasAnimatedGameSplash(int game);
+void playAnimatedGameSplash(int game);
 void drawToothbrushSplashBrush(int x, int y);
 void drawToothbrushSplashTube(int x, int y);
 void drawStarDropSplashRing(int cx, int cy, bool frontHalf, bool gap);
@@ -1333,6 +1343,8 @@ void testSerialCommands() {
     if (c == 't') { inMenu = false; currentGame = GAME_TOOTHBRUSH; initGameState(GAME_TOOTHBRUSH); render(); }
     else if (c == 'p') { if (currentGame == GAME_TOOTHBRUSH) handleToothbrushPress(); else dispatchButtonShortPress(); }
     else if (c == 'R') { inMenu = false; currentGame = GAME_STARDROP; initGameState(GAME_STARDROP); render(); }
+    else if (c == 'g' || c == 'h' || c == 'k' || c == 'c') { playGameSplashScreen(c == 'g' ? GAME_REFLEX : c == 'h' ? GAME_HOTPOTATO : c == 'k' ? GAME_CHESS : GAME_STOPWATCH); }
+    else if (c == 'n') { if (inMenu) { menuSelection = (menuSelection + 1) % visibleMenuCount; render(); } }
     else if (c == 'B') { playGameSplashScreen(GAME_TOOTHBRUSH); }
     else if (c == 'Q') { playGameSplashScreen(GAME_STARDROP); }
     else if (c == 'P') { inMenu = false; currentGame = GAME_PONG; initGameState(GAME_PONG); render(); }
@@ -1722,6 +1734,10 @@ void playGameSplashScreen(int game) {
     playToothbrushSplash();
     return;
   }
+  if (hasAnimatedGameSplash(game)) {
+    playAnimatedGameSplash(game);
+    return;
+  }
   display.clearDisplay();
   display.setTextColor(SH110X_WHITE);
 
@@ -1775,6 +1791,161 @@ void drawSplashGameName(const char* name) {
   }
 
   display.setFont(); // back to the normal built-in font for every other screen
+}
+
+// ---------------- Pixel art: rows of '#' (lit) and '.' (unlit), drawn at a whole-number scale.
+// filled=true lights every pixel between the first and last '#' of each row - a solid silhouette
+// of an outline drawing (used for the black king on the Chess Clock splash). ----------------
+void drawPixelArt(const char* const* rows, int rowCount, int x, int y, int scale, bool filled, uint16_t color) {
+  for (int j = 0; j < rowCount; j++) {
+    const char* row = rows[j];
+    int first = -1, last = -1;
+    for (int i = 0; row[i]; i++) {
+      if (row[i] == '#') { if (first < 0) first = i; last = i; }
+    }
+    for (int i = 0; row[i]; i++) {
+      bool lit = filled ? (first >= 0 && i >= first && i <= last) : (row[i] == '#');
+      if (lit) display.fillRect(x + i * scale, y + j * scale, scale, scale, color);
+    }
+  }
+}
+
+// ---------------- Filled ellipse, one horizontal span per row (the display library has none) ----------------
+void fillEllipseSpans(int cx, int cy, int rx, int ry, uint16_t color) {
+  for (int y = -ry; y <= ry; y++) {
+    float t = 1.0f - (float)(y * y) / (ry * ry + 0.5f);
+    int w = (int)lroundf(rx * sqrtf(t > 0 ? t : 0));
+    display.drawFastHLine(cx - w, cy + y, 2 * w + 1, color);
+  }
+}
+
+// ---------------- Animated per-game splashes: 12 frames of ~83 ms (1 second), the scene redrawn each
+// frame above the game's name. Each scene draws one frame given its index 0-11. ----------------
+const int GAME_SPLASH_FRAMES = 12;
+const int GAME_SPLASH_FRAME_MS = 83;
+
+// Reflex: a big arcade button on its bezel presses down and springs back, with click lines at the
+// bottom of the press.
+void drawReflexSplashFrame(int f) {
+  static const uint8_t PRESS[GAME_SPLASH_FRAMES] = {0, 0, 1, 2, 3, 3, 2, 1, 0, 0, 0, 0};
+  int press = PRESS[f];
+  fillEllipseSpans(64, 36, 30, 6, SH110X_WHITE); // bezel ring
+  fillEllipseSpans(64, 35, 26, 4, SH110X_BLACK);
+  display.fillRect(42, 18 + press, 45, 14 - press, SH110X_WHITE); // button body
+  fillEllipseSpans(64, 18 + press, 22, 6, SH110X_WHITE);          // dome top
+  fillEllipseSpans(64, 31, 22, 4, SH110X_WHITE);                  // rounded bottom
+  display.drawFastHLine(46, 22 + press, 6, SH110X_BLACK);         // shine
+  if (press >= 3) {
+    display.drawLine(30, 8, 36, 14, SH110X_WHITE);
+    display.drawLine(98, 8, 92, 14, SH110X_WHITE);
+    display.drawLine(64, 0, 64, 8, SH110X_WHITE);
+    display.drawLine(44, 2, 48, 10, SH110X_WHITE);
+    display.drawLine(84, 2, 80, 10, SH110X_WHITE);
+  }
+}
+
+void drawSplashSparkle(int x, int y, int r) {
+  display.drawLine(x - r, y, x + r, y, SH110X_WHITE);
+  display.drawLine(x, y - r, x, y + r, SH110X_WHITE);
+  if (r > 2) {
+    display.drawPixel(x - 1, y - 1, SH110X_WHITE); display.drawPixel(x + 1, y - 1, SH110X_WHITE);
+    display.drawPixel(x - 1, y + 1, SH110X_WHITE); display.drawPixel(x + 1, y + 1, SH110X_WHITE);
+  }
+}
+
+// Pass the Bomb: a big round bomb with a shine; its wavy fuse burns shorter every frame, the spark
+// at its tip flickering and throwing off stray sparks.
+void drawHotPotatoSplashFrame(int f) {
+  display.fillCircle(56, 28, 14, SH110X_WHITE);
+  display.fillRect(51, 11, 10, 4, SH110X_WHITE);  // cap
+  display.fillCircle(49, 22, 3, SH110X_BLACK);    // shine ring
+  display.fillCircle(48, 21, 2, SH110X_WHITE);
+  display.drawPixel(48, 21, SH110X_BLACK);
+  int len = 12 - f; // fuse segments left
+  int px = 60, py = 12;
+  for (int i = 1; i <= len; i++) {
+    int x = 60 + i * 2;
+    int y = 12 - (int)lroundf(sinf(i * 0.6f) * 3) - i;
+    display.drawLine(px, py, x, y, SH110X_WHITE);
+    px = x; py = y;
+  }
+  drawSplashSparkle(px, py, (f % 2) ? 3 : 2);
+  if (f % 3 == 0) { display.drawPixel(px + 5, py - 3, SH110X_WHITE); display.drawPixel(px - 4, py - 5, SH110X_WHITE); }
+  if (f % 3 == 1) { display.drawPixel(px + 4, py + 4, SH110X_WHITE); display.drawPixel(px + 6, py - 1, SH110X_WHITE); }
+}
+
+// Chess Clock: a white king (outline) and a black king (solid) face each other across a small
+// chess clock whose buttons take turns going down while both hands tick.
+const char* const CHESS_SPLASH_KING[] = {
+  "....#....",
+  "...###...",
+  "....#....",
+  "..#####..",
+  ".#.....#.",
+  "#.......#",
+  "#.......#",
+  ".#.....#.",
+  "..#...#..",
+  "..#...#..",
+  "..#...#..",
+  ".#.....#.",
+  "#.......#",
+  "#########",
+};
+void drawSplashClockFace(int cx, int cy, int r, float angle) {
+  display.drawCircle(cx, cy, r, SH110X_WHITE);
+  display.drawLine(cx, cy, cx + (int)lroundf(cosf(angle) * (r - 2)), cy + (int)lroundf(sinf(angle) * (r - 2)), SH110X_WHITE);
+  display.drawPixel(cx, cy - r + 1, SH110X_WHITE); // 12 o'clock mark
+}
+void drawChessSplashFrame(int f) {
+  const int kingRows = sizeof(CHESS_SPLASH_KING) / sizeof(CHESS_SPLASH_KING[0]);
+  drawPixelArt(CHESS_SPLASH_KING, kingRows, 6, 2, 2, false, SH110X_WHITE);
+  drawPixelArt(CHESS_SPLASH_KING, kingRows, 98, 2, 2, true, SH110X_WHITE);
+  bool leftDown = (f % 6) < 3;
+  display.drawRect(44, 18, 40, 20, SH110X_WHITE);
+  drawSplashClockFace(54, 28, 6, -PI / 2 + f * 0.5f);
+  drawSplashClockFace(74, 28, 6, -PI / 2 + f * 0.5f + 1);
+  display.fillRect(50, leftDown ? 13 : 15, 8, leftDown ? 5 : 3, SH110X_WHITE);
+  display.fillRect(70, leftDown ? 15 : 13, 8, leftDown ? 3 : 5, SH110X_WHITE);
+}
+
+// Stopwatch: a big stopwatch with a thick case and 12 tick marks; the crown clicks down on the
+// first frame and the hand sweeps a full turn over the second.
+void drawStopwatchSplashFrame(int f) {
+  display.fillCircle(64, 24, 18, SH110X_WHITE);
+  display.fillCircle(64, 24, 15, SH110X_BLACK);
+  for (int i = 0; i < 12; i++) {
+    float a = i * PI / 6;
+    int len = (i % 3 == 0) ? 3 : 1;
+    display.drawLine(64 + (int)lroundf(cosf(a) * 14), 24 + (int)lroundf(sinf(a) * 14),
+                     64 + (int)lroundf(cosf(a) * (14 - len)), 24 + (int)lroundf(sinf(a) * (14 - len)), SH110X_WHITE);
+  }
+  float hand = -PI / 2 + f * PI / 6;
+  display.drawLine(64, 24, 64 + (int)lroundf(cosf(hand) * 12), 24 + (int)lroundf(sinf(hand) * 12), SH110X_WHITE);
+  display.fillCircle(64, 24, 1, SH110X_WHITE);
+  int pr = (f == 0) ? 2 : 0; // crown and side button pushed down on the first frame
+  display.fillRect(61, 2 + pr, 7, 3, SH110X_WHITE);
+  display.fillRect(63, 4, 3, 2, SH110X_WHITE);
+  display.fillTriangle(76, 7 + pr, 80, 3 + pr, 83, 6 + pr, SH110X_WHITE);
+  display.fillTriangle(76, 7 + pr, 83, 6 + pr, 79, 10 + pr, SH110X_WHITE);
+}
+
+// true if the game has an animated splash above (drawn by playAnimatedGameSplash)
+bool hasAnimatedGameSplash(int game) {
+  return game == GAME_REFLEX || game == GAME_HOTPOTATO || game == GAME_CHESS || game == GAME_STOPWATCH;
+}
+
+void playAnimatedGameSplash(int game) {
+  for (int f = 0; f < GAME_SPLASH_FRAMES; f++) {
+    display.clearDisplay();
+    if (game == GAME_REFLEX) drawReflexSplashFrame(f);
+    else if (game == GAME_HOTPOTATO) drawHotPotatoSplashFrame(f);
+    else if (game == GAME_CHESS) drawChessSplashFrame(f);
+    else if (game == GAME_STOPWATCH) drawStopwatchSplashFrame(f);
+    drawSplashGameName(menuLabelForGame(game));
+    display.display();
+    delay(GAME_SPLASH_FRAME_MS);
+  }
 }
 
 // ---------------- Toothbrush splash: a big toothbrush lying across the screen while a tube moves
@@ -5899,9 +6070,22 @@ void drawTimerIcon(int cx, int cy, int r, uint16_t color) {
   display.drawLine(cx, cy, cx + r - 3, cy, color);      // hour hand
 }
 
+// ---------------- Reflex icon: an arcade button seen from the side (dome on its bezel) with three
+// "click" lines above it. 13x10 pixel art, for the menu-sized icon. ----------------
+const char* const REFLEX_ICON_ART[] = {
+  "..#...#...#..",
+  "...#..#..#...",
+  ".............",
+  "....#####....",
+  "..#########..",
+  ".###########.",
+  ".###########.",
+  "#############",
+  "#...........#",
+  "#############",
+};
 void drawReflexIcon(int cx, int cy, int r, uint16_t color) {
-  display.drawCircle(cx, cy, r, color);   // target ring
-  display.fillCircle(cx, cy, 2, color);   // bullseye center
+  drawPixelArt(REFLEX_ICON_ART, sizeof(REFLEX_ICON_ART) / sizeof(REFLEX_ICON_ART[0]), cx - 6, cy - 5, 1, false, color);
 }
 
 void drawDiceIcon(int cx, int cy, int r, uint16_t color) {
@@ -5915,30 +6099,40 @@ void drawDiceIcon(int cx, int cy, int r, uint16_t color) {
   display.fillCircle(cx, cy, pr, color);
 }
 
+// ---------------- Chess Clock icon: a king chess piece. 13x12 pixel art. ----------------
+const char* const CHESS_ICON_ART[] = {
+  "......#......",
+  ".....###.....",
+  "......#......",
+  "....#####....",
+  "...#######...",
+  "...#######...",
+  "....#####....",
+  ".....###.....",
+  ".....###.....",
+  "....#####....",
+  "...#######...",
+  "..#########..",
+};
 void drawChessIcon(int cx, int cy, int r, uint16_t color) {
-  int off = r / 2;
-  display.drawCircle(cx - off, cy, r - 2, color); // two overlapping clock faces
-  display.drawCircle(cx + off, cy, r - 2, color);
+  drawPixelArt(CHESS_ICON_ART, sizeof(CHESS_ICON_ART) / sizeof(CHESS_ICON_ART[0]), cx - 6, cy - 6, 1, false, color);
 }
 
+// ---------------- Pass the Bomb icon: a solid round bomb with a small shine, its cap, and a short
+// fuse ending in a spark. Sized for the menu (r=6). ----------------
 void drawHotPotatoIcon(int cx, int cy, int r, uint16_t color) {
-  int bodyR = max(3, r / 2);   // smaller body relative to r than before
-  int bodyCy = cy + r / 6;     // nudge the body down a touch to make room for the longer fuse above
-
-  display.drawCircle(cx, bodyCy, bodyR, color); // bomb body
-
-  // fuse: longer relative to the body, two segments curving up and to the right
-  int fuseLen = max(6, (r * 7) / 10);
-  int fx0 = cx, fy0 = bodyCy - bodyR;
-  int fx1 = cx + max(2, bodyR / 2), fy1 = fy0 - fuseLen;
-  int fx2 = fx1 + max(2, bodyR / 2), fy2 = fy1 + max(2, bodyR / 2);
-  display.drawLine(fx0, fy0, fx1, fy1, color);
-  display.drawLine(fx1, fy1, fx2, fy2, color);
-
-  // spark at the fuse tip
-  int s = max(2, r / 7);
-  display.drawLine(fx2 - s, fy2, fx2 + s, fy2, color);
-  display.drawLine(fx2, fy2 - s, fx2, fy2 + s, color);
+  uint16_t inverse = (color == SH110X_WHITE) ? SH110X_BLACK : SH110X_WHITE;
+  display.fillCircle(cx - 2, cy + 2, 4, color);       // body
+  display.fillRect(cx - 3, cy - 3, 3, 2, color);      // cap
+  display.drawLine(cx - 1, cy - 4, cx + 1, cy - 6, color); // fuse
+  display.drawPixel(cx + 2, cy - 6, color);
+  display.drawFastHLine(cx + 3, cy - 5, 3, color);    // spark
+  display.drawFastVLine(cx + 4, cy - 6, 3, color);
+  display.drawPixel(cx + 6, cy - 4, color);
+  display.drawPixel(cx + 5, cy - 7, color);
+  display.drawPixel(cx - 4, cy + 1, inverse);         // shine
+  display.drawPixel(cx - 4, cy, inverse);
+  display.drawPixel(cx - 3, cy - 1, inverse);
 }
 
 // ---------------- Rotate/refresh icon: a ~270-degree circular arc with a small arrowhead at its
@@ -5972,10 +6166,17 @@ void drawRotateIcon(int cx, int cy, int r, uint16_t color) {
   display.fillTriangle(p1x, p1y, p2x, p2y, p3x, p3y, color);
 }
 
+// ---------------- Stopwatch icon: a thick round case with its hand, the crown on top and the
+// side button at the top right. Sized for the menu (r=6). ----------------
 void drawStopwatchIcon(int cx, int cy, int r, uint16_t color) {
-  display.drawCircle(cx, cy, r - 2, color);
-  display.fillRect(cx - 2, cy - r - 2, 4, 2, color); // top button
-  display.drawLine(cx, cy, cx, cy - r + 3, color);   // hand
+  uint16_t inverse = (color == SH110X_WHITE) ? SH110X_BLACK : SH110X_WHITE;
+  display.fillCircle(cx, cy + 1, 5, color);
+  display.fillCircle(cx, cy + 1, 3, inverse);
+  display.drawLine(cx, cy + 1, cx, cy - 1, color); // hand
+  display.drawPixel(cx + 1, cy + 1, color);
+  display.fillRect(cx - 1, cy - 6, 3, 2, color);   // crown
+  display.drawPixel(cx + 4, cy - 4, color);        // side button
+  display.drawPixel(cx + 5, cy - 5, color);
 }
 
 // ---------------- Toothbrush icon: side view, head on the left with its bristles up and a wavy
