@@ -419,7 +419,9 @@ const int STR_SIMON_COMPLETE = 125;
 const int STR_SIMON_ROUND = 126;
 const int STR_ZONE_FRONT = 127; // toothbrush zone label, line 2
 const int STR_MENU_PONG = 128;
-const int NUM_STRINGS = 129;
+const int STR_TIMES_UP_STATUS = 129; // Timer end: small status line while 0:00 flashes
+const int STR_TIMES_UP_BIG = 130;    // Timer end: big PressStart2P line among the confetti
+const int NUM_STRINGS = 131;
 
 const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SELECT_GAME          */{"Choose Option", "Choisir option", "Elegir opcion"},
@@ -551,6 +553,8 @@ const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SIMON_ROUND          */{"Round", "Manche", "Ronda"},
   /* STR_ZONE_FRONT           */{"front", "devant", "frente"},
   /* STR_MENU_PONG            */{"Pong", "Pong", "Pong"},
+  /* STR_TIMES_UP_STATUS      */{"Time's up", "Temps \x82" "coul\x82", "Tiempo agotado"},
+  /* STR_TIMES_UP_BIG         */{"TIME'S UP!", "C'EST FINI !", "FIN DEL TIEMPO"}, // PressStart2P covers chars 32-138 only: no capital accents or \xAD
 
 };
 
@@ -1207,6 +1211,10 @@ void updateCountdown();
 void updateReflexGame();
 void updateChessGame();
 void playBombAnimation();
+int timerEndFrameCount();
+void drawTimerEndFrame(int i);
+void playTimerEndAnimation();
+void drawTimerLayout(const char* buf, const char* statusText);
 void fillStarburst(int cx, int cy, float R, float rot, int points, float inner, uint16_t color);
 void drawExplosionBomb(int fuse, int jx, int* tipX, int* tipY);
 void drawBombExplosionFrame(int i);
@@ -1365,6 +1373,7 @@ void testSerialCommands() {
     else if (c == 'T') { inMenu = false; currentGame = GAME_TETRIS; initGameState(GAME_TETRIS); render(); }
     else if (c == 'X') { static int bombFxFrame = 0; drawBombExplosionFrame(bombFxFrame); display.display(); Serial.printf("[bombfx] frame %d\n", bombFxFrame); bombFxFrame = (bombFxFrame + 1) % bombExplosionFrameCount(); }
     else if (c == 'V') { volumeLevel = (volumeLevel + 1) % 3; drawVolumeOverlay(); Serial.printf("[vol] %d (RAM only)\n", volumeLevel); }
+    else if (c == 'Y') { static int timerEndFrame = 0; drawTimerEndFrame(timerEndFrame); display.display(); Serial.printf("[timerend] frame %d\n", timerEndFrame); timerEndFrame = (timerEndFrame + 1) % timerEndFrameCount(); }
     else if (c == 'H') { stardropHighScore = 1234; tetrisHighScore = 1234; render(); } // RAM only - tests the wrapped score line
     else if (c == 'g' || c == 'h' || c == 'k' || c == 'c') { playGameSplashScreen(c == 'g' ? GAME_REFLEX : c == 'h' ? GAME_HOTPOTATO : c == 'k' ? GAME_CHESS : GAME_STOPWATCH); }
     else if (c == 'G') { // cycle through the newest animated splashes
@@ -4075,7 +4084,7 @@ void updateCountdown() {
       registerActivity(); // the countdown finishing on its own counts as activity - don't let sleep
                            // have already been "due" the instant it ends just because it ran a while
       digitalWrite(BUTTON_LED, HIGH); // solid on = time's up
-      playEndMelody();
+      playTimerEndAnimation();
     }
 
     render();
@@ -4230,6 +4239,77 @@ void playBombAnimation() {
   }
   display.clearDisplay();
   display.display();
+}
+
+// ---------------- Timer end: "confetti" - the timer screen freezes on 0:00 with a "Time's up"
+// status and flashes inverted in step with the 4-note end jingle, then the digits give way to 36
+// tumbling confetti pieces bursting from the centre under gravity, around a big PressStart2P
+// "TIME'S UP!" that types itself in 2 letters a frame on a black backing box. About 2.1 s,
+// then the caller's render() shows the timer screen with the preset back. ----------------
+const int TIMER_END_FLASH_FRAMES = 6;
+const int TIMER_END_CONFETTI_FRAMES = 11;
+const int TIMER_END_FRAME_COUNT = TIMER_END_FLASH_FRAMES + TIMER_END_CONFETTI_FRAMES;
+const int TIMER_END_CONFETTI = 36;
+
+int timerEndFrameCount() { return TIMER_END_FRAME_COUNT; }
+
+void drawTimerEndFrame(int i) {
+  display.clearDisplay();
+  display.setTextColor(SH110X_WHITE);
+  if (i < TIMER_END_FLASH_FRAMES) {
+    drawTimerLayout("0:00", T(STR_TIMES_UP_STATUS));
+    if (i % 2 == 0) invertScreenRegion(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    return;
+  }
+  int f = i - TIMER_END_FLASH_FRAMES;
+  float t = f + 1;
+  for (int p = 0; p < TIMER_END_CONFETTI; p++) {
+    float a = (p * 360.0f / TIMER_END_CONFETTI + (p % 3) * 6) * PI / 180.0f;
+    float speed = 3 + ((p * 7) % 5) * 0.9f;
+    float vx = cosf(a) * speed * 1.5f, vy = sinf(a) * speed * 0.9f - 2.4f;
+    int x = (int)lroundf(64 + vx * t), y = (int)lroundf(34 + vy * t + 0.32f * t * t);
+    switch ((p % 4 + f) % 4) { // each piece cycles through 4 shapes - reads as tumbling
+      case 0: display.fillRect(x, y, 3, 3, SH110X_WHITE); break;
+      case 1: display.fillRect(x - 2, y, 4, 2, SH110X_WHITE); break;
+      case 2: display.fillRect(x, y - 2, 2, 4, SH110X_WHITE); break;
+      default: display.drawPixel(x, y, SH110X_WHITE); display.drawPixel(x + 1, y + 1, SH110X_WHITE); display.drawPixel(x - 1, y + 1, SH110X_WHITE); break;
+    }
+  }
+  const char* msg = T(STR_TIMES_UP_BIG);
+  display.setFont(&PressStart2P8pt);
+  display.setTextSize(1);
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(msg, 0, 0, &x1, &y1, &w, &h);
+  int left = (SCREEN_WIDTH - (int)w) / 2;
+  display.fillRect(left - 3, 25, w + 6, 14, SH110X_BLACK);
+  char shown[24];
+  int n = min((int)strlen(msg), min(2 + f * 2, (int)sizeof(shown) - 1));
+  strncpy(shown, msg, n);
+  shown[n] = '\0';
+  display.setCursor(left - x1, 28 - y1);
+  display.print(shown);
+  display.setFont();
+}
+
+void playTimerEndAnimation() {
+  for (int i = 0; i < TIMER_END_FRAME_COUNT; i++) {
+    unsigned long start = millis();
+    drawTimerEndFrame(i);
+    display.display();
+    int frameMs, freq = 0, noteMs = 0;
+    if (i < END_MELODY_LENGTH) { freq = END_MELODY_NOTES[i]; noteMs = END_MELODY_DURATIONS[i]; frameMs = noteMs + 20; } // jingle, one note per flash
+    else if (i < TIMER_END_FLASH_FRAMES) frameMs = 120;
+    else {
+      int f = i - TIMER_END_FLASH_FRAMES;
+      frameMs = 85;
+      if (f == 0) { freq = 2093; noteMs = 30; }       // confetti pop, then two sparkles
+      else if (f == 2) { freq = 2637; noteMs = 25; }
+      else if (f == 4) { freq = 3136; noteMs = 25; }
+    }
+    if (freq > 0) playNote(freq, noteMs);
+    while (millis() - start < (unsigned long)frameMs) delay(1); // hold the frame even when muted
+  }
 }
 
 // ---------------- Reflex game: one radiating spark burst, used by the firework animation ----------------
@@ -4736,14 +4816,30 @@ void drawTimerScreen() {
   char buf[6];
   snprintf(buf, sizeof(buf), "%d:%02d", minutes, seconds);
 
-  drawTimerIcon(7, 7, 6, SH110X_WHITE); // top-left: which game this is
-
-  // small status line at the top, right-aligned in the space freed up by the removed mute icon
-  display.setTextSize(1);
   const char* statusText;
   if (!running) statusText = T(STR_SET_TIME);
   else if (timerPaused) statusText = T(STR_PAUSED);
   else statusText = T(STR_GO_STATUS);
+  drawTimerLayout(buf, statusText);
+
+  // whole-screen progress "bar": while running, everything left of a moving boundary is
+  // color-inverted (white bg, black content) - starts as the entire screen, and the boundary
+  // recedes from the right edge as time runs out. Works regardless of what's drawn underneath
+  // by inverting actual pixels after the fact, rather than trying to color text/icons separately.
+  if (running) {
+    float fraction = (runStartTime > 0) ? (float)remainingTime / (float)runStartTime : 0;
+    fraction = constrain(fraction, 0.0, 1.0);
+    int boundary = (int)(SCREEN_WIDTH * fraction);
+    invertScreenRegion(0, 0, boundary, SCREEN_HEIGHT);
+  }
+}
+
+// The Timer screen's fixed layout: icon top-left, status top-right, divider, big digits.
+void drawTimerLayout(const char* buf, const char* statusText) {
+  drawTimerIcon(7, 7, 6, SH110X_WHITE); // top-left: which game this is
+
+  // small status line at the top, right-aligned in the space freed up by the removed mute icon
+  display.setTextSize(1);
   int16_t sx1, sy1;
   uint16_t sw, sh;
   display.getTextBounds(statusText, 0, 0, &sx1, &sy1, &sw, &sh);
@@ -4760,23 +4856,6 @@ void drawTimerScreen() {
   int x = (SCREEN_WIDTH - w) / 2;
   display.setCursor(x, 24);
   display.print(buf);
-
-  // whole-screen progress "bar": while running, everything left of a moving boundary is
-  // color-inverted (white bg, black content) - starts as the entire screen, and the boundary
-  // recedes from the right edge as time runs out. Works regardless of what's drawn underneath
-  // by inverting actual pixels after the fact, rather than trying to color text/icons separately.
-  if (running) {
-    float fraction = (runStartTime > 0) ? (float)remainingTime / (float)runStartTime : 0;
-    fraction = constrain(fraction, 0.0, 1.0);
-    int boundary = (int)(SCREEN_WIDTH * fraction);
-
-    for (int yy = 0; yy < SCREEN_HEIGHT; yy++) {
-      for (int xx = 0; xx < boundary; xx++) {
-        uint16_t px = display.getPixel(xx, yy);
-        display.drawPixel(xx, yy, px ? SH110X_BLACK : SH110X_WHITE);
-      }
-    }
-  }
 }
 
 // ---------------- Reflex screen: arm/wait/light states, result, and session-best ----------------

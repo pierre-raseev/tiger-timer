@@ -428,8 +428,22 @@ A simple countdown timer.
   progress freeze while paused.
 - A two-tone chime plays once at the halfway point.
 - The buzzer beeps once per second for the final 5 seconds — no other early warning.
-- At zero: LED goes solid on, a short end jingle plays, and the countdown holds at 0:00 until
-  restarted.
+- **At zero:** the LED goes solid on and the "confetti" end animation plays
+  (`playTimerEndAnimation()`, about 2.1 s, 17 frames; input is blocked while it plays):
+  1. **Flash (6 frames):** the timer screen freezes on 0:00 with the status "Time's up" /
+     "Temps écoulé" / "Tiempo agotado" (`STR_TIMES_UP_STATUS`). It flashes inverted on alternate
+     frames, and the first 4 frames carry the 4 notes of the end jingle (A5 B5 D6 G6).
+  2. **Confetti (11 × 85 ms):** 36 confetti pieces burst from the centre and fall under gravity,
+     each cycling through 4 shapes (square, flat bar, upright bar, chevron) so they seem to
+     tumble. A pop and two high sparkle notes play.
+  3. **Message:** in the middle, on a black backing box, the big PressStart2P message types itself
+     in 2 letters per frame: "TIME'S UP!" / "C'EST FINI !" / "FIN DEL TIEMPO"
+     (`STR_TIMES_UP_BIG`). That font only covers characters 32–138, so the French and Spanish
+     wording avoids capital accents and "¡".
+
+  The screen then returns to the Timer screen showing the preset again ("Set time"), ready for
+  the next run. Frame timing is held even when muted. The test build's `Y` serial command steps
+  through the frames for screen dumps.
 
 ### 5.2 Reflex
 A reaction-time light/buzzer game.
