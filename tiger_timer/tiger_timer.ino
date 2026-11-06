@@ -1232,6 +1232,10 @@ void drawBombExplosionFrame(int i);
 int bombExplosionFrameCount();
 void drawBurst(int cx, int cy, int r);
 void playFireworkAnimation();
+void fillPolygonXY(const float* xy, int n, uint16_t color);
+void drawReflexTrophy(int dy);
+void drawReflexRecordFrame(int i);
+void playReflexRecordAnimation();
 bool splashSkipRequested();
 void playSplashScreen();
 void handleReflexButtonPress();
@@ -1386,6 +1390,7 @@ void testSerialCommands() {
     else if (c == 'V') { volumeLevel = (volumeLevel + 1) % 3; drawVolumeOverlay(); Serial.printf("[vol] %d (RAM only)\n", volumeLevel); }
     else if (c == 'Y') { static int timerEndFrame = 0; drawTimerEndFrame(timerEndFrame); display.display(); Serial.printf("[timerend] frame %d\n", timerEndFrame); timerEndFrame = (timerEndFrame + 1) % timerEndFrameCount(); }
     else if (c == 'O') { static int totoroFrame = 0; unsigned long t0 = micros(); drawTotoroDoneFrame(totoroFrame); unsigned long dt = micros() - t0; display.display(); Serial.printf("[totoro] frame %d drawn in %lu us\n", totoroFrame, dt); totoroFrame = (totoroFrame + 1) % totoroDoneFrameCount(); }
+    else if (c == 'W') { static int recFrame = 0; drawReflexRecordFrame(recFrame); display.display(); Serial.printf("[record] frame %d\n", recFrame); recFrame = (recFrame + 1) % 13; }
     else if (c == 'H') { stardropHighScore = 1234; tetrisHighScore = 1234; render(); } // RAM only - tests the wrapped score line
     else if (c == 'g' || c == 'h' || c == 'k' || c == 'c') { playGameSplashScreen(c == 'g' ? GAME_REFLEX : c == 'h' ? GAME_HOTPOTATO : c == 'k' ? GAME_CHESS : GAME_STOPWATCH); }
     else if (c == 'G') { // cycle through the newest animated splashes
@@ -4568,6 +4573,103 @@ void playTimerEndAnimation() {
   }
 }
 
+// ---------------- Reflex game: new-record celebration - a trophy (cup with a cut-out star,
+// two loop handles, stem and two-step base) shoots up from below and settles with a small
+// overshoot, a diagonal double glint sweeps across it, then 12 light rays spread out behind it
+// while sparkles twinkle around. 12 frames x 80 ms with the same 12 rising beeps as the old
+// firework (3 groups of 4: 1000 + group*150 + r*10 Hz, r = 3,7,11,15), then a 150 ms hold on
+// the final frame. SimpleMorse keeps playFireworkAnimation(). ----------------
+const int REFLEX_RECORD_FRAMES = 12;
+
+// even-odd scanline fill of a polygon given as x,y pairs (pixel centres), any shape
+void fillPolygonXY(const float* xy, int n, uint16_t color) {
+  float minY = 1e9, maxY = -1e9;
+  for (int i = 0; i < n; i++) { minY = min(minY, xy[2 * i + 1]); maxY = max(maxY, xy[2 * i + 1]); }
+  for (int y = max(0, (int)floorf(minY)); y <= min(SCREEN_HEIGHT - 1, (int)ceilf(maxY)); y++) {
+    float yc = y + 0.5f, xs[12];
+    int k = 0;
+    for (int i = 0; i < n && k < 12; i++) {
+      float x0 = xy[2 * i], y0 = xy[2 * i + 1], x1 = xy[2 * ((i + 1) % n)], y1 = xy[2 * ((i + 1) % n) + 1];
+      if ((y0 <= yc && y1 > yc) || (y1 <= yc && y0 > yc)) xs[k++] = x0 + (yc - y0) / (y1 - y0) * (x1 - x0);
+    }
+    for (int a = 1; a < k; a++) for (int b = a; b > 0 && xs[b] < xs[b - 1]; b--) { float t = xs[b]; xs[b] = xs[b - 1]; xs[b - 1] = t; }
+    for (int a = 0; a + 1 < k; a += 2) {
+      int xa = (int)ceilf(xs[a] - 0.5f), xb = (int)floorf(xs[a + 1] - 0.5f);
+      if (xb >= xa) display.drawFastHLine(xa, y, xb - xa + 1, color);
+    }
+  }
+}
+
+void drawReflexTrophy(int dy) {
+  const float CUP[16] = {47, 10, 81, 10, 80, 18, 76, 28, 70, 33, 58, 33, 52, 28, 48, 18};
+  float cup[16];
+  for (int i = 0; i < 8; i++) { cup[2 * i] = CUP[2 * i]; cup[2 * i + 1] = CUP[2 * i + 1] + dy; }
+  fillPolygonXY(cup, 8, SH110X_WHITE);
+  for (int s = -1; s <= 1; s += 2) { // loop handles: 2px-thick half circles on the outside
+    int cx = 64 + s * 15, cy = 16 + dy;
+    for (int a = -90; a <= 90; a += 4) {
+      float t = a * PI / 180;
+      display.drawPixel((int)lroundf(cx + s * cosf(t) * 6), (int)lroundf(cy + sinf(t) * 6), SH110X_WHITE);
+      display.drawPixel((int)lroundf(cx + s * cosf(t) * 5), (int)lroundf(cy + sinf(t) * 5), SH110X_WHITE);
+    }
+  }
+  display.fillRect(61, 33 + dy, 7, 8, SH110X_WHITE);  // stem
+  display.fillRect(55, 41 + dy, 19, 3, SH110X_WHITE); // base
+  display.fillRect(51, 45 + dy, 27, 5, SH110X_WHITE);
+  float star[20];
+  for (int i = 0; i < 10; i++) {
+    float r = (i % 2) ? 2.4f : 5.5f, a = -PI / 2 + i * PI / 5;
+    star[2 * i] = 64 + cosf(a) * r;
+    star[2 * i + 1] = 20 + dy + sinf(a) * r;
+  }
+  fillPolygonXY(star, 10, SH110X_BLACK);                // cut-out star
+  display.drawFastHLine(53, 11 + dy, 23, SH110X_BLACK); // rim line
+}
+
+void drawReflexRecordFrame(int i) {
+  display.clearDisplay();
+  if (i < 4) { const int RISE[4] = {34, 14, -3, 0}; drawReflexTrophy(RISE[i]); return; }
+  if (i < 8) { // glint sweeping across the trophy
+    drawReflexTrophy(0);
+    int g = 42 + (i - 4) * 12;
+    for (int y = 0; y < SCREEN_HEIGHT; y++)
+      for (int x = 40; x < 90; x++) {
+        int d = x + (y + 1) / 2 - g; // x + round(y/2)
+        if ((d == 0 || d == 1 || d == 3) && display.getPixel(x, y)) display.drawPixel(x, y, SH110X_BLACK);
+      }
+    return;
+  }
+  bool final = (i >= REFLEX_RECORD_FRAMES);
+  int f = final ? 0 : i - 8;
+  float rot = final ? 0.36f : f * 0.12f;
+  int r1 = final ? 54 : 42 + f * 4;
+  for (int k = 0; k < 12; k++) { // light rays behind the trophy
+    float a = rot + k * 2 * PI / 12;
+    display.drawLine((int)lroundf(64 + cosf(a) * 30), (int)lroundf(28 + sinf(a) * 30), (int)lroundf(64 + cosf(a) * r1), (int)lroundf(28 + sinf(a) * r1), SH110X_WHITE);
+  }
+  display.fillRect(42, 6, 46, 48, SH110X_BLACK); // keep the rays clear of the trophy
+  drawReflexTrophy(0);
+  const int8_t SP[6][2] = {{30, 12}, {98, 14}, {24, 44}, {104, 42}, {40, 56}, {88, 57}};
+  if (final) {
+    for (int k = 0; k < 4; k++) drawSplashSparkle(SP[k][0], SP[k][1], 3);
+  } else {
+    const int8_t LIFE[4] = {2, 4, 3, 2};
+    for (int k = 0; k < 6; k++) { int age = f - (k % 3); if (age >= 0) drawSplashSparkle(SP[k][0], SP[k][1], LIFE[min(age, 3)]); }
+  }
+}
+
+void playReflexRecordAnimation() {
+  for (int i = 0; i < REFLEX_RECORD_FRAMES; i++) {
+    drawReflexRecordFrame(i);
+    display.display();
+    playNote(1000 + (i / 4) * 150 + (3 + (i % 4) * 4) * 10, 30); // same beeps as the old firework
+    delay(50);
+  }
+  drawReflexRecordFrame(REFLEX_RECORD_FRAMES); // final frame, held
+  display.display();
+  delay(150);
+}
+
 // ---------------- Reflex game: one radiating spark burst, used by the firework animation ----------------
 void drawBurst(int cx, int cy, int r) {
   const int SPIKES = 8;
@@ -4724,7 +4826,7 @@ void handleReflexButtonPress() {
     digitalWrite(BUTTON_LED, LOW);
     reflexState = REFLEX_READY;
     if (isNewRecord) {
-      playFireworkAnimation();
+      playReflexRecordAnimation();
       render();
       playWinSound();
     } else {

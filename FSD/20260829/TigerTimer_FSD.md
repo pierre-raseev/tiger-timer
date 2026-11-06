@@ -467,6 +467,18 @@ A reaction-time light/buzzer game.
   lit state, scoring a negative reaction time that became the new best. As a second safety net,
   any hit whose press timestamp is earlier than the light-on timestamp is treated as a false
   start.
+- **New best time — the trophy** (`playReflexRecordAnimation()`, 12 frames × 80 ms plus a
+  150 ms hold on the final frame, about 1.1 s):
+  1. **Rise (frames 0–3):** a trophy shoots up from below and settles with a small overshoot.
+     It has a cup with a cut-out star, two loop handles, a stem and a two-step base.
+  2. **Glint (frames 4–7):** a diagonal double glint sweeps across the trophy.
+  3. **Rays (frames 8–11):** 12 light rays spread out behind it while 6 sparkles twinkle around.
+
+  **Sound:** each frame plays one of the 12 rising beeps, in 3 groups of 4:
+  1000 + group × 150 + r × 10 Hz, with r = 3, 7, 11, 15. These are the same beeps as the old
+  firework. Then the results screen shows and the win jingle (E5 G5 B5 E6) plays as before.
+
+  The test build's `W` serial command steps through the frames.
 
 ### 5.3 Dice
 Rolls 1–5 dice of a chosen type.
@@ -853,7 +865,8 @@ presses (dots) and long presses (dashes) — for a randomly chosen word, rather 
   the exact same word+letter+code layout as the Ready screen — which then persists until the
   arcade button is pressed to start a fresh round with a newly chosen word.
 - **Winning:** completing the full sequence triggers the celebratory "firework" animation
-  (`playFireworkAnimation()`, the one Reflex uses for a new high score), held on screen for the same 1.5 seconds, then
+  (`playFireworkAnimation()`, three spark bursts, which Reflex used for a new best time before
+  it got its trophy), held on screen for the same 1.5 seconds, then
   automatically replaced by the same solution reveal described above.
 - The walrus is the game's mascot on its own screens; the menu icon is the telegraph key (see
   the Icon bullet above).
