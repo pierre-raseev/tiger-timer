@@ -1133,6 +1133,16 @@ void drawSimpleMorseIcon(int cx, int cy, int r, uint16_t color);
 int toothbrushCurrentZone();
 void playToothbrushZoneChangeBeep();
 void playToothbrushDoneAnimation();
+bool totoroInSilhouette(int x, int y, int dy);
+bool totoroMaskAt(int x, int y);
+void drawTotoroSilhouette(int dy);
+bool totoroLens(int x, float open, int dy, int& top, int& bot, int& div);
+void drawTotoroGrin(float open, int glint, int dy);
+void drawTotoroSparkle(int x, int y, int r);
+void drawTotoro(int dy, float open, int glint, bool blink, bool twitch);
+void drawTotoroDoneText();
+void drawTotoroDoneFrame(int i);
+int totoroDoneFrameCount();
 void drawToothbrushSelectScreen();
 void drawToothbrushRunningScreen();
 void drawTetrisReadyScreen();
@@ -1374,6 +1384,7 @@ void testSerialCommands() {
     else if (c == 'X') { static int bombFxFrame = 0; drawBombExplosionFrame(bombFxFrame); display.display(); Serial.printf("[bombfx] frame %d\n", bombFxFrame); bombFxFrame = (bombFxFrame + 1) % bombExplosionFrameCount(); }
     else if (c == 'V') { volumeLevel = (volumeLevel + 1) % 3; drawVolumeOverlay(); Serial.printf("[vol] %d (RAM only)\n", volumeLevel); }
     else if (c == 'Y') { static int timerEndFrame = 0; drawTimerEndFrame(timerEndFrame); display.display(); Serial.printf("[timerend] frame %d\n", timerEndFrame); timerEndFrame = (timerEndFrame + 1) % timerEndFrameCount(); }
+    else if (c == 'O') { static int totoroFrame = 0; unsigned long t0 = micros(); drawTotoroDoneFrame(totoroFrame); unsigned long dt = micros() - t0; display.display(); Serial.printf("[totoro] frame %d drawn in %lu us\n", totoroFrame, dt); totoroFrame = (totoroFrame + 1) % totoroDoneFrameCount(); }
     else if (c == 'H') { stardropHighScore = 1234; tetrisHighScore = 1234; render(); } // RAM only - tests the wrapped score line
     else if (c == 'g' || c == 'h' || c == 'k' || c == 'c') { playGameSplashScreen(c == 'g' ? GAME_REFLEX : c == 'h' ? GAME_HOTPOTATO : c == 'k' ? GAME_CHESS : GAME_STOPWATCH); }
     else if (c == 'G') { // cycle through the newest animated splashes
@@ -2598,8 +2609,7 @@ void updateToothbrush() {
       toothbrushRemainingSeconds = 0;
       toothbrushScreenState = TOOTHBRUSH_DONE;
       digitalWrite(BUTTON_LED, LOW);
-      render();
-      playToothbrushDoneAnimation();
+      playToothbrushDoneAnimation(); // ends on the final frame, which render() then redraws as the Done screen
       render();
       return;
     }
@@ -2634,11 +2644,229 @@ void playToothbrushZoneChangeBeep() {
   playNote(2200, 220);
 }
 
-// ---------------- Toothbrush: played once when the countdown finishes - reuses the exact same
-// firework celebration as the Reflex game's new-high-score moment, rather than a separate
-// bespoke animation ----------------
+// ---------------- Toothbrush: "shiny grin" played once when the countdown finishes - a
+// Totoro-style head (round head, two slim pointed ears, round eyes, little nose, whiskers) rises
+// into view, blinks, slowly opens a huge grin full of teeth, a glint sweeps across the teeth,
+// then the whiskers twitch and sparkles pop while "All done!" appears on its chin. The last frame
+// (TOTORO_FINAL_FRAME) doubles as the persistent Done screen. Everything is integer maths except
+// the grin's curve, since the ESP32-C6 has no FPU. ----------------
+const int TG_C = 64, TG_HW = 33, TG_Y0 = 35, TG_M = 5, TG_UP = 3, TG_DN = 12, TG_N = 3, TG_MINH = 5;
+const float TG_SPLIT = 0.42f;
+const int TOTORO_FRAME_COUNT = 28;          // animated frames; frame 28 is the held final one
+const int TOTORO_FINAL_FRAME = TOTORO_FRAME_COUNT;
+
+bool totoroInSilhouette(int x, int y, int dy) {
+  long X = x - 64, Y = y - 53 - dy;
+  if (X * X * 2025 + Y * Y * 2809 <= 5688225L) return true; // head: ellipse rx 53, ry 45
+  // ears: two slim triangles (base corners, apex), mirrored
+  const int8_t EARS[2][6] = {{37, 15, 50, 10, 42, 0}, {91, 15, 78, 10, 86, 0}};
+  for (int e = 0; e < 2; e++) {
+    int ax = EARS[e][0], ay = EARS[e][1] + dy, bx = EARS[e][2], by = EARS[e][3] + dy, cx = EARS[e][4], cy = EARS[e][5] + dy;
+    long d1 = (long)(x - bx) * (ay - by) - (long)(ax - bx) * (y - by);
+    long d2 = (long)(x - cx) * (by - cy) - (long)(bx - cx) * (y - cy);
+    long d3 = (long)(x - ax) * (cy - ay) - (long)(cx - ax) * (y - ay);
+    bool neg = d1 < 0 || d2 < 0 || d3 < 0, pos = d1 > 0 || d2 > 0 || d3 > 0;
+    if (!(neg && pos)) return true;
+  }
+  return false;
+}
+
+// head + ears as a 2px outline: a silhouette pixel is drawn when any neighbour within 2px is
+// outside. The inside test runs once per pixel into a bitmask (rows -2..65 so neighbours just
+// off-screen still count), then the outline pass only reads bits - about 8x faster.
+uint8_t totoroMask[68][16];
+bool totoroMaskAt(int x, int y) {
+  if (x < 0 || x >= SCREEN_WIDTH || y < -2 || y > 65) return false;
+  return totoroMask[y + 2][x >> 3] & (1 << (x & 7));
+}
+uint8_t totoroOutline[SCREEN_HEIGHT * SCREEN_WIDTH / 8]; // MSB-first rows, for drawBitmap()
+int totoroOutlineDy = -1000;                                // which head position the cache holds
+void drawTotoroSilhouette(int dy) {
+  if (dy != totoroOutlineDy) { // the head only moves during the 3 rise frames - cache the outline
+    memset(totoroMask, 0, sizeof(totoroMask));
+    memset(totoroOutline, 0, sizeof(totoroOutline));
+    for (int y = -2; y <= 65; y++)
+      for (int x = 7; x <= 121; x++)
+        if (totoroInSilhouette(x, y, dy)) totoroMask[y + 2][x >> 3] |= (1 << (x & 7));
+    const int8_t NB[12][2] = {{-2, 0}, {2, 0}, {0, -2}, {0, 2}, {-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-1, -1}, {1, 1}, {-1, 1}, {1, -1}};
+    for (int y = 0; y < SCREEN_HEIGHT; y++) {
+      for (int x = 9; x <= 119; x++) {
+        if (!totoroMaskAt(x, y)) continue;
+        for (int n = 0; n < 12; n++) {
+          if (!totoroMaskAt(x + NB[n][0], y + NB[n][1])) { totoroOutline[y * (SCREEN_WIDTH / 8) + (x >> 3)] |= (0x80 >> (x & 7)); break; }
+        }
+      }
+    }
+    totoroOutlineDy = dy;
+  }
+  display.drawBitmap(0, 0, totoroOutline, SCREEN_WIDTH, SCREEN_HEIGHT, SH110X_WHITE);
+}
+
+// one column of the grin: top/bottom edge and the upper/lower teeth divide; false outside it
+bool totoroLens(int x, float open, int dy, int& top, int& bot, int& div) {
+  float u = (float)(x - TG_C) / TG_HW;
+  if (u < -1 || u > 1) return false;
+  float k = 1 - u * u, sk = powf(k, 0.8f);
+  float mid = TG_Y0 + dy + TG_M * k;
+  top = (int)lroundf(mid - open * TG_UP * sk);
+  bot = (int)lroundf(mid + open * TG_DN * sk);
+  div = (int)lroundf(mid - open * TG_UP * sk + open * (TG_UP + TG_DN) * sk * TG_SPLIT);
+  return true;
+}
+
+void drawTotoroGrin(float open, int glint, int dy) {
+  if (open < 0.1f) { // closed: a single smile line
+    for (int x = TG_C - TG_HW; x <= TG_C + TG_HW; x++) {
+      float u = (float)(x - TG_C) / TG_HW;
+      display.drawPixel(x, (int)lroundf(TG_Y0 + dy + TG_M * (1 - u * u)), SH110X_WHITE);
+    }
+    return;
+  }
+  // every column's edges, computed once (powf is soft-float on this chip, so not per pass)
+  const int COLS = 2 * TG_HW + 1;
+  int top[COLS], bot[COLS], div[COLS];
+  for (int i = 0; i < COLS; i++) totoroLens(TG_C - TG_HW + i, open, dy, top[i], bot[i], div[i]);
+  for (int x = TG_C - TG_HW - 1; x <= TG_C + TG_HW + 1; x++) { // mouth edge, dark inside
+    int i = constrain(x - (TG_C - TG_HW), 0, COLS - 1);
+    display.drawPixel(x, top[i] - 1, SH110X_WHITE);
+    display.drawPixel(x, bot[i] + 1, SH110X_WHITE);
+    display.drawFastVLine(x, top[i], bot[i] - top[i] + 1, SH110X_BLACK);
+  }
+  if (open <= 0.25f) return;
+  for (int i = 0; i < COLS; i++) { // both rows of teeth
+    if (bot[i] - top[i] < TG_MINH) continue;
+    int x = TG_C - TG_HW + i;
+    if (div[i] - top[i] > 0) display.drawFastVLine(x, top[i], div[i] - top[i], SH110X_WHITE);
+    if (bot[i] - div[i] > 0) display.drawFastVLine(x, div[i] + 1, bot[i] - div[i], SH110X_WHITE);
+  }
+  int gaps[2 * TG_N + 1];
+  for (int k = -TG_N; k <= TG_N; k++) gaps[k + TG_N] = (int)lroundf(TG_C + TG_HW * 0.96f * sinf((float)k / (TG_N + 1) * PI / 2));
+  for (int g = 0; g < 2 * TG_N + 1; g++) { // upper teeth gaps, with rounded tips
+    int gx = gaps[g], i = gx - (TG_C - TG_HW);
+    if (i < 0 || i >= COLS) continue;
+    if (div[i] - top[i] > 0) display.drawFastVLine(gx, top[i], div[i] - top[i], SH110X_BLACK);
+    display.drawPixel(gx - 1, div[i] - 1, SH110X_BLACK);
+    display.drawPixel(gx + 1, div[i] - 1, SH110X_BLACK);
+  }
+  for (int g = 0; g < 2 * TG_N; g++) { // lower teeth sit between the upper ones
+    int gx = (int)lroundf((gaps[g] + gaps[g + 1]) / 2.0f), i = gx - (TG_C - TG_HW);
+    if (i < 0 || i >= COLS) continue;
+    if (bot[i] - div[i] > 0) display.drawFastVLine(gx, div[i] + 1, bot[i] - div[i], SH110X_BLACK);
+    display.drawPixel(gx - 1, div[i] + 1, SH110X_BLACK);
+    display.drawPixel(gx + 1, div[i] + 1, SH110X_BLACK);
+  }
+  if (glint > -999) { // a diagonal double glint cut into the lit tooth pixels
+    for (int i = 0; i < COLS; i++) {
+      int x = TG_C - TG_HW + i;
+      for (int y = top[i]; y <= bot[i]; y++) {
+        int d = x + (y * 2 + 2) / 5 - glint; // x + round(0.4y), in integers
+        if ((d == 0 || d == 1 || d == 3) && display.getPixel(x, y)) display.drawPixel(x, y, SH110X_BLACK);
+      }
+    }
+  }
+}
+
+// 4-point sparkle with a 1px black halo
+void drawTotoroSparkle(int x, int y, int r) {
+  if (r <= 0) return;
+  int a = max(1, (int)lroundf(r / 3.0f));
+  for (int pass = 0; pass < 2; pass++) {
+    uint16_t c = pass == 0 ? SH110X_BLACK : SH110X_WHITE;
+    int o = pass == 0 ? 1 : 0;
+    display.drawLine(x - r - o, y, x + r + o, y, c);
+    display.drawLine(x, y - r - o, x, y + r + o, c);
+    if (r >= 3) {
+      display.drawLine(x - 1 - o, y - 1, x + 1 + o, y - 1, c);
+      display.drawLine(x - 1 - o, y + 1, x + 1 + o, y + 1, c);
+      if (r >= 5) {
+        display.drawLine(x - a - o, y - a - o, x + a + o, y + a + o, c);
+        display.drawLine(x - a - o, y + a + o, x + a + o, y - a - o, c);
+      }
+    }
+  }
+  display.fillRect(x - 1, y - 1, 3, 3, SH110X_WHITE);
+}
+
+void drawTotoro(int dy, float open, int glint, bool blink, bool twitch) {
+  drawTotoroSilhouette(dy);
+  for (int e = 0; e < 2; e++) { // eyes
+    int ex = e ? 87 : 41, ey = 25 + dy;
+    if (blink) { display.drawFastHLine(ex - 6, ey, 13, SH110X_WHITE); display.drawFastHLine(ex - 6, ey + 1, 13, SH110X_WHITE); }
+    else { display.fillCircle(ex, ey, 5, SH110X_WHITE); display.fillRect(ex - 1 + (e ? -1 : 1), ey - 1, 2, 2, SH110X_BLACK); }
+  }
+  display.drawFastHLine(60, 21 + dy, 9, SH110X_WHITE); // nose
+  display.drawFastHLine(61, 22 + dy, 7, SH110X_WHITE);
+  display.drawFastHLine(63, 23 + dy, 3, SH110X_WHITE);
+  for (int s = -1; s <= 1; s += 2) { // whiskers, the outer two flick 1px when twitching
+    int x0 = 64 + s * 37;
+    const int8_t W[3][2] = {{-3, -5}, {0, 0}, {3, 5}};
+    for (int i = 0; i < 3; i++) {
+      int flick = (twitch && i != 1) ? (i ? 1 : -1) : 0;
+      display.drawLine(x0, 29 + W[i][0] + dy, x0 + s * 24, 29 + W[i][0] + W[i][1] + dy + flick, SH110X_WHITE);
+    }
+  }
+  drawTotoroGrin(open, glint, dy);
+}
+
+void drawTotoroDoneText() {
+  const char* text = T(STR_BRUSHING_DONE);
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.setTextSize(1);
+  display.setTextColor(SH110X_WHITE);
+  display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor((SCREEN_WIDTH - (int)w) / 2, 55);
+  display.print(text);
+}
+
+// frames: 0-2 rise, 3 settle, 4 blink, 5 hold, 6-10 grin opens, 11-18 glint, 19-27 sparkles, 28 final
+void drawTotoroDoneFrame(int i) {
+  display.clearDisplay();
+  const float OPEN[5] = {0.2f, 0.45f, 0.7f, 0.9f, 1.0f};
+  if (i < 3) { const int RISE[3] = {40, 18, 5}; drawTotoro(RISE[i], 0, -999, false, false); return; }
+  if (i < 6) { drawTotoro(0, 0, -999, i == 4, false); return; }
+  if (i < 11) { drawTotoro(0, OPEN[i - 6], -999, false, false); return; }
+  if (i < 19) { drawTotoro(0, 1, TG_C - TG_HW - 12 + (i - 11) * 12, false, false); return; }
+  if (i < TOTORO_FINAL_FRAME) {
+    int f = i - 19;
+    drawTotoro(0, 1, -999, f == 6, f % 2 == 1);
+    const int8_t SP[3][4] = {{112, 10, 0, 1}, {16, 10, 2, 2}, {64, 4, 4, 3}}; // x, y, start frame, size reduction
+    const int8_t LIFE[6] = {2, 4, 6, 4, 2, 1};
+    for (int s = 0; s < 3; s++) {
+      int k = f - SP[s][2];
+      if (k >= 0 && k < 6) drawTotoroSparkle(SP[s][0], SP[s][1], max(1, LIFE[k] - SP[s][3]));
+    }
+    drawTotoroDoneText();
+    return;
+  }
+  drawTotoro(0, 1, -999, false, false); // final, held as the Done screen
+  drawTotoroSparkle(112, 10, 4);
+  drawTotoroSparkle(16, 10, 2);
+  drawTotoroDoneText();
+}
+
+int totoroDoneFrameCount() { return TOTORO_FRAME_COUNT + 1; }
+
 void playToothbrushDoneAnimation() {
-  playFireworkAnimation();
+  for (int i = 0; i <= TOTORO_FINAL_FRAME; i++) {
+    unsigned long start = millis();
+    drawTotoroDoneFrame(i);
+    display.display();
+    int frameMs, freq = 0, noteMs = 0;
+    if (i < 3) { frameMs = 80; freq = 300 + i * 100; noteMs = 30; }             // rising whoosh
+    else if (i == 3) frameMs = 160;
+    else if (i == 4) frameMs = 110;
+    else if (i == 5) frameMs = 140;
+    else if (i < 11) { frameMs = 90; freq = 600 + (i - 6) * 100; noteMs = 40; }  // grin opening
+    else if (i < 19) { frameMs = 55; if ((i - 11) % 2 == 0) { freq = (i - 11) % 4 ? 3136 : 2637; noteMs = 20; } } // glint shimmer
+    else if (i < TOTORO_FINAL_FRAME) {
+      int f = i - 19;
+      frameMs = 90;
+      if (f == 0 || f == 2 || f == 4) { freq = f == 0 ? 2093 : f == 2 ? 2637 : 3136; noteMs = 30; } // sparkle "tings"
+    } else frameMs = 0;
+    if (freq > 0) playNote(freq, noteMs);
+    while (millis() - start < (unsigned long)frameMs) delay(1); // hold the frame even when muted
+  }
 }
 
 // ---------------- Draws a simple walrus face: round head, eyes, two tusks. Wounded = X eyes,
@@ -3419,7 +3647,7 @@ void handleSimonButtonPress() {
   if (simonRound >= simonSequenceLength) {
     simonState = SIMON_COMPLETE;
     stopTone(); // defensive: guarantee no lingering held-tone before the celebration's own sounds
-    playToothbrushDoneAnimation(); // ends with its own final celebratory frame on screen
+    playFireworkAnimation(); // ends with its own final celebratory frame on screen
     delay(1500); // hold that result before revealing the solution
     render(); // now shows the solution (word + code), per drawSimonScreen()
   } else {
@@ -5380,22 +5608,8 @@ void drawToothbrushRunningScreen() {
   uint16_t w, h;
 
   if (toothbrushScreenState == TOOTHBRUSH_DONE) {
-    drawToothbrushIcon(7, 7, 6, SH110X_WHITE);
-    display.setTextSize(1);
-    const char* headerText = T(STR_BRUSH_ACTIVE);
-    display.getTextBounds(headerText, 0, 0, &x1, &y1, &w, &h);
-    display.setCursor(SCREEN_WIDTH - w - 2, 4);
-    display.print(headerText);
-    display.drawLine(0, 14, SCREEN_WIDTH, 14, SH110X_WHITE);
-    // the firework animation already played once (see playToothbrushDoneAnimation) - this is the
-    // persistent screen shown afterward, reusing the same drawBurst() helper
-    drawBurst(34, 28, 12);
-    drawBurst(SCREEN_WIDTH / 2, 34, 12);
-    drawBurst(SCREEN_WIDTH - 34, 28, 12);
-    const char* doneText = T(STR_BRUSHING_DONE);
-    display.getTextBounds(doneText, 0, 0, &x1, &y1, &w, &h);
-    display.setCursor((SCREEN_WIDTH - w) / 2, 57);
-    display.print(doneText);
+    // the Totoro-style grin's final frame (see playToothbrushDoneAnimation) stays up as the Done screen
+    drawTotoroDoneFrame(TOTORO_FINAL_FRAME);
     return;
   }
 

@@ -626,8 +626,8 @@ lower right**, in that order.
 - The total time is split into 6 equal zones (`TOOTHBRUSH_ZONE_COUNT`=6, e.g. 20 s each for
   2 minutes). On each zone change the same two-tone zone-change beep plays, so the user knows
   to move the brush without watching the screen. Sounds are unchanged from the 4-quadrant
-  version: start melody, the soft ~180 ms "scrub" clicks, the zone-change beep and the
-  finish fireworks.
+  version: start melody, the soft ~180 ms "scrub" clicks, and the zone-change beep. The finish
+  now plays the shiny-grin animation's own sounds (see below).
 - **Running screen** (no header line, to give the teeth the full height):
   - **Left 77 px — the teeth:** a front view of an open mouth, teeth only (no lips/tongue). The
     upper arch curves over the top half, the lower arch is its mirror image below. Each half
@@ -648,9 +648,30 @@ lower right**, in that order.
     in large digits, the zone name on two lines (e.g. "Upper / left", "Haut / gauche",
     "Arriba / izqda."), and a bar showing progress through the current zone.
 - A press (arcade button, or encoder short click per §3.2) pauses/resumes.
-- On completion, plays the same celebratory "firework" animation used elsewhere for
-  positive milestones (also reused by SimpleMorse's win screen, §5.12), then shows the usual
-  header with static bursts and "All done!".
+- **On completion — the "shiny grin"** (`playToothbrushDoneAnimation()`, about 2.4 s, 29
+  frames; input is blocked while it plays). It shows a full-screen pixel-art head in the style
+  of Totoro: a 2 px outline of a round head with two slim pointed ears, round eyes with small
+  pupils, a little nose, and three whiskers each side.
+  1. **Rise (3 × 80 ms):** the head rises into view from the bottom with its mouth closed in a
+     smile line, with a rising whoosh.
+  2. **Blink:** it settles, blinks, and holds.
+  3. **Grin (5 × 90 ms):** a huge grin opens across the face to show upper and lower teeth,
+     with rising notes.
+  4. **Glint (8 × 55 ms):** a diagonal double glint sweeps across the teeth, with high shimmer
+     notes.
+  5. **Sparkles (9 × 90 ms):** the whiskers twitch, it blinks again, and three sparkles pop
+     beside the ears and above the head with three "ting" notes. "All done!" / "Terminé !" /
+     "Listo!" (`STR_BRUSHING_DONE`) appears on its chin.
+
+  The final frame (`drawTotoroDoneFrame(TOTORO_FINAL_FRAME)`) stays up as the Done screen.
+  Frame timing is held even when muted.
+  - **Drawing cost:** the chip has no FPU, so the head and ears use integer tests. The outline
+    is built once per head position into a cached bitmap, and the grin's curve is computed once
+    per frame. Each frame draws in about 1.5–6 ms; the 3 rise frames take about 15 ms each.
+  - **Testing:** the test build's `O` serial command steps through the frames and prints how
+    long each took to draw.
+  - **Licensing:** the character is fan art for this personal device. Replace it with an
+    original character before any distribution.
 - **Bench-testing the drawing:** a normal build never includes it, but building with
   `-DTT_SCREEN_DUMP` adds serial commands (`t` open Toothbrush, `p` arcade press, `f` skip 20 s,
   `d` dump the 128×64 screen as `#`/`.` text) so the screen can be checked from a computer.
@@ -829,8 +850,8 @@ presses (dots) and long presses (dashes) — for a randomly chosen word, rather 
   been on screen for **1.5 seconds**, the screen automatically switches to the solution reveal —
   the exact same word+letter+code layout as the Ready screen — which then persists until the
   arcade button is pressed to start a fresh round with a newly chosen word.
-- **Winning:** completing the full sequence triggers the same celebratory "firework" animation
-  used by Toothbrush Timer's completion (§5.8), held on screen for the same 1.5 seconds, then
+- **Winning:** completing the full sequence triggers the celebratory "firework" animation
+  (`playFireworkAnimation()`, the one Reflex uses for a new high score), held on screen for the same 1.5 seconds, then
   automatically replaced by the same solution reveal described above.
 - The walrus is the game's mascot on its own screens; the menu icon is the telegraph key (see
   the Icon bullet above).
