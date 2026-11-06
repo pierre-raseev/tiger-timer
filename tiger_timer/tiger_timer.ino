@@ -1052,6 +1052,9 @@ void confirmMenuSelection();
 void playGameSplashScreen(int game);
 void drawSplashGameName(const char* name);
 void playStarDropSplash();
+void playToothbrushSplash();
+void drawToothbrushSplashBrush(int x, int y);
+void drawToothbrushSplashTube(int x, int y);
 void drawStarDropSplashRing(int cx, int cy, bool frontHalf, bool gap);
 void confirmSettingsSelection();
 void confirmLanguageSelection();
@@ -1330,6 +1333,7 @@ void testSerialCommands() {
     if (c == 't') { inMenu = false; currentGame = GAME_TOOTHBRUSH; initGameState(GAME_TOOTHBRUSH); render(); }
     else if (c == 'p') { if (currentGame == GAME_TOOTHBRUSH) handleToothbrushPress(); else dispatchButtonShortPress(); }
     else if (c == 'R') { inMenu = false; currentGame = GAME_STARDROP; initGameState(GAME_STARDROP); render(); }
+    else if (c == 'B') { playGameSplashScreen(GAME_TOOTHBRUSH); }
     else if (c == 'Q') { playGameSplashScreen(GAME_STARDROP); }
     else if (c == 'P') { inMenu = false; currentGame = GAME_PONG; initGameState(GAME_PONG); render(); }
     else if (c == 'u' || c == 'j') { // Pong paddle up / down one detent
@@ -1714,6 +1718,10 @@ void playGameSplashScreen(int game) {
     playStarDropSplash();
     return;
   }
+  if (game == GAME_TOOTHBRUSH) {
+    playToothbrushSplash();
+    return;
+  }
   display.clearDisplay();
   display.setTextColor(SH110X_WHITE);
 
@@ -1767,6 +1775,50 @@ void drawSplashGameName(const char* name) {
   }
 
   display.setFont(); // back to the normal built-in font for every other screen
+}
+
+// ---------------- Toothbrush splash: a big toothbrush lying across the screen while a tube moves
+// along it squeezing a wavy ribbon of toothpaste onto the bristles, then a sparkle - 12 frames of
+// ~83 ms, 1 second in total like every other game's splash. ----------------
+void drawToothbrushSplashBrush(int x, int y) {
+  display.fillRect(x, y + 6, 30, 4, SH110X_WHITE);                    // head
+  for (int i = 1; i < 30; i += 3) display.fillRect(x + i, y, 2, 6, SH110X_WHITE); // bristle tufts
+  display.fillRect(x + 30, y + 7, 6, 2, SH110X_WHITE);                // neck
+  display.fillRect(x + 35, y + 6, 52, 5, SH110X_WHITE);               // handle
+  display.drawFastHLine(x + 36, y + 11, 50, SH110X_WHITE);
+  display.drawRect(x + 74, y + 7, 8, 2, SH110X_BLACK);                // grip slot
+}
+
+void drawToothbrushSplashTube(int x, int y) {
+  display.fillRect(x, y, 4, 3, SH110X_WHITE);           // nozzle
+  display.drawRect(x + 4, y - 3, 22, 9, SH110X_WHITE);  // body
+  display.drawFastHLine(x + 8, y - 1, 13, SH110X_WHITE); // label stripe
+  display.drawFastVLine(x + 26, y - 3, 9, SH110X_WHITE); // crimped end
+  for (int k = 0; k < 4; k++) display.drawPixel(x + 26, y - 2 + k * 2, SH110X_WHITE);
+}
+
+void playToothbrushSplash() {
+  const int brushX = 14, brushY = 26;
+  for (int frame = 0; frame < 12; frame++) {
+    display.clearDisplay();
+    drawToothbrushSplashBrush(brushX, brushY);
+    int n = min(4 + frame * 3, 30); // paste length so far, along the bristles
+    for (int i = 0; i < n; i++) {
+      int yy = 21 + (int)lroundf(sinf(i * 0.8f) * 1.2f);
+      display.drawFastVLine(brushX + i, yy, 4, SH110X_WHITE);
+    }
+    display.fillRect(brushX + n - 1, 19, 2, 2, SH110X_WHITE); // paste still leaving the nozzle
+    drawToothbrushSplashTube(brushX + n, 12);
+    if (frame >= 10) { // sparkle once the paste is on
+      display.drawLine(27, 8, 33, 8, SH110X_WHITE);
+      display.drawLine(30, 5, 30, 11, SH110X_WHITE);
+      display.drawPixel(29, 7, SH110X_WHITE); display.drawPixel(31, 7, SH110X_WHITE);
+      display.drawPixel(29, 9, SH110X_WHITE); display.drawPixel(31, 9, SH110X_WHITE);
+    }
+    drawSplashGameName(menuLabelForGame(GAME_TOOTHBRUSH));
+    display.display();
+    delay(83);
+  }
 }
 
 // ---------------- Star Drop splash: a ringed planet with a crescent moon in a starfield, the
@@ -5926,13 +5978,29 @@ void drawStopwatchIcon(int cx, int cy, int r, uint16_t color) {
   display.drawLine(cx, cy, cx, cy - r + 3, color);   // hand
 }
 
+// ---------------- Toothbrush icon: side view, head on the left with its bristles up and a wavy
+// ribbon of toothpaste on them, handle running off to the right. 13x8 pixel art, drawn at 1x at
+// menu size (r=6) and scaled up in whole steps for larger r. ----------------
+const char* const TOOTHBRUSH_ICON_ART[] = {
+  ".##.##.##....",
+  "########.....",
+  ".............",
+  "#.#.#.#.#....",
+  "#.#.#.#.#....",
+  "#########....",
+  "#############",
+  "....#########",
+};
+const int TOOTHBRUSH_ICON_ROWS = sizeof(TOOTHBRUSH_ICON_ART) / sizeof(TOOTHBRUSH_ICON_ART[0]);
+
 void drawToothbrushIcon(int cx, int cy, int r, uint16_t color) {
-  // angled handle, from lower-left to upper-right, with a few short bristle ticks at the top
-  int hx0 = cx - r, hy0 = cy + r;
-  int hx1 = cx + r / 3, hy1 = cy - r / 3;
-  display.drawLine(hx0, hy0, hx1, hy1, color); // handle
-  for (int i = -1; i <= 1; i++) {
-    display.drawLine(hx1 + i * 2, hy1 - 1, hx1 + i * 2 - 2, hy1 - r / 2, color); // bristles
+  int sc = max(1, r / 6);
+  int left = cx - 6 * sc, top = cy - (TOOTHBRUSH_ICON_ROWS / 2) * sc;
+  for (int j = 0; j < TOOTHBRUSH_ICON_ROWS; j++) {
+    const char* row = TOOTHBRUSH_ICON_ART[j];
+    for (int i = 0; row[i]; i++) {
+      if (row[i] == '#') display.fillRect(left + i * sc, top + j * sc, sc, sc, color);
+    }
   }
 }
 

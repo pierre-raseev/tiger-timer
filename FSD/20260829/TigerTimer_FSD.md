@@ -313,6 +313,10 @@ own first screen appears:
 - The game's translated name below it, in the same pixel/arcade font used for the boot splash
   (§4.1, §9) — sized as large as fits on one line, automatically splitting onto two lines at a
   word boundary (never mid-word) if the translated name is too wide for one line at that size.
+- **Exception — Toothbrush:** instead of the big menu icon it shows its own animated scene: a
+  big toothbrush lying across the screen (head on the left, bristles up) while a toothpaste tube
+  travels along it from left to right, squeezing a wavy ribbon of paste onto the bristles; a
+  sparkle appears above the brush once the paste is on. 12 frames of ~83 ms, 1 second in total.
 - **Exception — Star Drop:** instead of the big menu icon it shows its own animated scene above
   the name: a ringed planet in the centre (the ring is a tilted ellipse whose back half hides
   behind the planet and whose front half crosses in front of it), a crescent moon top-right, and
@@ -532,6 +536,10 @@ Buzzer-style multiple-choice trivia with a physical "buzz in" mechanic.
 ### 5.8 Toothbrush Timer
 A 6-zone brushing timer: **upper left, upper front, upper right, lower left, lower front,
 lower right**, in that order.
+- **Icon** (menu and the top-left corner of its screens): a 13×8 px side view of a toothbrush
+  (`TOOTHBRUSH_ICON_ART`) — head on the left with its bristles up and a wavy ribbon of toothpaste
+  on them, handle running off to the right. Drawn 1:1 at menu size and scaled up in whole steps
+  for larger sizes.
 - Select duration (1–5 minutes) via encoder, confirm to start.
 - The total time is split into 6 equal zones (`TOOTHBRUSH_ZONE_COUNT`=6, e.g. 20 s each for
   2 minutes). On each zone change the same two-tone zone-change beep plays, so the user knows
