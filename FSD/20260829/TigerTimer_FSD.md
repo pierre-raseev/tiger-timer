@@ -41,8 +41,11 @@ and persisted across power cycles.
 - **Framework:** Arduino core for ESP32 (not raw ESP-IDF).
 
 ### 2.2 Display
-- **Panel:** SH1106-driver monochrome OLED, 128×64 pixels, I2C interface, address `0x3C`.
-- **Wiring:** SDA → `D4`, SCL → `D5`, VCC → 3.3V, GND → GND.
+- **Panel:** SH1106-driver monochrome OLED, 1.3″, 128×64 pixels, I2C interface, address `0x3C`.
+- **Module:** the screen and the rotary encoder (§2.4) share one ready-made board, a 1.3″ OLED +
+  EC11 encoder module that also carries two tactile buttons, BACK and CONFIRM. It has a single
+  9-pin header, printed left to right `CON SDA SCL PSH TRA TRB BAK GND VCC`.
+- **Wiring:** SDA → `D4`, SCL → `D5`, VCC → 3.3V, GND → GND (shared with the encoder).
 - **Library:** Adafruit SH110X (pulls in Adafruit GFX Library + Adafruit BusIO via Library
   Manager).
 - Orientation: normally landscape (128 wide × 64 tall). Two specific games (Tetris and Star
@@ -62,8 +65,13 @@ and persisted across power cycles.
   (short-vs-long press classification, see §5.12).
 
 ### 2.4 Input: Rotary Encoder
-- A standard EC11-style incremental rotary encoder with integrated push-button.
-- CLK → `D10`, DT → `D8`, SW (push button) → `D9`, wired `INPUT_PULLUP` (LOW = pressed).
+- An EC11-style incremental rotary encoder with integrated push-button, on the same module
+  as the display (§2.2). On the module header, encoder A is `TRA`, B is `TRB` and the push
+  button is `PSH`.
+- CLK (`TRA`) → `D10`, DT (`TRB`) → `D8`, SW (`PSH`) → `D9`, wired `INPUT_PULLUP` (LOW =
+  pressed). If turning clockwise moves the wrong way, swap the `TRA` and `TRB` wires.
+- The module's BACK (`BAK`) and CONFIRM (`CON`) buttons are not connected and not used by the
+  firmware.
 - Rotation is decoded in a pin-change interrupt on **both** `CLK` and `DT` (full quadrature,
   Gray-code transition table), so detents aren't lost while the main loop is busy with a screen
   transfer (~25 ms) or a blocking sound. One detent = one full cycle of the two contacts, counted
@@ -138,19 +146,19 @@ and persisted across power cycles.
 
 `assets/wiring_diagram.svg` is the schematic of everything in §2.1–§2.6. Every part connects
 straight to the XIAO. No external resistors are needed: the arcade switch, the encoder and the
-wake pin all use the chip's internal pull-ups.
+wake pin all use the chip's internal pull-ups. The drawing also shows the OLED + encoder
+module's header in its printed order, with the wire colour for each pin.
 
 | Part | Part pin | XIAO | Wire | Notes |
 |---|---|---|---|---|
 | Arcade button | Switch | `D1` | white | Other leg to GND. `INPUT_PULLUP`, LOW = pressed. Also the deep-sleep wake pin (§2.6). |
 | | LED + | `D3` | orange | LED − to GND. Driven directly by the GPIO. |
 | Piezo buzzer | + | `D2` | purple | − to GND. Must be passive (§2.5). |
-| SH1106 OLED | SDA / SCL | `D4` / `D5` | blue / yellow | I2C address `0x3C`. |
+| OLED + encoder module | SDA / SCL | `D4` / `D5` | blue / yellow | I2C address `0x3C`. |
+| | TRA / TRB | `D10` / `D8` | green / brown | Encoder A / B (CLK / DT in the firmware). Swap them if turning feels reversed. |
+| | PSH | `D9` | grey | Encoder push. `INPUT_PULLUP`, LOW = pressed. |
 | | VCC / GND | 3V3 / GND | red / black | Not the 5V pin, which only carries USB power. |
-| EC11 encoder | CLK (A) / DT (B) | `D10` / `D8` | green / brown | Both trigger the quadrature interrupt (§2.4). |
-| | SW | `D9` | grey | `INPUT_PULLUP`, LOW = pressed. |
-| | C / switch common | GND | black | On a bare EC11 the middle pin C and one switch leg both go to GND. |
-| | + (breakout boards only) | 3V3 | red | Only if the breakout has its own pull-ups. Never 5V. |
+| | BAK / CON | — | — | BACK and CONFIRM buttons, not connected (free pins `D0`/`D6`/`D7` could take them later). |
 | LiPo 3.7 V | + | `BAT +` pad | red | Through the physical power switch. Pad on the underside, marked "+". |
 | | − | `BAT −` pad | black | Pad on the underside, marked "−". Same net as GND. |
 
