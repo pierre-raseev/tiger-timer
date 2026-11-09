@@ -112,8 +112,9 @@ and persisted across power cycles.
 
 ### 2.6 Power
 - **Battery:** 3.7V LiPo cell.
-- **Battery wiring:** the cell is soldered straight to the XIAO's `BAT +` / `BAT −` pads on the
-  underside of the board. There is no separate charger module.
+- **Battery wiring:** the cell goes to the XIAO's `BAT +` / `BAT −` pads on the underside of the
+  board, through two JST XH 2-pin connectors (J1 at the cell, J2 between the switch and the
+  XIAO, §2.7). There is no separate charger module.
 - **Charging:** by the XIAO's own on-board charger, through its USB-C port (the same port used
   for flashing). That charge chip is separate from the ESP32 itself, so charging continues while
   the ESP32 is in deep sleep.
@@ -145,14 +146,16 @@ and persisted across power cycles.
 ![Tiger Timer wiring diagram](assets/wiring_diagram.svg)
 
 `assets/wiring_diagram.svg` is the schematic of everything in §2.1–§2.6. Every part connects
-straight to the XIAO. No external resistors are needed: the arcade switch, the encoder and the
-wake pin all use the chip's internal pull-ups. The drawing also shows the OLED + encoder
-module's header in its printed order, with the wire colour for each pin.
+to the XIAO through a JST XH connector (J1–J6, below), so each part can be unplugged without
+desoldering. No external resistors are needed: the arcade switch, the encoder and the wake pin
+all use the chip's internal pull-ups. The drawing also shows the OLED + encoder module's header
+in its printed order, with the wire colour for each pin.
 
 | Part | Part pin | XIAO | Wire | Notes |
 |---|---|---|---|---|
-| Arcade button | Switch | `D1` | white | Other leg to GND. `INPUT_PULLUP`, LOW = pressed. Also the deep-sleep wake pin (§2.6). |
-| | LED + | `D3` | orange | LED − to GND. Driven directly by the GPIO. |
+| Arcade button | Switch | `D1` | white | `INPUT_PULLUP`, LOW = pressed. Also the deep-sleep wake pin (§2.6). |
+| | LED + | `D3` | orange | Driven directly by the GPIO. |
+| | Switch leg + LED − | GND | black | Joined at the button into one ground lead (J3 pin 2). |
 | Piezo buzzer | + | `D2` | purple | − to GND. Must be passive (§2.5). |
 | OLED + encoder module | SDA / SCL | `D4` / `D5` | blue / yellow | I2C address `0x3C`. |
 | | TRA / TRB | `D10` / `D8` | green / brown | Encoder A / B (CLK / DT in the firmware). Swap them if turning feels reversed. |
@@ -162,14 +165,32 @@ module's header in its printed order, with the wire colour for each pin.
 | LiPo 3.7 V | + | `BAT +` pad | red | Through the physical power switch. Pad on the underside, marked "+". |
 | | − | `BAT −` pad | black | Pad on the underside, marked "−". Same net as GND. |
 
+**Connectors.** All are JST XH (2.5 mm pitch). In the drawing each one is a mating pair: the plain
+half is on the part's side, the shaded half on the XIAO's side, and pin 1 is at the top.
+
+| J | Between | Pins | Pin 1 | Pin 2 | Pin 3 | Pin 4 | Pin 5 |
+|---|---|---|---|---|---|---|---|
+| J1 | LiPo ↔ power switch | 2 | + (red) | − (black) | | | |
+| J2 | Power switch ↔ XIAO `BAT` pads | 2 | + switched (red) | − (black) | | | |
+| J3 | Arcade button ↔ XIAO | 3 | switch `D1` (white) | GND (black) | LED `D3` (orange) | | |
+| J4 | Buzzer ↔ XIAO | 2 | + `D2` (purple) | − GND (black) | | | |
+| J5 | Module power ↔ XIAO | 2 | GND (black) | VCC 3V3 (red) | | | |
+| J6 | Module signals ↔ XIAO | 5 | TRA `D10` (green) | PSH `D9` (grey) | TRB `D8` (brown) | SCL `D5` (yellow) | SDA `D4` (blue) |
+
+The battery's − lead passes through both J1 and J2 without going through the switch, which is
+only in the + lead. J2 lets the switch stay mounted in the case while the XIAO comes out.
+The different pin counts stop most mix-ups, but J1, J2, J4 and J5 are all 2-pin. Label them, or
+keep each lead too short to reach the wrong socket: a battery lead plugged into a 2-pin socket
+meant for something else can short the cell or reverse its polarity.
+
 - **Arcade LED brightness:** arcade LEDs rated 5 V have a resistor built in, so `D3` drives them
   directly; at 3.3 V they glow a little dimmer. A bare LED without its own resistor needs about
   100 Ω in series.
 - **Cable colours:** red for every positive supply (battery + and 3V3), black for every
   ground, and one colour per signal as listed above (SDA blue / SCL yellow follows the usual
-  I2C convention). The ground legs of the arcade switch, its LED and the buzzer are black too.
+  I2C convention). The arcade button's shared ground lead and the buzzer's − lead are black too.
 - **Free pins:** `D0`, `D6` and `D7` are unused.
-- **Power:** the battery goes straight to the `BAT` pads, with the power switch in the + lead.
+- **Power:** the battery goes to the `BAT` pads through J1 and J2, with the power switch in the + lead.
   Check polarity before soldering: reversing + and − on these pads can destroy the board. Use a
   LiPo with its own protection circuit, since the XIAO does not cut off a deeply discharged cell.
 
