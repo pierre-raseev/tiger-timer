@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="880" height="620" viewBox="0 0 880 620" role="img" aria-label="Schematic of the Tiger Timer: XIAO ESP32C6 connected to arcade button, piezo buzzer, SH1106 OLED, EC11 encoder, and a LiPo battery through a TP4056 charger and power switch">
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="620" viewBox="0 0 880 620" role="img" aria-label="Schematic of the Tiger Timer: XIAO ESP32C6 connected to arcade button, piezo buzzer, SH1106 OLED, EC11 encoder, and a LiPo battery on the BAT pads through a power switch">
 <style>
 text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size:11px}
 .t-muted{fill:#7b8780} .t-title{font-weight:600;font-size:12px} .t-small{font-size:9.5px}
@@ -13,7 +13,7 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
 
   <!-- ===== XIAO ESP32C6 ===== -->
   <rect x="455" y="96" width="34" height="12" rx="2" class="box"/>
-  <text x="472" y="90" text-anchor="middle" class="t-small t-muted">USB-C</text>
+  <text x="472" y="90" text-anchor="middle" class="t-small t-muted">USB-C · flash + charge</text>
   <rect x="400" y="108" width="144" height="302" rx="6" class="mcu"/>
   <text x="472" y="129" text-anchor="middle" class="t-title">XIAO ESP32C6</text>
 
@@ -116,38 +116,25 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <text x="512" y="432" class="t-small" style="fill:#4f5c55">BAT−</text>
   <text x="512" y="445" class="t-small t-muted">pads on underside</text>
 
-  <!-- LiPo -->
-  <path d="M110 500 V522" class="pwr"/>
-  <path d="M94 522 H126" class="sym"/>
-  <path d="M102 531 H118" class="sym" style="stroke-width:3.5"/>
-  <path d="M110 531 V560" class="gnd"/>
-  <text x="130" y="518" class="t-small" style="fill:#b93d27">+</text>
-  <text x="86" y="524" text-anchor="end" class="t-title">LiPo</text>
-  <text x="86" y="538" text-anchor="end" class="t-small t-muted">3.7 V cell</text>
-  <path d="M110 500 H220" class="pwr"/>
-  <path d="M110 560 H220" class="gnd"/>
-
-  <!-- TP4056 -->
-  <rect x="220" y="480" width="140" height="100" rx="4" class="box"/>
-  <rect x="275" y="472" width="30" height="10" rx="2" class="box"/>
-  <text x="290" y="466" text-anchor="middle" class="t-small t-muted">USB-C (charge)</text>
-  <text x="290" y="526" text-anchor="middle" class="t-title">TP4056</text>
-  <text x="290" y="541" text-anchor="middle" class="t-small t-muted">charger module</text>
-  <circle cx="220" cy="500" r="3" class="pin"/><text x="226" y="504" class="t-small">B+</text>
-  <circle cx="220" cy="560" r="3" class="pin"/><text x="226" y="564" class="t-small">B−</text>
-  <circle cx="360" cy="500" r="3" class="pin"/><text x="354" y="504" text-anchor="end" class="t-small">OUT+</text>
-  <circle cx="360" cy="560" r="3" class="pin"/><text x="354" y="564" text-anchor="end" class="t-small">OUT−</text>
+  <!-- LiPo, wired straight to the XIAO's BAT pads (no separate charger) -->
+  <path d="M330 522 V500 H397" class="pwr"/>
+  <path d="M314 522 H346" class="sym"/>
+  <path d="M322 531 H338" class="sym" style="stroke-width:3.5"/>
+  <path d="M330 531 V560 H500 V415" class="gnd"/>
+  <text x="350" y="518" class="t-small" style="fill:#b93d27">+</text>
+  <text x="304" y="524" text-anchor="end" class="t-title">LiPo</text>
+  <text x="304" y="538" text-anchor="end" class="t-small t-muted">3.7 V cell</text>
 
   <!-- power switch -->
-  <path d="M360 500 H397" class="pwr"/>
   <circle cx="400" cy="500" r="3" class="sym"/><circle cx="440" cy="500" r="3" class="sym"/>
   <path d="M402 498 L436 484" class="sym"/>
   <text x="420" y="526" text-anchor="middle" class="t-title">Power switch</text>
   <text x="420" y="540" text-anchor="middle" class="t-small t-muted">hard off</text>
   <path d="M443 500 H470 V415" class="pwr"/>
-  <path d="M360 560 H500 V415" class="gnd"/>
 
-  <text x="560" y="520" class="t-small t-muted">Switch off: device is fully off,</text>
-  <text x="560" y="534" class="t-small t-muted">but TP4056 still charges the cell.</text>
-  <text x="560" y="556" class="t-small t-muted">BAT− is the same net as GND.</text>
+  <text x="560" y="492" class="t-small t-muted">Charged by the XIAO's on-board</text>
+  <text x="560" y="506" class="t-small t-muted">charger, through its USB-C.</text>
+  <text x="560" y="528" class="t-small t-muted">Switch off: fully off, and the</text>
+  <text x="560" y="542" class="t-small t-muted">battery does not charge.</text>
+  <text x="560" y="564" class="t-small t-muted">BAT− is the same net as GND.</text>
 </svg>

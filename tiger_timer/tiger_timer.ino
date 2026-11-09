@@ -18,8 +18,8 @@
     Buzzer (passive piezo) -> D2 + GND   (PWM-driven via LEDC, see playNote())
     OLED SH1106 128x64 I2C (addr 0x3C)  SDA->D4  SCL->D5  VCC->3V3  GND->GND
     EC11 rotary encoder     CLK->D10  DT->D8  SW->D9
-    Power: 3.7V LiPo + separate charge module (independent of the ESP32, so
-    charging still works during deep sleep) + a physical power switch.
+    Power: 3.7V LiPo on the XIAO's BAT pads, through a physical power switch.
+    Charged by the XIAO's on-board charger via its USB-C (only while switched on).
 
   Libraries needed (Arduino Library Manager):
     - "Adafruit SH110X" (pulls in Adafruit GFX Library + Adafruit BusIO)
@@ -1531,7 +1531,7 @@ void checkScreenSleep() {
 
 // ---------------- Power management: after 30 minutes idle, puts the whole chip into deep sleep.
 // Wakes instantly on an arcade button press (D1) via ext1 - confirmed as a working wake pin on this
-// board. Deep sleep does not affect USB charging, since the charge management chip is separate
+// board. Deep sleep does not affect USB charging, since the XIAO's on-board charge chip is separate
 // hardware from the ESP32C6 and runs independently of its sleep state.
 // NOTE: this is effectively a reboot on wake - setup() runs again, all normal RAM state resets to
 // defaults (session high scores etc.), same as any power-up. Settings saved to flash (language,

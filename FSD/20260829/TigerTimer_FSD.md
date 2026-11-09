@@ -104,12 +104,17 @@ and persisted across power cycles.
 
 ### 2.6 Power
 - **Battery:** 3.7V LiPo cell.
-- **Charging:** a separate charge-management module (e.g. TP4056-style board) between the
-  battery and the ESP32 — charging is electrically independent of the microcontroller, so it
-  continues to work correctly even while the ESP32 is in deep sleep.
-- **Physical power switch:** yes — a hard power switch exists in addition to software deep
-  sleep. (Deep sleep is the *software-controlled* low-power state used automatically after
-  inactivity; the physical switch is a full hardware disconnect for storage/shipping.)
+- **Battery wiring:** the cell is soldered straight to the XIAO's `BAT +` / `BAT −` pads on the
+  underside of the board. There is no separate charger module.
+- **Charging:** by the XIAO's own on-board charger, through its USB-C port (the same port used
+  for flashing). That charge chip is separate from the ESP32 itself, so charging continues while
+  the ESP32 is in deep sleep.
+- **Physical power switch:** yes — a hard power switch between the battery's + lead and the
+  `BAT +` pad, in addition to software deep sleep. (Deep sleep is the *software-controlled*
+  low-power state used automatically after inactivity; the physical switch is a full hardware
+  disconnect for storage/shipping.) Because the switch also cuts the battery off from the
+  charger, **the battery only charges while the switch is on**. Leaving it on to charge is fine:
+  the box drops into deep sleep after 30 idle minutes.
 - **Deep sleep wake source:** `esp_sleep_enable_ext1_wakeup` on the arcade button pin
   (`ESP_EXT1_WAKEUP_ANY_LOW`). Waking from deep sleep is a full reboot (runs `setup()` again),
   not a resume-from-RAM.
@@ -146,18 +151,16 @@ wake pin all use the chip's internal pull-ups.
 | | SW | `D9` | `INPUT_PULLUP`, LOW = pressed. |
 | | C / switch common | GND | On a bare EC11 the middle pin C and one switch leg both go to GND. |
 | | + (breakout boards only) | 3V3 | Only if the breakout has its own pull-ups. Never 5V. |
-| TP4056 charger | B+ / B− | LiPo + / − | |
-| | OUT+ | BAT+ pad | Through the physical power switch. |
-| | OUT− | BAT− pad | Same net as GND. |
+| LiPo 3.7 V | + | `BAT +` pad | Through the physical power switch. Pad on the underside, marked "+". |
+| | − | `BAT −` pad | Pad on the underside, marked "−". Same net as GND. |
 
 - **Arcade LED brightness:** arcade LEDs rated 5 V have a resistor built in, so `D3` drives them
   directly; at 3.3 V they glow a little dimmer. A bare LED without its own resistor needs about
   100 Ω in series.
 - **Free pins:** `D0`, `D6` and `D7` are unused.
-- **Power entry (assumed, not yet confirmed against the built box):** the drawing assumes the
-  charger's OUT+ goes through the power switch to the BAT+ pad under the XIAO. With the switch
-  off the device is fully off, but the TP4056 still charges the cell. The XIAO ESP32C6 also has
-  its own charger on those pads, so USB into the XIAO charges the cell too.
+- **Power:** the battery goes straight to the `BAT` pads, with the power switch in the + lead.
+  Check polarity before soldering: reversing + and − on these pads can destroy the board. Use a
+  LiPo with its own protection circuit, since the XIAO does not cut off a deeply discharged cell.
 
 ---
 
@@ -220,7 +223,7 @@ Two important interaction guarantees:
   menu entry blind.
 - **Deep sleep** (full chip shutdown, wakes via reboot): after 30 minutes of no activity, subject
   to the same "not time-critical" exemption. USB charging is unaffected by deep sleep, since the
-  charge circuit is separate hardware (§2.6).
+  XIAO's charge chip is separate hardware from the ESP32 (§2.6).
 - **Important implementation note, learned the hard way:** every game whose "in progress" state
   is checked by the time-critical exemption above **must** have that state explicitly reset when
   the player leaves via the leave-confirmation dialog (§3.4), not just when a round ends
