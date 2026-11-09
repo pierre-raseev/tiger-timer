@@ -6,6 +6,7 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
 .box{fill:#fbfcfa;stroke:#1c2420;stroke-width:1.5} .mcu{fill:#f2f4f1;stroke:#1c2420;stroke-width:1.8}
 .sym{stroke:#1c2420;stroke-width:1.8;fill:none} .dash{stroke-dasharray:5 4} .pin{fill:#1c2420}
 .case{stroke:#2a302c;stroke-width:4.8;fill:none;stroke-linecap:round} .w-red{stroke:#d42a1e;stroke-width:2.6;fill:none;stroke-linecap:round} .w-black{stroke:#141414;stroke-width:2.6;fill:none;stroke-linecap:round} .w-white{stroke:#ffffff;stroke-width:2.6;fill:none;stroke-linecap:round} .w-purple{stroke:#8a3fc0;stroke-width:2.6;fill:none;stroke-linecap:round} .w-orange{stroke:#f07c14;stroke-width:2.6;fill:none;stroke-linecap:round} .w-blue{stroke:#2563c9;stroke-width:2.6;fill:none;stroke-linecap:round} .w-yellow{stroke:#f5c400;stroke-width:2.6;fill:none;stroke-linecap:round} .w-green{stroke:#2e9e44;stroke-width:2.6;fill:none;stroke-linecap:round} .w-grey{stroke:#8d9490;stroke-width:2.6;fill:none;stroke-linecap:round} .w-brown{stroke:#7a4a22;stroke-width:2.6;fill:none;stroke-linecap:round}
+.wl{font-size:9px;font-weight:600;paint-order:stroke;stroke:#fbfcfa;stroke-width:3px}
 </style>
 <rect width="890" height="620" fill="#fbfcfa"/>
   <rect x="455" y="96" width="34" height="12" rx="2" class="box"/>
@@ -107,4 +108,20 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <text x="560" y="564" class="t-small t-muted">Switch off: fully off, and the</text>
   <text x="560" y="578" class="t-small t-muted">battery does not charge.</text>
   <text x="560" y="600" class="t-small t-muted">BAT− is the same net as GND.</text>
+  <text x="356" y="185" text-anchor="middle" class="wl">white</text>
+  <text x="352" y="225" text-anchor="middle" class="wl">purple</text>
+  <text x="359" y="265" text-anchor="middle" class="wl">orange</text>
+  <text x="220" y="305" text-anchor="middle" class="wl">blue</text>
+  <text x="220" y="345" text-anchor="middle" class="wl">yellow</text>
+  <text x="300" y="40" text-anchor="middle" class="wl">yellow</text>
+  <text x="300" y="73" text-anchor="middle" class="wl">blue</text>
+  <text x="617" y="185" text-anchor="middle" class="wl">black</text>
+  <text x="617" y="225" text-anchor="middle" class="wl">red</text>
+  <text x="617" y="265" text-anchor="middle" class="wl">green</text>
+  <text x="617" y="305" text-anchor="middle" class="wl">grey</text>
+  <text x="617" y="345" text-anchor="middle" class="wl">brown</text>
+  <text x="364" y="495" text-anchor="middle" class="wl">red</text>
+  <text x="415" y="574" text-anchor="middle" class="wl">black</text>
+  <text x="486" y="466" text-anchor="middle" class="wl">red</text>
+  <text x="212" y="150" text-anchor="end" class="wl t-muted">all ground leads: black</text>
 </svg>
