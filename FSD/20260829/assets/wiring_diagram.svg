@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="620" viewBox="0 0 880 620" role="img" aria-label="Schematic of the Tiger Timer: XIAO ESP32C6 connected to arcade button, piezo buzzer, SH1106 OLED, EC11 encoder, and a LiPo battery through a TP4056 charger and power switch">
+<style>
+text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size:11px}
+.t-muted{fill:#7b8780} .t-title{font-weight:600;font-size:12px} .t-small{font-size:9.5px}
+.box{fill:#fbfcfa;stroke:#1c2420;stroke-width:1.5} .mcu{fill:#f2f4f1;stroke:#1c2420;stroke-width:1.8}
+.sig{stroke:#1d6b58;stroke-width:2;fill:none} .pwr{stroke:#b93d27;stroke-width:2;fill:none}
+.gnd{stroke:#4f5c55;stroke-width:2;fill:none} .sym{stroke:#1c2420;stroke-width:1.8;fill:none}
+.dash{stroke-dasharray:5 4} .pin{fill:#1c2420} .flag{fill:#fbfcfa;stroke:#b93d27;stroke-width:1.5}
+.flag-t{fill:#b93d27;font-size:10px;font-weight:600}
+</style>
+<rect width="880" height="620" fill="#fbfcfa"/>
+
+  <!-- ===== XIAO ESP32C6 ===== -->
+  <rect x="455" y="96" width="34" height="12" rx="2" class="box"/>
+  <text x="472" y="90" text-anchor="middle" class="t-small t-muted">USB-C</text>
+  <rect x="400" y="108" width="144" height="302" rx="6" class="mcu"/>
+  <text x="472" y="129" text-anchor="middle" class="t-title">XIAO ESP32C6</text>
+
+  <!-- left pins -->
+  <g>
+    <circle cx="400" cy="150" r="3" class="pin"/><text x="410" y="154" class="t-muted">D0</text>
+    <circle cx="400" cy="190" r="3" class="pin"/><text x="410" y="194">D1</text>
+    <circle cx="400" cy="230" r="3" class="pin"/><text x="410" y="234">D2</text>
+    <circle cx="400" cy="270" r="3" class="pin"/><text x="410" y="274">D3</text>
+    <circle cx="400" cy="310" r="3" class="pin"/><text x="410" y="314">D4·SDA</text>
+    <circle cx="400" cy="350" r="3" class="pin"/><text x="410" y="354">D5·SCL</text>
+    <circle cx="400" cy="390" r="3" class="pin"/><text x="410" y="394" class="t-muted">D6</text>
+  </g>
+  <!-- right pins -->
+  <g>
+    <circle cx="544" cy="150" r="3" class="pin"/><text x="534" y="154" text-anchor="end" class="t-muted">5V</text>
+    <circle cx="544" cy="190" r="3" class="pin"/><text x="534" y="194" text-anchor="end">GND</text>
+    <circle cx="544" cy="230" r="3" class="pin"/><text x="534" y="234" text-anchor="end">3V3</text>
+    <circle cx="544" cy="270" r="3" class="pin"/><text x="534" y="274" text-anchor="end">D10</text>
+    <circle cx="544" cy="310" r="3" class="pin"/><text x="534" y="314" text-anchor="end">D9</text>
+    <circle cx="544" cy="350" r="3" class="pin"/><text x="534" y="354" text-anchor="end">D8</text>
+    <circle cx="544" cy="390" r="3" class="pin"/><text x="534" y="394" text-anchor="end" class="t-muted">D7</text>
+  </g>
+  <!-- battery pads (underside) -->
+  <rect x="465" y="405" width="10" height="10" class="pin"/>
+  <rect x="495" y="405" width="10" height="10" class="pin" style="fill:#4f5c55"/>
+
+  <!-- ===== Left: arcade switch on D1 ===== -->
+  <path d="M400 190 H312" class="sig"/>
+  <circle cx="309" cy="190" r="3" class="sym"/><circle cx="266" cy="190" r="3" class="sym"/>
+  <path d="M260 178 H315 M287.5 178 V168 M280 168 H295" class="sym"/>
+  <path d="M263 190 H228 V197" class="gnd"/>
+  <path d="M219 197 H237 M222.5 201 H233.5 M226 205 H230" class="gnd"/>
+  <text x="212" y="186" text-anchor="end" class="t-title">Arcade button</text>
+  <text x="212" y="200" text-anchor="end" class="t-small t-muted">switch, wake-from-sleep</text>
+
+  <!-- ===== Left: buzzer on D2 ===== -->
+  <path d="M400 230 H303" class="sig"/>
+  <circle cx="290" cy="230" r="13" class="sym"/>
+  <path d="M283 224 V236 M290 221 V239 M297 224 V236" class="sym" style="stroke-width:1.2"/>
+  <text x="309" y="222" class="t-small" style="fill:#1d6b58">+</text>
+  <path d="M277 230 H228 V237" class="gnd"/>
+  <path d="M219 237 H237 M222.5 241 H233.5 M226 245 H230" class="gnd"/>
+  <text x="212" y="226" text-anchor="end" class="t-title">Piezo buzzer</text>
+  <text x="212" y="240" text-anchor="end" class="t-small t-muted">passive, PWM driven</text>
+
+  <!-- ===== Left: arcade LED on D3 ===== -->
+  <path d="M400 270 H318" class="sig"/>
+  <path d="M318 260 V280 L298 270 Z" class="sym" style="fill:#fbfcfa"/>
+  <path d="M298 260 V280" class="sym"/>
+  <path d="M305 257 L313 249 M310 250 L313 249 L312 252 M312 260 L320 252 M317 253 L320 252 L319 255" class="sym" style="stroke-width:1.2"/>
+  <path d="M298 270 H228 V277" class="gnd"/>
+  <path d="M219 277 H237 M222.5 281 H233.5 M226 285 H230" class="gnd"/>
+  <text x="212" y="266" text-anchor="end" class="t-title">Arcade button</text>
+  <text x="212" y="280" text-anchor="end" class="t-small t-muted">built-in LED (5 V type)</text>
+  <!-- bracket showing switch + LED are one part -->
+  <path d="M248 172 H244 V286 H248" class="sym dash" style="stroke:#7b8780;stroke-width:1.2"/>
+
+  <!-- ===== Left: OLED ===== -->
+  <rect x="150" y="298" width="140" height="80" rx="4" class="box"/>
+  <text x="214" y="332" text-anchor="middle" class="t-title">SH1106 OLED</text>
+  <text x="210" y="346" text-anchor="middle" class="t-small t-muted">128×64 · I²C 0x3C</text>
+  <circle cx="290" cy="310" r="3" class="pin"/><text x="284" y="314" text-anchor="end" class="t-small">SDA</text>
+  <circle cx="290" cy="350" r="3" class="pin"/><text x="284" y="354" text-anchor="end" class="t-small">SCL</text>
+  <circle cx="150" cy="318" r="3" class="pin"/><text x="156" y="322" class="t-small">VCC</text>
+  <circle cx="150" cy="362" r="3" class="pin"/><text x="156" y="366" class="t-small">GND</text>
+  <path d="M290 310 H400" class="sig"/>
+  <path d="M290 350 H400" class="sig"/>
+  <path d="M150 318 H118" class="pwr"/>
+  <polygon points="118,310 84,310 76,318 84,326 118,326" class="flag"/><text x="99" y="322" text-anchor="middle" class="flag-t">3V3</text>
+  <path d="M150 362 H118 V369" class="gnd"/>
+  <path d="M109 369 H127 M112.5 373 H123.5 M116 377 H120" class="gnd"/>
+
+  <!-- ===== Right: GND, 3V3 ===== -->
+  <path d="M544 190 H600 V197" class="gnd"/>
+  <path d="M591 197 H609 M594.5 201 H605.5 M598 205 H602" class="gnd"/>
+  <path d="M544 230 H596" class="pwr"/>
+  <polygon points="596,222 630,222 638,230 630,238 596,238" class="flag"/><text x="615" y="234" text-anchor="middle" class="flag-t">3V3</text>
+  <text x="560" y="146" class="t-small t-muted">not used</text>
+
+  <!-- ===== Right: encoder ===== -->
+  <rect x="690" y="252" width="150" height="182" rx="4" class="box"/>
+  <text x="765" y="244" text-anchor="middle" class="t-title">EC11 rotary encoder</text>
+  <circle cx="690" cy="270" r="3" class="pin"/><text x="698" y="274" class="t-small">CLK  (A)</text>
+  <circle cx="690" cy="310" r="3" class="pin"/><text x="698" y="314" class="t-small">SW   (push)</text>
+  <circle cx="690" cy="350" r="3" class="pin"/><text x="698" y="354" class="t-small">DT   (B)</text>
+  <circle cx="690" cy="386" r="3" class="pin"/><text x="698" y="384" class="t-small">GND</text>
+  <text x="698" y="396" class="t-small t-muted">C + switch common</text>
+  <circle cx="690" cy="418" r="3" class="pin" style="fill:#7b8780"/><text x="698" y="422" class="t-small t-muted">+  breakout only</text>
+  <path d="M544 270 H690" class="sig"/>
+  <path d="M544 310 H690" class="sig"/>
+  <path d="M544 350 H690" class="sig"/>
+  <path d="M690 386 H662 V393" class="gnd"/>
+  <path d="M653 393 H671 M656.5 397 H667.5 M660 401 H664" class="gnd"/>
+  <path d="M690 418 H646" class="pwr dash"/>
+  <polygon points="646,410 612,410 604,418 612,426 646,426" class="flag" style="stroke-dasharray:4 3"/><text x="627" y="422" text-anchor="middle" class="flag-t">3V3</text>
+
+  <!-- ===== Bottom: power path ===== -->
+  <text x="458" y="432" text-anchor="end" class="t-small" style="fill:#b93d27">BAT+</text>
+  <text x="512" y="432" class="t-small" style="fill:#4f5c55">BAT−</text>
+  <text x="512" y="445" class="t-small t-muted">pads on underside</text>
+
+  <!-- LiPo -->
+  <path d="M110 500 V522" class="pwr"/>
+  <path d="M94 522 H126" class="sym"/>
+  <path d="M102 531 H118" class="sym" style="stroke-width:3.5"/>
+  <path d="M110 531 V560" class="gnd"/>
+  <text x="130" y="518" class="t-small" style="fill:#b93d27">+</text>
+  <text x="86" y="524" text-anchor="end" class="t-title">LiPo</text>
+  <text x="86" y="538" text-anchor="end" class="t-small t-muted">3.7 V cell</text>
+  <path d="M110 500 H220" class="pwr"/>
+  <path d="M110 560 H220" class="gnd"/>
+
+  <!-- TP4056 -->
+  <rect x="220" y="480" width="140" height="100" rx="4" class="box"/>
+  <rect x="275" y="472" width="30" height="10" rx="2" class="box"/>
+  <text x="290" y="466" text-anchor="middle" class="t-small t-muted">USB-C (charge)</text>
+  <text x="290" y="526" text-anchor="middle" class="t-title">TP4056</text>
+  <text x="290" y="541" text-anchor="middle" class="t-small t-muted">charger module</text>
+  <circle cx="220" cy="500" r="3" class="pin"/><text x="226" y="504" class="t-small">B+</text>
+  <circle cx="220" cy="560" r="3" class="pin"/><text x="226" y="564" class="t-small">B−</text>
+  <circle cx="360" cy="500" r="3" class="pin"/><text x="354" y="504" text-anchor="end" class="t-small">OUT+</text>
+  <circle cx="360" cy="560" r="3" class="pin"/><text x="354" y="564" text-anchor="end" class="t-small">OUT−</text>
+
+  <!-- power switch -->
+  <path d="M360 500 H397" class="pwr"/>
+  <circle cx="400" cy="500" r="3" class="sym"/><circle cx="440" cy="500" r="3" class="sym"/>
+  <path d="M402 498 L436 484" class="sym"/>
+  <text x="420" y="526" text-anchor="middle" class="t-title">Power switch</text>
+  <text x="420" y="540" text-anchor="middle" class="t-small t-muted">hard off</text>
+  <path d="M443 500 H470 V415" class="pwr"/>
+  <path d="M360 560 H500 V415" class="gnd"/>
+
+  <text x="560" y="520" class="t-small t-muted">Switch off: device is fully off,</text>
+  <text x="560" y="534" class="t-small t-muted">but TP4056 still charges the cell.</text>
+  <text x="560" y="556" class="t-small t-muted">BAT− is the same net as GND.</text>
+</svg>

@@ -24,7 +24,7 @@ time** — read only what that task points you to, implement it, verify it, stop
 | `TigerTimer_FSD.md` | The Functional Specification Document — *what* the system does and *why*, in prose. Useful for understanding intent and verifying a change is behaviorally correct, not just "makes the code compile." | Read only the section(s) your current task cites. |
 | `TigerTimer_DevPlan.md` | The project broken into ~14 phases and ~45 small tasks, each with a Definition of Done and a pointer to its FSD section(s). | This is where you find out what to do next. See "Working procedure" below. |
 | `TigerTimer_LayoutReference.md` + `renders/*.png` | The six reusable on-screen layout patterns, with real coordinates and one rendered mockup per pattern. | Only needed as a *quick orientation* before diving into a screen's draw function in the source — the source itself is more precise, this is for getting your bearings faster. |
-| `assets/*` | The boot-splash bitmaps (already embedded as byte arrays in `tiger_timer.ino` too - the PNGs are just for quick visual reference) and the custom font header. | Rarely needed directly, since the same data already exists in the source you're editing. |
+| `assets/*` | The boot-splash bitmaps (already embedded as byte arrays in `tiger_timer.ino` too - the PNGs are just for quick visual reference) the custom font header, and `wiring_diagram.svg` (the hardware schematic from FSD §2.7). | Rarely needed directly, since the same data already exists in the source you're editing. |
 
 ## How these relate, with source code available
 

@@ -30,6 +30,7 @@ written to make that distinction clear (see "What this spec does and doesn't gua
 | `renders/*.png` | Rendered mockup images, one per layout pattern. | Open the one matching your task's pattern as a visual target while implementing it. |
 | `assets/tiger_logo_80x53.png`, `assets/word_TIGER_40x8.png`, `assets/word_TIMER_40x8.png` | Pixel-exact images of the boot-splash graphics. | Only for the boot-splash task. You will need to re-encode these into your own bitmap byte-array format for whatever display library you use — see that task's notes in the dev plan. |
 | `assets/press_start_2p_font.h` | The actual custom pixel font, already in Adafruit_GFX's native bitmap-font format. | Use this file directly if you're targeting Adafruit_GFX (the FSD's documented display library). Don't try to redraw or reinterpret its glyphs by eye. |
+| `assets/wiring_diagram.svg` | Schematic of the hardware wiring (FSD §2.7). | Use when building or checking the physical box; the pin map in FSD §2 is the authoritative text version. |
 
 ## How these relate to each other
 
