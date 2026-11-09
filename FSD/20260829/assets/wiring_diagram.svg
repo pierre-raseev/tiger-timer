@@ -7,6 +7,7 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
 .sig{stroke:#1d6b58;stroke-width:2;fill:none} .pwr{stroke:#b93d27;stroke-width:2;fill:none}
 .gnd{stroke:#4f5c55;stroke-width:2;fill:none} .sym{stroke:#1c2420;stroke-width:1.8;fill:none}
 .dash{stroke-dasharray:5 4} .pin{fill:#1c2420} .flag{fill:#fbfcfa;stroke:#b93d27;stroke-width:1.5}
+.case{stroke:#2a302c;stroke-width:4.8;fill:none;stroke-linecap:round} .w-red{stroke:#d42a1e;stroke-width:2.6;fill:none;stroke-linecap:round} .w-black{stroke:#141414;stroke-width:2.6;fill:none;stroke-linecap:round} .w-white{stroke:#ffffff;stroke-width:2.6;fill:none;stroke-linecap:round} .w-purple{stroke:#8a3fc0;stroke-width:2.6;fill:none;stroke-linecap:round} .w-orange{stroke:#f07c14;stroke-width:2.6;fill:none;stroke-linecap:round} .w-blue{stroke:#2563c9;stroke-width:2.6;fill:none;stroke-linecap:round} .w-yellow{stroke:#f5c400;stroke-width:2.6;fill:none;stroke-linecap:round} .w-green{stroke:#2e9e44;stroke-width:2.6;fill:none;stroke-linecap:round} .w-grey{stroke:#8d9490;stroke-width:2.6;fill:none;stroke-linecap:round} .w-brown{stroke:#7a4a22;stroke-width:2.6;fill:none;stroke-linecap:round} 
 .flag-t{fill:#b93d27;font-size:10px;font-weight:600}
 </style>
 <rect width="880" height="620" fill="#fbfcfa"/>
@@ -42,31 +43,31 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <rect x="495" y="405" width="10" height="10" class="pin" style="fill:#4f5c55"/>
 
   <!-- ===== Left: arcade switch on D1 ===== -->
-  <path d="M400 190 H312" class="sig"/>
+  <path d="M400 190 H312" class="case"/><path d="M400 190 H312" class="w-white"/>
   <circle cx="309" cy="190" r="3" class="sym"/><circle cx="266" cy="190" r="3" class="sym"/>
   <path d="M260 178 H315 M287.5 178 V168 M280 168 H295" class="sym"/>
-  <path d="M263 190 H228 V197" class="gnd"/>
-  <path d="M219 197 H237 M222.5 201 H233.5 M226 205 H230" class="gnd"/>
+  <path d="M263 190 H228 V197" class="case"/><path d="M263 190 H228 V197" class="w-black"/>
+  <path d="M219 197 H237 M222.5 201 H233.5 M226 205 H230" class="sym"/>
   <text x="212" y="186" text-anchor="end" class="t-title">Arcade button</text>
   <text x="212" y="200" text-anchor="end" class="t-small t-muted">switch, wake-from-sleep</text>
 
   <!-- ===== Left: buzzer on D2 ===== -->
-  <path d="M400 230 H303" class="sig"/>
+  <path d="M400 230 H303" class="case"/><path d="M400 230 H303" class="w-purple"/>
   <circle cx="290" cy="230" r="13" class="sym"/>
   <path d="M283 224 V236 M290 221 V239 M297 224 V236" class="sym" style="stroke-width:1.2"/>
   <text x="309" y="222" class="t-small" style="fill:#1d6b58">+</text>
-  <path d="M277 230 H228 V237" class="gnd"/>
-  <path d="M219 237 H237 M222.5 241 H233.5 M226 245 H230" class="gnd"/>
+  <path d="M277 230 H228 V237" class="case"/><path d="M277 230 H228 V237" class="w-black"/>
+  <path d="M219 237 H237 M222.5 241 H233.5 M226 245 H230" class="sym"/>
   <text x="212" y="226" text-anchor="end" class="t-title">Piezo buzzer</text>
   <text x="212" y="240" text-anchor="end" class="t-small t-muted">passive, PWM driven</text>
 
   <!-- ===== Left: arcade LED on D3 ===== -->
-  <path d="M400 270 H318" class="sig"/>
+  <path d="M400 270 H318" class="case"/><path d="M400 270 H318" class="w-orange"/>
   <path d="M318 260 V280 L298 270 Z" class="sym" style="fill:#fbfcfa"/>
   <path d="M298 260 V280" class="sym"/>
   <path d="M305 257 L313 249 M310 250 L313 249 L312 252 M312 260 L320 252 M317 253 L320 252 L319 255" class="sym" style="stroke-width:1.2"/>
-  <path d="M298 270 H228 V277" class="gnd"/>
-  <path d="M219 277 H237 M222.5 281 H233.5 M226 285 H230" class="gnd"/>
+  <path d="M298 270 H228 V277" class="case"/><path d="M298 270 H228 V277" class="w-black"/>
+  <path d="M219 277 H237 M222.5 281 H233.5 M226 285 H230" class="sym"/>
   <text x="212" y="266" text-anchor="end" class="t-title">Arcade button</text>
   <text x="212" y="280" text-anchor="end" class="t-small t-muted">built-in LED (5 V type)</text>
   <!-- bracket showing switch + LED are one part -->
@@ -80,17 +81,17 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <circle cx="290" cy="350" r="3" class="pin"/><text x="284" y="354" text-anchor="end" class="t-small">SCL</text>
   <circle cx="150" cy="318" r="3" class="pin"/><text x="156" y="322" class="t-small">VCC</text>
   <circle cx="150" cy="362" r="3" class="pin"/><text x="156" y="366" class="t-small">GND</text>
-  <path d="M290 310 H400" class="sig"/>
-  <path d="M290 350 H400" class="sig"/>
-  <path d="M150 318 H118" class="pwr"/>
+  <path d="M290 310 H400" class="case"/><path d="M290 310 H400" class="w-blue"/>
+  <path d="M290 350 H400" class="case"/><path d="M290 350 H400" class="w-yellow"/>
+  <path d="M150 318 H118" class="case"/><path d="M150 318 H118" class="w-red"/>
   <polygon points="118,310 84,310 76,318 84,326 118,326" class="flag"/><text x="99" y="322" text-anchor="middle" class="flag-t">3V3</text>
-  <path d="M150 362 H118 V369" class="gnd"/>
-  <path d="M109 369 H127 M112.5 373 H123.5 M116 377 H120" class="gnd"/>
+  <path d="M150 362 H118 V369" class="case"/><path d="M150 362 H118 V369" class="w-black"/>
+  <path d="M109 369 H127 M112.5 373 H123.5 M116 377 H120" class="sym"/>
 
   <!-- ===== Right: GND, 3V3 ===== -->
-  <path d="M544 190 H600 V197" class="gnd"/>
-  <path d="M591 197 H609 M594.5 201 H605.5 M598 205 H602" class="gnd"/>
-  <path d="M544 230 H596" class="pwr"/>
+  <path d="M544 190 H600 V197" class="case"/><path d="M544 190 H600 V197" class="w-black"/>
+  <path d="M591 197 H609 M594.5 201 H605.5 M598 205 H602" class="sym"/>
+  <path d="M544 230 H596" class="case"/><path d="M544 230 H596" class="w-red"/>
   <polygon points="596,222 630,222 638,230 630,238 596,238" class="flag"/><text x="615" y="234" text-anchor="middle" class="flag-t">3V3</text>
   <text x="560" y="146" class="t-small t-muted">not used</text>
 
@@ -103,12 +104,12 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <circle cx="690" cy="386" r="3" class="pin"/><text x="698" y="384" class="t-small">GND</text>
   <text x="698" y="396" class="t-small t-muted">C + switch common</text>
   <circle cx="690" cy="418" r="3" class="pin" style="fill:#7b8780"/><text x="698" y="422" class="t-small t-muted">+  breakout only</text>
-  <path d="M544 270 H690" class="sig"/>
-  <path d="M544 310 H690" class="sig"/>
-  <path d="M544 350 H690" class="sig"/>
-  <path d="M690 386 H662 V393" class="gnd"/>
-  <path d="M653 393 H671 M656.5 397 H667.5 M660 401 H664" class="gnd"/>
-  <path d="M690 418 H646" class="pwr dash"/>
+  <path d="M544 270 H690" class="case"/><path d="M544 270 H690" class="w-green"/>
+  <path d="M544 310 H690" class="case"/><path d="M544 310 H690" class="w-grey"/>
+  <path d="M544 350 H690" class="case"/><path d="M544 350 H690" class="w-brown"/>
+  <path d="M690 386 H662 V393" class="case"/><path d="M690 386 H662 V393" class="w-black"/>
+  <path d="M653 393 H671 M656.5 397 H667.5 M660 401 H664" class="sym"/>
+  <path d="M690 418 H646" class="case dash"/><path d="M690 418 H646" class="w-red dash"/>
   <polygon points="646,410 612,410 604,418 612,426 646,426" class="flag" style="stroke-dasharray:4 3"/><text x="627" y="422" text-anchor="middle" class="flag-t">3V3</text>
 
   <!-- ===== Bottom: power path ===== -->
@@ -117,10 +118,10 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <text x="512" y="445" class="t-small t-muted">pads on underside</text>
 
   <!-- LiPo, wired straight to the XIAO's BAT pads (no separate charger) -->
-  <path d="M330 522 V500 H397" class="pwr"/>
+  <path d="M330 522 V500 H397" class="case"/><path d="M330 522 V500 H397" class="w-red"/>
   <path d="M314 522 H346" class="sym"/>
   <path d="M322 531 H338" class="sym" style="stroke-width:3.5"/>
-  <path d="M330 531 V560 H500 V415" class="gnd"/>
+  <path d="M330 531 V560 H500 V415" class="case"/><path d="M330 531 V560 H500 V415" class="w-black"/>
   <text x="350" y="518" class="t-small" style="fill:#b93d27">+</text>
   <text x="304" y="524" text-anchor="end" class="t-title">LiPo</text>
   <text x="304" y="538" text-anchor="end" class="t-small t-muted">3.7 V cell</text>
@@ -130,7 +131,7 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <path d="M402 498 L436 484" class="sym"/>
   <text x="420" y="526" text-anchor="middle" class="t-title">Power switch</text>
   <text x="420" y="540" text-anchor="middle" class="t-small t-muted">hard off</text>
-  <path d="M443 500 H470 V415" class="pwr"/>
+  <path d="M443 500 H470 V415" class="case"/><path d="M443 500 H470 V415" class="w-red"/>
 
   <text x="560" y="492" class="t-small t-muted">Charged by the XIAO's on-board</text>
   <text x="560" y="506" class="t-small t-muted">charger, through its USB-C.</text>

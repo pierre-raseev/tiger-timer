@@ -140,23 +140,26 @@ and persisted across power cycles.
 straight to the XIAO. No external resistors are needed: the arcade switch, the encoder and the
 wake pin all use the chip's internal pull-ups.
 
-| Part | Part pin | XIAO | Notes |
-|---|---|---|---|
-| Arcade button | Switch | `D1` | Other leg to GND. `INPUT_PULLUP`, LOW = pressed. Also the deep-sleep wake pin (§2.6). |
-| | LED + | `D3` | LED − to GND. Driven directly by the GPIO. |
-| Piezo buzzer | + | `D2` | − to GND. Must be passive (§2.5). |
-| SH1106 OLED | SDA / SCL | `D4` / `D5` | I2C address `0x3C`. |
-| | VCC / GND | 3V3 / GND | Not the 5V pin, which only carries USB power. |
-| EC11 encoder | CLK (A) / DT (B) | `D10` / `D8` | Both trigger the quadrature interrupt (§2.4). |
-| | SW | `D9` | `INPUT_PULLUP`, LOW = pressed. |
-| | C / switch common | GND | On a bare EC11 the middle pin C and one switch leg both go to GND. |
-| | + (breakout boards only) | 3V3 | Only if the breakout has its own pull-ups. Never 5V. |
-| LiPo 3.7 V | + | `BAT +` pad | Through the physical power switch. Pad on the underside, marked "+". |
-| | − | `BAT −` pad | Pad on the underside, marked "−". Same net as GND. |
+| Part | Part pin | XIAO | Wire | Notes |
+|---|---|---|---|---|
+| Arcade button | Switch | `D1` | white | Other leg to GND. `INPUT_PULLUP`, LOW = pressed. Also the deep-sleep wake pin (§2.6). |
+| | LED + | `D3` | orange | LED − to GND. Driven directly by the GPIO. |
+| Piezo buzzer | + | `D2` | purple | − to GND. Must be passive (§2.5). |
+| SH1106 OLED | SDA / SCL | `D4` / `D5` | blue / yellow | I2C address `0x3C`. |
+| | VCC / GND | 3V3 / GND | red / black | Not the 5V pin, which only carries USB power. |
+| EC11 encoder | CLK (A) / DT (B) | `D10` / `D8` | green / brown | Both trigger the quadrature interrupt (§2.4). |
+| | SW | `D9` | grey | `INPUT_PULLUP`, LOW = pressed. |
+| | C / switch common | GND | black | On a bare EC11 the middle pin C and one switch leg both go to GND. |
+| | + (breakout boards only) | 3V3 | red | Only if the breakout has its own pull-ups. Never 5V. |
+| LiPo 3.7 V | + | `BAT +` pad | red | Through the physical power switch. Pad on the underside, marked "+". |
+| | − | `BAT −` pad | black | Pad on the underside, marked "−". Same net as GND. |
 
 - **Arcade LED brightness:** arcade LEDs rated 5 V have a resistor built in, so `D3` drives them
   directly; at 3.3 V they glow a little dimmer. A bare LED without its own resistor needs about
   100 Ω in series.
+- **Cable colours:** red for every positive supply (battery + and 3V3), black for every
+  ground, and one colour per signal as listed above (SDA blue / SCL yellow follows the usual
+  I2C convention). The ground legs of the arcade switch, its LED and the buzzer are black too.
 - **Free pins:** `D0`, `D6` and `D7` are unused.
 - **Power:** the battery goes straight to the `BAT` pads, with the power switch in the + lead.
   Check polarity before soldering: reversing + and − on these pads can destroy the board. Use a
