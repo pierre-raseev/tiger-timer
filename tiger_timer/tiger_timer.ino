@@ -14,8 +14,8 @@
 
   --- Quick wiring reference (see FSD Sec.2 for the authoritative version) ---
     Arcade button switch   -> D1 + GND   (INPUT_PULLUP, LOW = pressed)
-    Arcade button LED (5V) -> D3 + GND   (direct GPIO drive, no boost needed)
-    Buzzer (passive piezo) -> D2 + GND   (PWM-driven via LEDC, see playNote())
+    Arcade button LED (5V) -> D2 + GND   (direct GPIO drive, no boost needed)
+    Buzzer (passive piezo) -> D3 + GND   (PWM-driven via LEDC, see playNote())
     OLED + EC11 encoder: one combined module (1.3" SH1106 128x64, I2C addr 0x3C),
       header CON SDA SCL PSH TRA TRB BAK GND VCC
       SDA->D4  SCL->D5  TRA(CLK)->D10  TRB(DT)->D8  PSH(SW)->D9  VCC->3V3  GND->GND
@@ -123,8 +123,8 @@
 
 // ---- Pins ----
 const int BUTTON_PIN   = D1;
-const int BUTTON_LED   = D3;
-const int BUZZER_PIN    = D2;
+const int BUTTON_LED   = D2;
+const int BUZZER_PIN    = D3;
 const int ENCODER_CLK  = D10;
 const int ENCODER_DT   = D8;
 const int ENCODER_SW   = D9;

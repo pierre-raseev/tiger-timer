@@ -57,7 +57,7 @@ and persisted across power cycles.
 ### 2.3 Input: Arcade Button
 - A large illuminated arcade-style push button.
 - Switch: `D1` → GND, wired `INPUT_PULLUP` (electrically LOW = pressed).
-- Built-in LED: 5V, driven directly from a GPIO with no boost circuitry needed → `D3` (+GND).
+- Built-in LED: 5V, driven directly from a GPIO with no boost circuitry needed → `D2` (+GND).
   The LED is used as a persistent state indicator across nearly every game (see per-game specs).
 - Debounced in software (~a few ms) before any action fires.
 - The exact instant of each press is timestamped (`buttonPressStart`), not just used for
@@ -88,7 +88,7 @@ and persisted across power cycles.
 
 ### 2.5 Audio
 - A passive piezo buzzer (not an active/self-oscillating buzzer — it must be frequency-driven).
-- Wired to `D2` (+ GND).
+- Wired to `D3` (+ GND).
 - Driven via the ESP32's LEDC PWM peripheral: `ledcAttach(pin, 2000, bits)` once at boot, then
   `ledcWriteTone(pin, frequency)` to set a tone's pitch and `ledcWrite(pin, duty)` to set its
   loudness (volume-dependent duty cycle, see below).
@@ -154,9 +154,9 @@ in its printed order, with the wire colour for each pin.
 | Part | Part pin | XIAO | Wire | Notes |
 |---|---|---|---|---|
 | Arcade button | Switch | `D1` | white | `INPUT_PULLUP`, LOW = pressed. Also the deep-sleep wake pin (§2.6). |
-| | LED + | `D3` | orange | Driven directly by the GPIO. |
-| | Switch leg + LED − | GND | black | Joined at the button into one ground lead (J3 pin 2). |
-| Piezo buzzer | + | `D2` | purple | − to GND. Must be passive (§2.5). |
+| | LED + | `D2` | orange | Driven directly by the GPIO. |
+| | Switch leg + LED − | GND | black | Joined at the button into one ground lead (J3 pin 3). |
+| Piezo buzzer | + | `D3` | purple | − to GND. Must be passive (§2.5). |
 | OLED + encoder module | SDA / SCL | `D4` / `D5` | blue / yellow | I2C address `0x3C`. |
 | | TRA / TRB | `D10` / `D8` | green / brown | Encoder A / B (CLK / DT in the firmware). Swap them if turning feels reversed. |
 | | PSH | `D9` | grey | Encoder push. `INPUT_PULLUP`, LOW = pressed. |
@@ -172,8 +172,8 @@ half is on the part's side, the shaded half on the XIAO's side, and pin 1 is at 
 |---|---|---|---|---|---|---|---|
 | J1 | LiPo ↔ power switch | 2 | + (red) | − (black) | | | |
 | J2 | Power switch ↔ XIAO `BAT` pads | 2 | + switched (red) | − (black) | | | |
-| J3 | Arcade button ↔ XIAO | 3 | switch `D1` (white) | GND (black) | LED `D3` (orange) | | |
-| J4 | Buzzer ↔ XIAO | 2 | + `D2` (purple) | − GND (black) | | | |
+| J3 | Arcade button ↔ XIAO | 3 | switch `D1` (white) | LED `D2` (orange) | GND (black) | | |
+| J4 | Buzzer ↔ XIAO | 2 | + `D3` (purple) | − GND (black) | | | |
 | J5 | Module power ↔ XIAO | 2 | GND (black) | VCC 3V3 (red) | | | |
 | J6 | Module signals ↔ XIAO | 5 | TRA `D10` (green) | PSH `D9` (grey) | TRB `D8` (brown) | SCL `D5` (yellow) | SDA `D4` (blue) |
 
@@ -183,7 +183,7 @@ The different pin counts stop most mix-ups, but J1, J2, J4 and J5 are all 2-pin.
 keep each lead too short to reach the wrong socket: a battery lead plugged into a 2-pin socket
 meant for something else can short the cell or reverse its polarity.
 
-- **Arcade LED brightness:** arcade LEDs rated 5 V have a resistor built in, so `D3` drives them
+- **Arcade LED brightness:** arcade LEDs rated 5 V have a resistor built in, so `D2` drives them
   directly; at 3.3 V they glow a little dimmer. A bare LED without its own resistor needs about
   100 Ω in series.
 - **Cable colours:** red for every positive supply (battery + and 3V3), black for every

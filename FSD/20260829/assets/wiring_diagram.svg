@@ -33,35 +33,35 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <rect x="465" y="405" width="10" height="10" class="pin"/>
   <rect x="495" y="405" width="10" height="10" class="pin" style="fill:#4f5c55"/>
   <path d="M400 190 H222" class="case"/><path d="M400 190 H222" class="w-white"/>
-  <path d="M400 270 H230" class="case"/><path d="M400 270 H230" class="w-orange"/>
-  <path d="M186 190 H172 V270 H210" class="case"/><path d="M186 190 H172 V270 H210" class="w-black"/>
-  <path d="M172 230 H274 V238" class="case"/><path d="M172 230 H274 V238" class="w-black"/>
-  <path d="M265 238 H283 M268.5 242 H279.5 M272 246 H276" class="sym"/>
+  <path d="M400 230 H230" class="case"/><path d="M400 230 H230" class="w-orange"/>
+  <path d="M186 190 H172 V254 H274 V262" class="case"/><path d="M186 190 H172 V254 H274 V262" class="w-black"/>
+  <path d="M210 230 H172" class="case"/><path d="M210 230 H172" class="w-black"/>
+  <path d="M265 262 H283 M268.5 266 H279.5 M272 270 H276" class="sym"/>
   <circle cx="172" cy="230" r="3.4" class="pin"/>
   <circle cx="219" cy="190" r="3" class="sym" style="fill:#fbfcfa"/><circle cx="189" cy="190" r="3" class="sym" style="fill:#fbfcfa"/>
   <path d="M183 178 H225 M204 178 V168 M197 168 H211" class="sym"/>
-  <path d="M230 260 V280 L210 270 Z" class="sym" style="fill:#fbfcfa"/>
-  <path d="M210 260 V280" class="sym"/>
-  <path d="M215 257 L223 249 M220 250 L223 249 L222 252 M222 260 L230 252 M227 253 L230 252 L229 255" class="sym" style="stroke-width:1.2"/>
-  <rect x="162" y="160" width="74" height="126" rx="4" class="sym dash" style="stroke:#7b8780;stroke-width:1.2"/>
-  <text x="152" y="222" text-anchor="end" class="t-title">Arcade button</text>
-  <text x="152" y="236" text-anchor="end" class="t-small t-muted">switch + LED</text>
-  <text x="152" y="250" text-anchor="end" class="t-small t-muted">(5 V LED type)</text>
-  <rect x="238" y="181" width="14" height="98" rx="2" class="box"/><rect x="252" y="181" width="14" height="98" rx="2" class="jx"/>
+  <path d="M230 220 V240 L210 230 Z" class="sym" style="fill:#fbfcfa"/>
+  <path d="M210 220 V240" class="sym"/>
+  <path d="M215 217 L223 209 M220 210 L223 209 L222 212 M222 220 L230 212 M227 213 L230 212 L229 215" class="sym" style="stroke-width:1.2"/>
+  <rect x="162" y="160" width="74" height="110" rx="4" class="sym dash" style="stroke:#7b8780;stroke-width:1.2"/>
+  <text x="152" y="208" text-anchor="end" class="t-title">Arcade button</text>
+  <text x="152" y="222" text-anchor="end" class="t-small t-muted">switch + LED</text>
+  <text x="152" y="236" text-anchor="end" class="t-small t-muted">(5 V LED type)</text>
+  <rect x="238" y="181" width="14" height="82" rx="2" class="box"/><rect x="252" y="181" width="14" height="82" rx="2" class="jx"/>
   <text x="259" y="193" text-anchor="middle" class="jn">1</text>
   <text x="259" y="233" text-anchor="middle" class="jn">2</text>
-  <text x="259" y="273" text-anchor="middle" class="jn">3</text>
-  <text x="252" y="300" text-anchor="middle" class="jl">J3 · XH 3P</text>
-  <path d="M400 230 H316" class="case"/><path d="M400 230 H316" class="w-purple"/>
-  <path d="M316 246 H362 V252" class="case"/><path d="M316 246 H362 V252" class="w-black"/>
-  <path d="M353 252 H371 M356.5 256 H367.5 M360 260 H364" class="sym"/>
-  <circle cx="306" cy="238" r="13" class="sym" style="fill:#fbfcfa"/>
-  <path d="M300 232 V244 M306 229 V247 M312 232 V244" class="sym" style="stroke-width:1.2"/>
-  <text x="294" y="218" text-anchor="middle" class="t-title">Buzzer</text>
-  <rect x="328" y="221" width="14" height="34" rx="2" class="box"/><rect x="342" y="221" width="14" height="34" rx="2" class="jx"/>
-  <text x="349" y="233" text-anchor="middle" class="jn">1</text>
-  <text x="349" y="249" text-anchor="middle" class="jn">2</text>
-  <text x="346" y="204" text-anchor="middle" class="jl">J4 · XH 2P</text>
+  <text x="259" y="257" text-anchor="middle" class="jn">3</text>
+  <text x="206" y="288" text-anchor="middle" class="jl">J3 · XH 3P</text>
+  <path d="M400 270 H316" class="case"/><path d="M400 270 H316" class="w-purple"/>
+  <path d="M316 286 H362 V292" class="case"/><path d="M316 286 H362 V292" class="w-black"/>
+  <path d="M353 292 H371 M356.5 296 H367.5 M360 300 H364" class="sym"/>
+  <circle cx="306" cy="278" r="13" class="sym" style="fill:#fbfcfa"/>
+  <path d="M300 272 V284 M306 269 V287 M312 272 V284" class="sym" style="stroke-width:1.2"/>
+  <text x="306" y="303" text-anchor="middle" class="t-small" style="font-weight:600">Buzzer</text>
+  <rect x="328" y="261" width="14" height="34" rx="2" class="box"/><rect x="342" y="261" width="14" height="34" rx="2" class="jx"/>
+  <text x="349" y="273" text-anchor="middle" class="jn">1</text>
+  <text x="349" y="289" text-anchor="middle" class="jn">2</text>
+  <text x="372" y="258" text-anchor="middle" class="jl">J4 · XH 2P</text>
   <path d="M400 310 H40 V60 H880 V458 H640 V420 H690" class="case"/><path d="M400 310 H40 V60 H880 V458 H640 V420 H690" class="w-blue"/>
   <path d="M400 350 H28 V45 H892 V472 H626 V390 H690" class="case"/><path d="M400 350 H28 V45 H892 V472 H626 V390 H690" class="w-yellow"/>
   <path d="M544 190 H690" class="case"/><path d="M544 190 H690" class="w-black"/>
@@ -138,13 +138,13 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <text x="76" y="599" class="t-small">JST XH pair: plain half = part side,</text>
   <text x="76" y="611" class="t-small">shaded half = XIAO side. Pin 1 at the top.</text>
   <text x="356" y="185" text-anchor="middle" class="wl">white</text>
-  <text x="382" y="225" text-anchor="middle" class="wl">purple</text>
-  <text x="372" y="265" text-anchor="middle" class="wl">orange</text>
+  <text x="384" y="284" text-anchor="middle" class="wl">purple</text>
+  <text x="372" y="225" text-anchor="middle" class="wl">orange</text>
   <text x="180" y="305" text-anchor="middle" class="wl">blue</text>
   <text x="180" y="345" text-anchor="middle" class="wl">yellow</text>
   <text x="300" y="40" text-anchor="middle" class="wl">yellow</text>
   <text x="300" y="73" text-anchor="middle" class="wl">blue</text>
-  <text x="196" y="226" text-anchor="middle" class="wl">black</text>
+  <text x="196" y="249" text-anchor="middle" class="wl">black</text>
   <text x="594" y="185" text-anchor="middle" class="wl">black</text>
   <text x="594" y="225" text-anchor="middle" class="wl">red</text>
   <text x="594" y="265" text-anchor="middle" class="wl">green</text>
