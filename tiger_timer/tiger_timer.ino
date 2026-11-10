@@ -17,8 +17,8 @@
     Arcade button LED (5V) -> D2 + GND   (direct GPIO drive, no boost needed)
     Buzzer (passive piezo) -> D3 + GND   (PWM-driven via LEDC, see playNote())
     OLED + EC11 encoder: one combined module (1.3" SH1106 128x64, I2C addr 0x3C),
-      header CON SDA SCL PSH TRA TRB BAK GND VCC
-      SDA->D4  SCL->D5  TRA(CLK)->D10  TRB(DT)->D8  PSH(SW)->D9  VCC->3V3  GND->GND
+      header, seen from the back left to right: 3V3-5V GND BAK TRB TRA PUSH SCL SDA CONFIRM
+      SDA->D4  SCL->D5  TRA(CLK)->D10  TRB(DT)->D8  PUSH(SW)->D9  VCC->3V3  GND->GND
       (BAK/CON buttons not connected)
     Power: 3.7V LiPo on the XIAO's BAT pads, through a physical power switch.
     Charged by the XIAO's on-board charger via its USB-C (only while switched on).

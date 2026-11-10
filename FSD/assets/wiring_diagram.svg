@@ -62,51 +62,42 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <text x="349" y="273" text-anchor="middle" class="jn">1</text>
   <text x="349" y="289" text-anchor="middle" class="jn">2</text>
   <text x="372" y="258" text-anchor="middle" class="jl">J4 · XH 2P</text>
-  <path d="M400 310 H40 V60 H880 V458 H640 V420 H690" class="case"/><path d="M400 310 H40 V60 H880 V458 H640 V420 H690" class="w-blue"/>
-  <path d="M400 350 H28 V45 H892 V472 H626 V390 H690" class="case"/><path d="M400 350 H28 V45 H892 V472 H626 V390 H690" class="w-yellow"/>
-  <path d="M544 190 H690" class="case"/><path d="M544 190 H690" class="w-black"/>
-  <path d="M544 230 H690" class="case"/><path d="M544 230 H690" class="w-red"/>
-  <path d="M544 270 H690" class="case"/><path d="M544 270 H690" class="w-green"/>
-  <path d="M544 310 H690" class="case"/><path d="M544 310 H690" class="w-grey"/>
-  <path d="M544 350 H690" class="case"/><path d="M544 350 H690" class="w-brown"/>
-  <rect x="646" y="181" width="14" height="58" rx="2" class="box"/><rect x="660" y="181" width="14" height="58" rx="2" class="jx"/>
-  <text x="667" y="193" text-anchor="middle" class="jn">1</text>
-  <text x="667" y="233" text-anchor="middle" class="jn">2</text>
-  <text x="660" y="174" text-anchor="middle" class="jl">J5 · XH 2P</text>
-  <rect x="646" y="261" width="14" height="168" rx="2" class="box"/><rect x="660" y="261" width="14" height="168" rx="2" class="jx"/>
-  <text x="667" y="273" text-anchor="middle" class="jn">1</text>
-  <text x="667" y="313" text-anchor="middle" class="jn">2</text>
-  <text x="667" y="353" text-anchor="middle" class="jn">3</text>
-  <text x="667" y="393" text-anchor="middle" class="jn">4</text>
-  <text x="667" y="423" text-anchor="middle" class="jn">5</text>
-  <text x="660" y="255" text-anchor="middle" class="jl">J6 · XH 5P</text>
-  <rect x="690" y="100" width="180" height="340" rx="5" class="box"/>
-  <text x="780" y="88" text-anchor="middle" class="t-title">OLED + encoder module</text>
-  <rect x="784" y="110" width="76" height="58" rx="2" class="sym" style="fill:#1c2420"/>
-  <text x="822" y="136" text-anchor="middle" class="t-small" style="fill:#fbfcfa">SH1106 1.3″</text>
-  <text x="822" y="150" text-anchor="middle" class="t-small" style="fill:#fbfcfa">128×64</text>
-  <circle cx="824" cy="290" r="26" class="sym"/><circle cx="824" cy="290" r="19" class="sym" style="stroke-width:1"/>
-  <path d="M824 271 V281" class="sym"/>
-  <text x="824" y="332" text-anchor="middle" class="t-small t-muted">EC11 knob</text>
-  <circle cx="690" cy="122" r="3" class="pin" style="fill:#7b8780"/><text x="698" y="126" class="t-small t-muted">BAK</text><text x="726" y="126" class="t-small t-muted">not used</text>
-  <circle cx="690" cy="142" r="3" class="pin" style="fill:#7b8780"/><text x="698" y="146" class="t-small t-muted">CON</text><text x="726" y="146" class="t-small t-muted">not used</text>
-  <circle cx="690" cy="190" r="3" class="pin"/><text x="698" y="194" class="t-small">GND</text>
-  <circle cx="690" cy="230" r="3" class="pin"/><text x="698" y="234" class="t-small">VCC</text><text x="726" y="234" class="t-small t-muted">3.3 V only</text>
-  <circle cx="690" cy="270" r="3" class="pin"/><text x="698" y="274" class="t-small">TRA</text><text x="726" y="274" class="t-small t-muted">encoder A</text>
-  <circle cx="690" cy="310" r="3" class="pin"/><text x="698" y="314" class="t-small">PSH</text><text x="726" y="314" class="t-small t-muted">encoder push</text>
-  <circle cx="690" cy="350" r="3" class="pin"/><text x="698" y="354" class="t-small">TRB</text><text x="726" y="354" class="t-small t-muted">encoder B</text>
-  <circle cx="690" cy="390" r="3" class="pin"/><text x="698" y="394" class="t-small">SCL</text>
-  <circle cx="690" cy="420" r="3" class="pin"/><text x="698" y="424" class="t-small">SDA</text><text x="726" y="424" class="t-small t-muted">I²C 0x3C</text>
-  <text x="680" y="502" class="t-small t-muted">Header, left to right as printed</text>
-  <rect x="680" y="510" width="12" height="12" rx="2" style="fill:#fbfcfa;stroke:#7b8780;stroke-width:1.2;stroke-dasharray:2 2"/><text x="686" y="536" text-anchor="middle" class="t-small" style="font-size:8px">CON</text>
-  <rect x="701" y="510" width="12" height="12" rx="2" style="fill:#2563c9;stroke:#2a302c;stroke-width:1.5"/><text x="707" y="536" text-anchor="middle" class="t-small" style="font-size:8px">SDA</text>
-  <rect x="722" y="510" width="12" height="12" rx="2" style="fill:#f5c400;stroke:#2a302c;stroke-width:1.5"/><text x="728" y="536" text-anchor="middle" class="t-small" style="font-size:8px">SCL</text>
-  <rect x="743" y="510" width="12" height="12" rx="2" style="fill:#8d9490;stroke:#2a302c;stroke-width:1.5"/><text x="749" y="536" text-anchor="middle" class="t-small" style="font-size:8px">PSH</text>
-  <rect x="764" y="510" width="12" height="12" rx="2" style="fill:#2e9e44;stroke:#2a302c;stroke-width:1.5"/><text x="770" y="536" text-anchor="middle" class="t-small" style="font-size:8px">TRA</text>
-  <rect x="785" y="510" width="12" height="12" rx="2" style="fill:#7a4a22;stroke:#2a302c;stroke-width:1.5"/><text x="791" y="536" text-anchor="middle" class="t-small" style="font-size:8px">TRB</text>
-  <rect x="806" y="510" width="12" height="12" rx="2" style="fill:#fbfcfa;stroke:#7b8780;stroke-width:1.2;stroke-dasharray:2 2"/><text x="812" y="536" text-anchor="middle" class="t-small" style="font-size:8px">BAK</text>
-  <rect x="827" y="510" width="12" height="12" rx="2" style="fill:#141414;stroke:#2a302c;stroke-width:1.5"/><text x="833" y="536" text-anchor="middle" class="t-small" style="font-size:8px">GND</text>
-  <rect x="848" y="510" width="12" height="12" rx="2" style="fill:#d42a1e;stroke:#2a302c;stroke-width:1.5"/><text x="854" y="536" text-anchor="middle" class="t-small" style="font-size:8px">VCC</text>
+  <path d="M400 310 H40 V60 H880 V478 H640 V410 H690" class="case"/><path d="M400 310 H40 V60 H880 V478 H640 V410 H690" class="w-blue"/>
+  <path d="M400 350 H28 V45 H892 V492 H626 V380 H690" class="case"/><path d="M400 350 H28 V45 H892 V492 H626 V380 H690" class="w-yellow"/>
+  <path d="M544 190 H590 L620 230 H690" class="case"/><path d="M544 190 H590 L620 230 H690" class="w-black"/>
+  <path d="M544 230 H590 L620 190 H690" class="case"/><path d="M544 230 H590 L620 190 H690" class="w-red"/>
+  <path d="M544 270 H580 L600 320 H690" class="case"/><path d="M544 270 H580 L600 320 H690" class="w-green"/>
+  <path d="M544 310 H580 L600 350 H690" class="case"/><path d="M544 310 H580 L600 350 H690" class="w-grey"/>
+  <path d="M544 350 H560 V290 H690" class="case"/><path d="M544 350 H560 V290 H690" class="w-brown"/>
+  <rect x="654" y="181" width="14" height="58" rx="2" class="box"/><rect x="668" y="181" width="14" height="58" rx="2" class="jx"/>
+  <text x="675" y="193" text-anchor="middle" class="jn">1</text>
+  <text x="675" y="233" text-anchor="middle" class="jn">2</text>
+  <text x="648" y="172" text-anchor="middle" class="jl">J5 · XH 2P</text>
+  <rect x="654" y="281" width="14" height="138" rx="2" class="box"/><rect x="668" y="281" width="14" height="138" rx="2" class="jx"/>
+  <text x="675" y="293" text-anchor="middle" class="jn">1</text>
+  <text x="675" y="323" text-anchor="middle" class="jn">2</text>
+  <text x="675" y="353" text-anchor="middle" class="jn">3</text>
+  <text x="675" y="383" text-anchor="middle" class="jn">4</text>
+  <text x="675" y="413" text-anchor="middle" class="jn">5</text>
+  <text x="648" y="272" text-anchor="middle" class="jl">J6 · XH 5P</text>
+  <rect x="690" y="104" width="180" height="354" rx="5" class="box"/>
+  <text x="780" y="82" text-anchor="middle" class="t-title">OLED + encoder module</text>
+  <rect x="784" y="112" width="76" height="58" rx="2" class="sym" style="fill:#1c2420"/>
+  <text x="822" y="138" text-anchor="middle" class="t-small" style="fill:#fbfcfa">SH1106 1.3″</text>
+  <text x="822" y="152" text-anchor="middle" class="t-small" style="fill:#fbfcfa">128×64</text>
+  <circle cx="830" cy="300" r="26" class="sym"/><circle cx="830" cy="300" r="19" class="sym" style="stroke-width:1"/>
+  <path d="M830 281 V291" class="sym"/>
+  <text x="830" y="342" text-anchor="middle" class="t-small t-muted">EC11 knob</text>
+  <text x="780" y="96" text-anchor="middle" class="t-small t-muted">pins in header order (back view)</text>
+  <circle cx="690" cy="190" r="3" class="pin"/><text x="698" y="194" class="t-small">3V3–5V</text><text x="742" y="194" class="t-small t-muted">fed from 3V3</text>
+  <circle cx="690" cy="230" r="3" class="pin"/><text x="698" y="234" class="t-small">GND</text>
+  <circle cx="690" cy="260" r="3" class="pin" style="fill:#7b8780"/><text x="698" y="264" class="t-small t-muted">BAK</text><text x="724" y="264" class="t-small t-muted">not used</text>
+  <circle cx="690" cy="290" r="3" class="pin"/><text x="698" y="294" class="t-small">TRB</text><text x="724" y="294" class="t-small t-muted">encoder B</text>
+  <circle cx="690" cy="320" r="3" class="pin"/><text x="698" y="324" class="t-small">TRA</text><text x="724" y="324" class="t-small t-muted">encoder A</text>
+  <circle cx="690" cy="350" r="3" class="pin"/><text x="698" y="354" class="t-small">PUSH</text><text x="730" y="354" class="t-small t-muted">encoder push</text>
+  <circle cx="690" cy="380" r="3" class="pin"/><text x="698" y="384" class="t-small">SCL</text>
+  <circle cx="690" cy="410" r="3" class="pin"/><text x="698" y="414" class="t-small">SDA</text><text x="724" y="414" class="t-small t-muted">I²C 0x3C</text>
+  <circle cx="690" cy="440" r="3" class="pin" style="fill:#7b8780"/><text x="698" y="444" class="t-small t-muted">CONFIRM</text><text x="748" y="444" class="t-small t-muted">not used</text>
   <path d="M262 500 H337" class="case"/><path d="M262 500 H337" class="w-red"/>
   <path d="M383 500 H470 V415" class="case"/><path d="M383 500 H470 V415" class="w-red"/>
   <path d="M262 540 H500 V415" class="case"/><path d="M262 540 H500 V415" class="w-black"/>
@@ -145,13 +136,13 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <text x="300" y="40" text-anchor="middle" class="wl">yellow</text>
   <text x="300" y="73" text-anchor="middle" class="wl">blue</text>
   <text x="196" y="249" text-anchor="middle" class="wl">black</text>
-  <text x="594" y="185" text-anchor="middle" class="wl">black</text>
-  <text x="594" y="225" text-anchor="middle" class="wl">red</text>
-  <text x="594" y="265" text-anchor="middle" class="wl">green</text>
-  <text x="594" y="305" text-anchor="middle" class="wl">grey</text>
-  <text x="594" y="345" text-anchor="middle" class="wl">brown</text>
-  <text x="760" y="453" text-anchor="middle" class="wl">blue</text>
-  <text x="662" y="486" text-anchor="middle" class="wl">yellow</text>
+  <text x="637" y="225" text-anchor="middle" class="wl">black</text>
+  <text x="637" y="185" text-anchor="middle" class="wl">red</text>
+  <text x="628" y="315" text-anchor="middle" class="wl">green</text>
+  <text x="628" y="345" text-anchor="middle" class="wl">grey</text>
+  <text x="620" y="285" text-anchor="middle" class="wl">brown</text>
+  <text x="760" y="473" text-anchor="middle" class="wl">blue</text>
+  <text x="760" y="505" text-anchor="middle" class="wl">yellow</text>
   <text x="316" y="494" text-anchor="middle" class="wl">red</text>
   <text x="360" y="556" text-anchor="middle" class="wl">black</text>
   <text x="486" y="466" text-anchor="middle" class="wl">red</text>

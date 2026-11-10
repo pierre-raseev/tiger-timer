@@ -44,8 +44,12 @@ and persisted across power cycles.
 - **Panel:** SH1106-driver monochrome OLED, 1.3″, 128×64 pixels, I2C interface, address `0x3C`.
 - **Module:** the screen and the rotary encoder (§2.4) share one ready-made board, a 1.3″ OLED +
   EC11 encoder module that also carries two tactile buttons, BACK and CONFIRM. It has a single
-  9-pin header, printed left to right `CON SDA SCL PSH TRA TRB BAK GND VCC`.
-- **Wiring:** SDA → `D4`, SCL → `D5`, VCC → 3.3V, GND → GND (shared with the encoder).
+  9-pin header. Seen from the back (solder side), left to right it reads `3V3–5V GND BAK
+  ENCODER_TRB ENCODER_TRA ENCODER_PUSH OLED_SCL OLED_SDA CONFIRM` (short names below: `VCC`,
+  `GND`, `BAK`, `TRB`, `TRA`, `PUSH`, `SCL`, `SDA`, `CON`).
+- **Wiring:** SDA → `D4`, SCL → `D5`, VCC → 3.3V, GND → GND (shared with the encoder). The
+  module accepts 3.3–5 V on VCC, but it is fed from the XIAO's 3V3 so its I2C lines stay at the
+  XIAO's 3.3 V logic level.
 - **Library:** Adafruit SH110X (pulls in Adafruit GFX Library + Adafruit BusIO via Library
   Manager).
 - Orientation: normally landscape (128 wide × 64 tall). Two specific games (Tetris and Star
@@ -67,8 +71,8 @@ and persisted across power cycles.
 ### 2.4 Input: Rotary Encoder
 - An EC11-style incremental rotary encoder with integrated push-button, on the same module
   as the display (§2.2). On the module header, encoder A is `TRA`, B is `TRB` and the push
-  button is `PSH`.
-- CLK (`TRA`) → `D10`, DT (`TRB`) → `D8`, SW (`PSH`) → `D9`, wired `INPUT_PULLUP` (LOW =
+  button is `PUSH`.
+- CLK (`TRA`) → `D10`, DT (`TRB`) → `D8`, SW (`PUSH`) → `D9`, wired `INPUT_PULLUP` (LOW =
   pressed). If turning clockwise moves the wrong way, swap the `TRA` and `TRB` wires.
 - The module's BACK (`BAK`) and CONFIRM (`CON`) buttons are not connected and not used by the
   firmware.
@@ -159,8 +163,8 @@ in its printed order, with the wire colour for each pin.
 | Piezo buzzer | + | `D3` | purple | − to GND. Must be passive (§2.5). |
 | OLED + encoder module | SDA / SCL | `D4` / `D5` | blue / yellow | I2C address `0x3C`. |
 | | TRA / TRB | `D10` / `D8` | green / brown | Encoder A / B (CLK / DT in the firmware). Swap them if turning feels reversed. |
-| | PSH | `D9` | grey | Encoder push. `INPUT_PULLUP`, LOW = pressed. |
-| | VCC / GND | 3V3 / GND | red / black | Not the 5V pin, which only carries USB power. |
+| | PUSH | `D9` | grey | Encoder push. `INPUT_PULLUP`, LOW = pressed. |
+| | VCC / GND | 3V3 / GND | red / black | Header pin printed `3V3–5V`. Feed it from 3V3, not the 5V pin: 5V only carries USB power, and 3V3 keeps the I2C lines at 3.3 V. |
 | | BAK / CON | — | — | BACK and CONFIRM buttons, not connected (free pins `D0`/`D6`/`D7` could take them later). |
 | LiPo 3.7 V | + | `BAT +` pad | red | Through the physical power switch. Pad on the underside, marked "+". |
 | | − | `BAT −` pad | black | Pad on the underside, marked "−". Same net as GND. |
@@ -174,9 +178,12 @@ half is on the part's side, the shaded half on the XIAO's side, and pin 1 is at 
 | J2 | Power switch ↔ XIAO `BAT` pads | 2 | + switched (red) | − (black) | | | |
 | J3 | Arcade button ↔ XIAO | 3 | switch `D1` (white) | LED `D2` (orange) | GND (black) | | |
 | J4 | Buzzer ↔ XIAO | 2 | + `D3` (purple) | − GND (black) | | | |
-| J5 | Module power ↔ XIAO | 2 | GND (black) | VCC 3V3 (red) | | | |
-| J6 | Module signals ↔ XIAO | 5 | TRA `D10` (green) | PSH `D9` (grey) | TRB `D8` (brown) | SCL `D5` (yellow) | SDA `D4` (blue) |
+| J5 | Module power ↔ XIAO | 2 | VCC 3V3 (red) | GND (black) | | | |
+| J6 | Module signals ↔ XIAO | 5 | TRB `D8` (brown) | TRA `D10` (green) | PUSH `D9` (grey) | SCL `D5` (yellow) | SDA `D4` (blue) |
 
+J5 and J6 follow the module's header order (pin 1 nearest the `3V3–5V` end), so their
+module-side leads run straight off the header; the wires cross over between the connectors and
+the XIAO instead, as drawn.
 The battery's − lead passes through both J1 and J2 without going through the switch, which is
 only in the + lead. J2 lets the switch stay mounted in the case while the XIAO comes out.
 The different pin counts stop most mix-ups, but J1, J2, J4 and J5 are all 2-pin. Label them, or
