@@ -159,8 +159,8 @@ in its printed order, with the wire colour for each pin.
 |---|---|---|---|---|
 | Arcade button | Switch | `D1` | white | `INPUT_PULLUP`, LOW = pressed. Also the deep-sleep wake pin (§2.6). |
 | | LED + | `D2` | orange | Driven directly by the GPIO. |
-| | Switch GND leg | GND | black | Its own lead from the button. |
-| | LED − | GND | black | Its own lead from the button. Both ground leads go into J3 pin 3 (double-crimp, or splice to one short lead). |
+| | Switch GND leg | GND | black | Its own lead from the button (J3 pin 4). |
+| | LED − | GND | black | Its own lead from the button (J3 pin 3). |
 | Piezo buzzer | + | `D3` | purple | − to GND. Must be passive (§2.5). |
 | OLED + encoder module | SDA / SCL | `D4` / `D5` | blue / yellow | I2C address `0x3C`. |
 | | TRA / TRB | `D10` / `D8` | green / brown | Encoder A / B (CLK / DT in the firmware). Swap them if turning feels reversed. |
@@ -177,7 +177,7 @@ half is on the part's side, the shaded half on the XIAO's side, and pin 1 is at 
 |---|---|---|---|---|---|---|---|
 | J1 | LiPo ↔ power switch | 2 | + (red) | − (black) | | | |
 | J2 | Power switch ↔ XIAO `BAT` pads | 2 | + switched (red) | − (black) | | | |
-| J3 | Arcade button ↔ XIAO | 3 | switch `D1` (white) | LED `D2` (orange) | GND (black, switch + LED leads) | | |
+| J3 | Arcade button ↔ XIAO | 4 | switch `D1` (white) | LED `D2` (orange) | LED − GND (black) | switch GND (black) | |
 | J4 | Buzzer ↔ XIAO | 2 | + `D3` (purple) | − GND (black) | | | |
 | J5 | Module power ↔ XIAO | 2 | VCC 3V3 (red) | GND (black) | | | |
 | J6 | Module signals ↔ XIAO | 5 | TRB `D8` (brown) | TRA `D10` (green) | PUSH `D9` (grey) | SCL `D5` (yellow) | SDA `D4` (blue) |
