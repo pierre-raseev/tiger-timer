@@ -1343,7 +1343,7 @@ void setup() {
   currentTimerStepIndex = constrain((int)prefs.getUChar("step", TIMER_STEP_DEFAULT_INDEX), 0, TIMER_STEP_OPTION_COUNT - 1);
   migrateSavedGameIds();    // web_config.ino - one-time conversion of settings saved by older firmware (idVer)
   loadMenuOrderFromPrefs(); // web_config.ino - fills MENU_ORDER from flash, or DEFAULT_MENU_ORDER if unset/invalid
-  loadGameEnabledFromPrefs(); // web_config.ino - fills gameEnabled[] from flash, or all-enabled if unset
+  loadGameEnabledFromPrefs(); // web_config.ino - fills gameEnabled[] from flash, or the fresh-box defaults if unset
   rebuildVisibleMenu(); // web_config.ino - filters MENU_ORDER by gameEnabled into visibleMenuOrder
   stardropHighScore = prefs.getUShort("sdHigh", 0);
   tetrisHighScore = prefs.getUShort("ttHigh", 0);

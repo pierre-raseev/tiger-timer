@@ -134,11 +134,18 @@ void saveMenuOrderToPrefs() {
 }
 
 // ---------------- Per-game enable/disable: load/save/apply ----------------
+// Games hidden from the menu on a fresh box (nothing saved yet) - turned on from Remote Config's
+// game list. A box that already has saved choices keeps them.
+bool gameHiddenByDefault(int id) {
+  return id == GAME_TRIVIA || id == GAME_TETRIS || id == GAME_STARDROP ||
+         id == GAME_SNAKE || id == GAME_PONG || id == GAME_SIMPLEMORSE;
+}
+
 void loadGameEnabledFromPrefs() {
   uint8_t stored[GAME_COUNT];
   size_t got = prefs.getBytes("gameEn", stored, GAME_COUNT);
   for (int i = 0; i < GAME_COUNT; i++) {
-    gameEnabled[i] = (got == GAME_COUNT) ? (stored[i] != 0) : true; // default: everything enabled
+    gameEnabled[i] = (got == GAME_COUNT) ? (stored[i] != 0) : !gameHiddenByDefault(i);
   }
 }
 

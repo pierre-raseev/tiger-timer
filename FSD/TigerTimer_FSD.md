@@ -309,7 +309,7 @@ Arduino `Preferences` library). Keys and what they store:
 | `startMode` | uint8 | 0 = boot to menu, 1 = boot straight into a specific game | 0 |
 | `startGame` | uint8 | Which game id to boot into when `startMode`=1 | Timer's id |
 | `menuOrd` | bytes (N) | The current menu ordering, as a list of game/sentinel ids | the default order below |
-| `gameEn` | bytes (N) | Per-game enabled/disabled flags, parallel array to the game id list | all enabled |
+| `gameEn` | bytes (N) | Per-game enabled/disabled flags, parallel array to the game id list | Timer, Reflex, Dice, Chess Clock, Pass the Bomb, Stopwatch, Toothbrush enabled; Quiz, Tetris, Star Drop, Snake, Pong, SimpleMorse hidden until turned on in Remote Config (only applies to a fresh box — saved choices are kept) |
 | `idVer` | uint8 | Version of the game-id numbering the keys above were saved with (see below) | 1 (absent) |
 | `hpCatEn` | bytes (20) | Per-category enabled/disabled flags for Pass the Bomb (§5.5) | all enabled |
 | `ttHigh` | uint16 | Tetris's persisted high score | 0 |
