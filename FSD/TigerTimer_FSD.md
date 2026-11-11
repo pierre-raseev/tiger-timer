@@ -218,7 +218,7 @@ meant for something else can short the cell or reverse its polarity.
    `begin()` switches the panel on without clearing it, which showed as a brief flash of random
    pixels before the splash. Then print a one-line
    boot summary on USB serial (115200 baud), e.g.
-   `[boot] Tiger Timer v1.0.1 - reset=11 wake=0, OLED ok, LittleFS ok (272/1408 KB used), sports_junior.csv present, lang=1`
+   `[boot] Tiger Timer v1.0.2 - reset=11 wake=0, OLED ok, LittleFS ok (272/1408 KB used), sports_junior.csv present, lang=1`
    — so a connected computer can confirm a healthy boot, and that the data files are present,
    without looking at the screen. `reset` is `esp_reset_reason()` (1 power-on, 3 software,
    4 crash, 8 deep-sleep wake, 9 brown-out, 11 USB) and `wake` is
@@ -473,10 +473,11 @@ Config**.
 
 ### 4.6 Instructions Screen
 A single static screen (no interaction beyond closing it) listing the three global controls in
-short form, translated:
+short form, translated, on four lines at `y = 19, 30, 43, 52` (the last two are one item):
 - "Menu: hold knob 1s"
 - "Volume: hold+turn"
-- "More: see Settings"
+- "More: Go to Settings" / "> Remote Config" (pointing to the full instructions on the Remote
+  Config page, §7.2)
 
 Closed by either the arcade button or an encoder click, returning to the main menu with the
 cursor on the Instructions entry.
@@ -1124,6 +1125,15 @@ Remote Config", with these sections:
    immediately. This is the *only* way to reset a high score — there is deliberately no
    on-device equivalent (an earlier on-device "Advanced Settings" screen for this was removed in
    favor of this web-only version).
+
+- **How to use Tiger Timer** (first section, expanded by default, collapsible): power &
+  charging (the battery only charges with the power switch on; off = storage), the controls
+  (arcade button, knob turn/click, hold+turn volume, hold 1 s to leave a game, hold the arcade
+  button at start-up to skip the intro), sleep (screen off after 5 min, deep sleep after 30 min,
+  arcade button wakes), and the on-box Settings (Language, Timer Step, Remote Config, how Remote
+  Config closes).
+- The Firmware update section links to `https://github.com/pierre-raseev/tiger-timer/releases`
+  (public repository) for downloading the `.bin`.
 
 ### 7.3 API Surface (for reference — a from-scratch reimplementation doesn't need to match these
 exact routes, only the equivalent capability)

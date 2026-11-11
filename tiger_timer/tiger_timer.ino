@@ -129,7 +129,7 @@
 // ---- Firmware version ----
 // Shown on the Remote Config page. Bump it for every change, and publish a GitHub release
 // "vX.Y.Z" with the built app .bin attached, so a box can be updated from Remote Config.
-const char* FW_VERSION = "1.0.1";
+const char* FW_VERSION = "1.0.2";
 // A firmware upload is only installed if this exact text appears somewhere in the uploaded file,
 // i.e. the file really is a Tiger Timer build (any build contains it, since the update code
 // below searches for it). Never change it, or older boxes would refuse the new firmware.
@@ -442,7 +442,8 @@ const int STR_UPDATE_RUNNING = 132;
 const int STR_UPDATE_RESTART = 133;
 const int STR_UPDATE_FAILED = 134;
 const int STR_UPDATE_WAITING = 135;
-const int NUM_STRINGS = 136;
+const int STR_INSTR_SETTINGS2 = 136; // second line of STR_INSTR_SETTINGS (doesn't fit on one line)
+const int NUM_STRINGS = 137;
 
 const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SELECT_GAME          */{"Choose Option", "Choisir option", "Elegir opcion"},
@@ -527,7 +528,7 @@ const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_NO                   */{"No", "Non", "No"},
   /* STR_INSTR_MENU           */{"Menu: hold knob 1s", "Menu: tenir 1s", "Menu: mant. 1s"},
   /* STR_INSTR_VOLUME         */{"Volume: hold+turn", "Volume: tenir+tourner", "Volumen: mant.+gira"},
-  /* STR_INSTR_SETTINGS       */{"More: see Settings", "Plus: voir Reglages", "Mas: ver Ajustes"},
+  /* STR_INSTR_SETTINGS       */{"More: Go to Settings", "Plus: voir Param\x8Atres", "Mas: ve a Ajustes"},
   /* STR_TRIVIA_PREV          */{"Prev", "Prec.", "Ant."},
   /* STR_TRIVIA_ANS           */{"Ans", "Rep.", "Resp."},
   /* STR_TRIVIA_QUES          */{"Ques", "Quest.", "Preg."},
@@ -581,6 +582,7 @@ const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_UPDATE_RESTART       */{"Restarting...", "Red\x82marrage...", "Reiniciando..."},
   /* STR_UPDATE_FAILED        */{"Update failed", "\x90" "chec de la MAJ", "Error de update"},
   /* STR_UPDATE_WAITING       */{"Waiting for file", "Attente du fichier", "Esperando archivo"},
+  /* STR_INSTR_SETTINGS2      */{"> Remote Config", "> Config distante", "> Config remota"},
 
 };
 
@@ -6805,9 +6807,10 @@ void drawInstructionsScreen() {
   int16_t x1, y1;
   uint16_t w, h;
 
-  const char* lines[3] = {T(STR_INSTR_MENU), T(STR_INSTR_VOLUME), T(STR_INSTR_SETTINGS)};
-  int ys[3] = {22, 36, 50};
-  for (int i = 0; i < 3; i++) {
+  // The "More" hint takes two lines, kept 9px apart so they read as one item.
+  const char* lines[4] = {T(STR_INSTR_MENU), T(STR_INSTR_VOLUME), T(STR_INSTR_SETTINGS), T(STR_INSTR_SETTINGS2)};
+  int ys[4] = {19, 30, 43, 52};
+  for (int i = 0; i < 4; i++) {
     display.getTextBounds(lines[i], 0, 0, &x1, &y1, &w, &h);
     display.setCursor((SCREEN_WIDTH - w) / 2, ys[i]);
     display.print(lines[i]);
