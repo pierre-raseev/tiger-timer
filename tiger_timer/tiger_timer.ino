@@ -1288,6 +1288,33 @@ void drawThickX(int cx, int cy, int s, int t, uint16_t color);
 void drawVolumeIconAt(int x, int y);
 void drawVolumeOverlay();
 
+// ---------------- Blank the OLED's own memory before the library switches the panel on ----------------
+// After a real power-up (not a deep-sleep wake, where the panel keeps its RAM) the SH1106's display
+// RAM holds random data. Adafruit_SH1106G::begin() ends with DISPLAYON without writing the RAM, so
+// that noise showed as a flash of random pixels until the splash pushed its first frame (~100ms+).
+// Writing zeros to all 8 pages x 132 columns first (the panel is still off, and RAM writes work while
+// it's off) means the panel turns on black. Raw I2C because the library isn't initialized yet.
+void clearOledRamBeforeInit() {
+  Wire.beginTransmission(OLED_I2C_ADDR);
+  Wire.write(0x00);                    // control byte: commands follow
+  Wire.write(SH110X_DISPLAYOFF);       // in case it was left on (e.g. a reset while running)
+  Wire.endTransmission();
+  for (uint8_t page = 0; page < 8; page++) {
+    Wire.beginTransmission(OLED_I2C_ADDR);
+    Wire.write(0x00);                  // commands
+    Wire.write(0xB0 | page);           // page address
+    Wire.write(0x00);                  // column low nibble = 0
+    Wire.write(0x10);                  // column high nibble = 0
+    Wire.endTransmission();
+    for (int col = 0; col < 132; col += 22) { // SH1106 RAM is 132 columns wide (panel shows 128)
+      Wire.beginTransmission(OLED_I2C_ADDR);
+      Wire.write(0x40);                // control byte: display data follows
+      for (int i = 0; i < 22; i++) Wire.write(0x00);
+      Wire.endTransmission();
+    }
+  }
+}
+
 void setup() {
   // After a deep-sleep wake the button pin is still owned by the LP-IO block (see enterDeepSleep) -
   // hand it back to the normal GPIO matrix before configuring it, or digitalRead() can't see it.
@@ -1335,6 +1362,7 @@ void setup() {
   }
 
   Wire.begin(D4, D5); // SDA, SCL
+  clearOledRamBeforeInit(); // no random-pixel flash on power-up - see the function
   bool oledOk = display.begin(OLED_I2C_ADDR, true);
   if (!oledOk) {
     Serial.println("OLED not found - check wiring/address");

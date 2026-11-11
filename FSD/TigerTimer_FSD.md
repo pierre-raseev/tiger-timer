@@ -211,7 +211,11 @@ meant for something else can short the cell or reverse its polarity.
 2. Load all persisted settings from flash (see §3.5 for the full key list).
 3. Mount the filesystem used for trivia question data (LittleFS); format it automatically on
    first-ever boot if unformatted.
-4. Initialize the display, encoder pins, button pin, buzzer PWM channel. Then print a one-line
+4. Initialize the display, encoder pins, button pin, buzzer PWM channel. Before the display
+   library's `begin()`, the firmware writes zeros straight into the SH1106's RAM over I2C (all 8
+   pages × 132 columns, panel still off): after a real power-up that RAM holds random data, and
+   `begin()` switches the panel on without clearing it, which showed as a brief flash of random
+   pixels before the splash. Then print a one-line
    boot summary on USB serial (115200 baud), e.g.
    `[boot] Tiger Timer - reset=11 wake=0, OLED ok, LittleFS ok (272/1408 KB used), config.html present, sports_junior.csv present, lang=1`
    — so a connected computer can confirm a healthy boot, and that the data files are present,
