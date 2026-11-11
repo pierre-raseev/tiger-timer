@@ -129,7 +129,7 @@
 // ---- Firmware version ----
 // Shown on the Remote Config page. Bump it for every change, and publish a GitHub release
 // "vX.Y.Z" with the built app .bin attached, so a box can be updated from Remote Config.
-const char* FW_VERSION = "1.0.0";
+const char* FW_VERSION = "1.0.1";
 // A firmware upload is only installed if this exact text appears somewhere in the uploaded file,
 // i.e. the file really is a Tiger Timer build (any build contains it, since the update code
 // below searches for it). Never change it, or older boxes would refuse the new firmware.
@@ -1388,6 +1388,9 @@ void setup() {
   if (!fsOk) {
     Serial.println("LittleFS mount failed - trivia questions won't load. Did you upload the data folder?");
   }
+  // Since v1.0.0 the Remote Config page is built into the firmware (config_html.h); the copy older
+  // boxes have on LittleFS is no longer used - remove it to free the space.
+  if (fsOk && LittleFS.exists("/config.html")) LittleFS.remove("/config.html");
 
   Wire.begin(D4, D5); // SDA, SCL
   clearOledRamBeforeInit(); // no random-pixel flash on power-up - see the function
