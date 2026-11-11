@@ -4,7 +4,7 @@ A battery-powered, pocket-sized party-game console built on a Seeed XIAO ESP32-C
 OLED screen, a rotary knob, one big arcade button and a buzzer. It boots into a menu of 13
 mini-games, in English, French or Spanish.
 
-<img src="FSD/renders/pattern_B_menu_list.png" alt="Menu screen" width="256">
+<img src="Code/FSD/renders/pattern_B_menu_list.png" alt="Menu screen" width="256">
 
 ## Games
 
@@ -41,11 +41,17 @@ network" pop-up, open `http://192.168.4.1` in Chrome or Safari instead.
 
 | Path | What |
 |---|---|
-| `tiger_timer/` | Arduino sketch (`tiger_timer.ino`, `web_config.ino`, vendored QR encoder and font) |
-| `tiger_timer/data/` | Trivia question CSVs, uploaded to the box's LittleFS |
-| `web/config.html` | Remote Config page, embedded into the firmware as `config_html.h` |
-| `tools/` | `embed_config_html.py` (run after editing the page), `release.sh` (build and publish a release) |
-| `FSD/` | Functional specification, layout reference, wiring diagram and build plan |
+| `Code/tiger_timer/` | Arduino sketch (`tiger_timer.ino`, `web_config.ino`, vendored QR encoder and font) |
+| `Code/tiger_timer/data/` | Trivia question CSVs, uploaded to the box's LittleFS |
+| `Code/web/config.html` | Remote Config page, embedded into the firmware as `config_html.h` |
+| `Code/tools/` | `embed_config_html.py` (run after editing the page), `release.sh` (build and publish a release) |
+| `Code/FSD/` | Functional specification, layout reference, wiring diagram and build plan |
+| `3D/` | Enclosure: FreeCAD source (`.FCStd`), `.step` export, and a print-ready `.3mf` |
+
+## Enclosure
+
+The case is modelled in FreeCAD. Open `3D/Game Timer v1.9.1.FCStd` to edit it, use the `.step` in
+other CAD tools, or send the `.3mf` straight to a slicer.
 
 ## Building
 
@@ -53,10 +59,10 @@ network" pop-up, open `http://192.168.4.1` in Chrome or Safari instead.
 - Libraries: Adafruit SH110X (with Adafruit GFX and BusIO), ArduinoJson 7.x.
 
 ```bash
-arduino-cli compile -b esp32:esp32:XIAO_ESP32C6:CDCOnBoot=cdc tiger_timer
+arduino-cli compile -b esp32:esp32:XIAO_ESP32C6:CDCOnBoot=cdc Code/tiger_timer
 ```
 
 To publish a release, bump `FW_VERSION` in `tiger_timer.ino`, commit and push, then run
-`tools/release.sh "what changed"`.
+`Code/tools/release.sh "what changed"`.
 
-The full behavior and hardware spec is in [FSD/TigerTimer_FSD.md](FSD/TigerTimer_FSD.md).
+The full behavior and hardware spec is in [Code/FSD/TigerTimer_FSD.md](Code/FSD/TigerTimer_FSD.md).

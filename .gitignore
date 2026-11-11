@@ -4,3 +4,7 @@ build/
 *.elf
 *.map
 device_backups/
+
+# FreeCAD backup files
+*.FCBak
+*.FCStd1
