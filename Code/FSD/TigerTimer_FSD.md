@@ -121,7 +121,8 @@ and persisted across power cycles.
   XIAO, §2.7). There is no separate charger module.
 - **Charging:** by the XIAO's own on-board charger, through its USB-C port (the same port used
   for flashing). That charge chip is separate from the ESP32 itself, so charging continues while
-  the ESP32 is in deep sleep.
+  the ESP32 is in deep sleep. The charge LED blinks red while the battery is charging, which is
+  how the user confirms the box is charging.
 - **Physical power switch:** yes — a hard power switch between the battery's + lead and the
   `BAT +` pad, in addition to software deep sleep. (Deep sleep is the *software-controlled*
   low-power state used automatically after inactivity; the physical switch is a full hardware
@@ -1131,7 +1132,8 @@ Remote Config", with these sections:
    favor of this web-only version).
 
 - **How to use Tiger Timer** (first section, expanded by default, collapsible): power &
-  charging (the battery only charges with the power switch on; off = storage), the controls
+  charging (the battery only charges with the power switch on; a blinking red light confirms it
+  is charging; off = storage), the controls
   (arcade button, knob turn/click, hold+turn volume, hold 1 s to leave a game, hold the arcade
   button at start-up to skip the intro), sleep (screen off after 5 min, deep sleep after 30 min,
   arcade button wakes), and the on-box Settings (Language, Timer Step, Remote Config, how Remote
