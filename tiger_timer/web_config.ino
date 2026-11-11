@@ -607,45 +607,55 @@ void handleConfigNotFound() {
 // natively to auto-join an open network - no extra app needed. Modules are drawn as lit (white)
 // pixels on the display's normal black background, so nothing extra is drawn for the quiet zone -
 // it's already black/blank, same as an unset module, and just needs a bit of clear space around it.
-// targetSize is the overall pixel footprint (not a per-module multiplier) - each module's edges are
-// rounded to the nearest pixel, so the whole code can be sized to anything, not just exact multiples
-// of its 29 modules. ----------------
-void drawWifiQR(int originX, int originY, int targetSize) {
-  const int qrVersion = 3; // 29x29 modules - comfortably fits our ~30-byte payload at low ECC
+// Every module is exactly modulePx x modulePx pixels: a fractional size (e.g. 48px / 29 modules)
+// mixes 1px and 2px modules, which scanners at this tiny size struggle to decode. ----------------
+const int QR_VERSION = 3;   // 29x29 modules - comfortably fits our ~35-byte payload at low ECC
+const int QR_MODULE_PX = 2; // 29 * 2 = 58px, the largest whole-pixel size that fits the 64px height
+
+void drawWifiQR(int originX, int originY, int modulePx) {
   String payload = String("WIFI:T:nopass;S:") + CONFIG_AP_SSID + ";;";
 
   QRCode qrcode;
-  uint8_t qrcodeData[qrcode_getBufferSize(qrVersion)];
-  qrcode_initText(&qrcode, qrcodeData, qrVersion, ECC_LOW, payload.c_str());
-
-  float cellSize = (float)targetSize / qrcode.size;
+  uint8_t qrcodeData[qrcode_getBufferSize(QR_VERSION)];
+  qrcode_initText(&qrcode, qrcodeData, QR_VERSION, ECC_LOW, payload.c_str());
 
   for (uint8_t qy = 0; qy < qrcode.size; qy++) {
-    int y0 = originY + (int)roundf(qy * cellSize);
-    int y1 = originY + (int)roundf((qy + 1) * cellSize);
     for (uint8_t qx = 0; qx < qrcode.size; qx++) {
       if (qrcode_getModule(&qrcode, qx, qy)) {
-        int x0 = originX + (int)roundf(qx * cellSize);
-        int x1 = originX + (int)roundf((qx + 1) * cellSize);
-        display.fillRect(x0, y0, max(1, x1 - x0), max(1, y1 - y0), SH110X_WHITE);
+        display.fillRect(originX + qx * modulePx, originY + qy * modulePx, modulePx, modulePx, SH110X_WHITE);
       }
     }
   }
 }
 
-// ---------------- Config Mode screen: QR code sized to fill most of the screen height (with a
-// little breathing room so the IP address text beside it has enough width to not wrap), with the
+// ---------------- OLED refresh rate for camera scanning ----------------
+// The SH1106 is a passive-matrix panel: it lights one row at a time, and at its stock ~100 Hz
+// frame rate a phone camera's short rolling-shutter exposure only catches part of the scan - the
+// QR comes out with a dark diagonal band and won't decode (seen on a Pixel 10 Pro). While the QR is
+// on screen we push the internal oscillator to its maximum (+50%) and shorten the pre-charge
+// phases, which together roughly double the frame rate so any phone's exposure spans whole frames.
+// Restored on exit so normal screens look exactly as before.
+void setOledFastRefresh(bool fast) {
+  display.oled_command(SH110X_SETDISPLAYCLOCKDIV); // 0xD5
+  display.oled_command(fast ? 0xF0 : 0x80);        // high nibble = oscillator (0xF = +50%), low = divide by 1; 0x80 = library default
+  display.oled_command(SH110X_SETPRECHARGE);       // 0xD9
+  display.oled_command(fast ? 0x22 : 0x1F);        // 2+2 DCLK phases vs library default 15+1
+}
+
+// ---------------- Config Mode screen: QR code at full whole-pixel size on the left, with the
 // network name and connect instructions stacked in the column beside it ----------------
 void drawConfigModeScreen(const char* ssid, const char* ip) {
   (void)ssid; // no longer drawn dynamically - see the fixed "TigerTimer"/"-Config" lines below, split to fit the column
   display.clearDisplay();
   display.setTextSize(1);
 
-  const int qrSize = 48; // slightly smaller than the max (58px) that would fit the height, to leave
-                          // enough width for the IP address text beside it without wrapping
-  drawWifiQR(2, (SCREEN_HEIGHT - qrSize) / 2, qrSize);
+  const int qrSize = QR_VERSION * 4 + 17; // modules per side (29)
+  const int qrPx = qrSize * QR_MODULE_PX;  // 58px
+  drawWifiQR(1, (SCREEN_HEIGHT - qrPx) / 2, QR_MODULE_PX);
 
-  int textX = 2 + qrSize + 4; // just right of the QR code
+  // Text column: x=63 leaves 65px = 11 characters (the 11th glyph's trailing spacing column falls
+  // off-screen), enough for "192.168.4.1". Every string in this column must stay <= 11 chars.
+  int textX = 1 + qrPx + 4;
   display.setTextColor(SH110X_WHITE);
 
   // Network name - manually split across lines to fit the narrow column; if CONFIG_AP_SSID
@@ -693,6 +703,7 @@ void enterConfigMode() {
   }
   configServer.begin();
 
+  setOledFastRefresh(true); // so phone cameras can capture the QR - see setOledFastRefresh()
   drawConfigModeScreen(CONFIG_AP_SSID, configApIpStr.c_str());
 
   // Blocking loop: nothing else needs to run while Config Mode is active (so normal screen/deep
@@ -718,6 +729,7 @@ void enterConfigMode() {
   while (digitalRead(BUTTON_PIN) == LOW || digitalRead(ENCODER_SW) == LOW) delay(2);
   delay(50);
 
+  setOledFastRefresh(false);
   configServer.stop();
   configDns.stop();
   WiFi.softAPdisconnect(true);

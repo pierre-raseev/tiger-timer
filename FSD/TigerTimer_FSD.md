@@ -1056,7 +1056,14 @@ upward from a small dot instead of to the right, so the two icons read as relate
   phone/OS doesn't auto-prompt).
 - The on-device screen while Remote Config is active shows a QR code (encoding the standard
   `WIFI:T:nopass;S:TigerTimer-Config;;` join-network format, scannable by any phone camera app)
-  plus the SSID and IP as text fallback.
+  plus the SSID and IP as text fallback. The QR uses exactly 2px per module (58px square) so
+  every module is the same size.
+- **Camera-friendly refresh while the QR is shown:** the SH1106 lights one row at a time, and
+  at its stock frame rate a phone camera's short rolling-shutter exposure catches only part of
+  the scan (the QR shows a dark diagonal band and won't decode — seen on a Pixel 10 Pro). On
+  entering Remote Config the firmware sets the display clock to maximum (`0xD5 0xF0`, +50%
+  oscillator) and shortens pre-charge (`0xD9 0x22`), roughly doubling the frame rate; both are
+  restored to the library defaults (`0x80`, `0x1F`) on exit.
 - Exits on either physical button, back to the **main menu** with the cursor on the Settings
   entry (not into the Settings submenu itself — one click reopens it). On exit the firmware waits for
   that button to be fully released (plus a ~50ms settle) before returning to the main loop —

@@ -118,17 +118,17 @@ the current layout — if you have an older copy of this render, discard it, the
 were swapped and the category text is now vertically centered rather than fixed near the top).
 
 ### Pattern E — QR + text (Remote Config, renamed from "Config Mode")
-One screen only. Layout unchanged from before; only the on-device menu label and the web page's
-own title/header text changed (both now say "Remote Config" rather than "Config Mode").
+One screen only. The QR is drawn at a whole 2px per module (version 3, 29 modules = 58px): an
+earlier 48px fractional size mixed 1px and 2px modules and was hard for phones to scan.
 
 | Element | Position |
 |---|---|
-| QR code | top-left `(2, (64-48)/2)`, `48×48px` |
-| Text column | starts at `x = QR_right_edge + 4` |
-| Six text lines | `y = 2, 11, 20, 32, 41, 50` — "WiFi:" / SSID line 1 / SSID line 2 / "Connect or" / "visit" / IP address |
+| QR code | top-left `(1, 3)`, `58×58px` (29 modules × 2px) |
+| Text column | starts at `x = 63` (QR right edge + 4) — 11 characters max per line |
+| Six text lines | `y = 2, 11, 20, 32, 41, 50` — "WiFi:" / SSID line 1 / SSID line 2 / "Connect or" / "visit" / IP address (French splits as "Connectez" / "ou visitez" to fit 11 chars) |
 
-**Reference render:** `renders/pattern_E_remote_config.png` (regenerated this revision purely
-for the title-text update — the layout itself didn't change).
+**Reference render:** `renders/pattern_E_remote_config.png` (predates the 58px QR — shows the old
+48px layout).
 
 ### Pattern F — Rotated full-screen game board (Tetris, Star Drop)
 Both games call `setRotation(1)` before drawing, giving a **64 wide × 128 tall** logical canvas
