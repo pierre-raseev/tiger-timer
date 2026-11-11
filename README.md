@@ -4,7 +4,19 @@ A battery-powered, pocket-sized party-game console built on a Seeed XIAO ESP32-C
 OLED screen, a rotary knob, one big arcade button and a buzzer. It boots into a menu of 13
 mini-games, in English, French or Spanish.
 
-<img src="Code/FSD/renders/pattern_B_menu_list.png" alt="Menu screen" width="256">
+<p>
+  <img src="photos/front_menu.jpg" alt="Tiger Timer, front view with the menu on screen" width="400">
+  <img src="photos/angle_switch_side.jpg" alt="Tiger Timer at an angle, power switch on the side" width="380">
+</p>
+
+## Photos
+
+| | | |
+|---|---|---|
+| <img src="photos/top_button.jpg" alt="Arcade button on top, power switch on the side" width="260"> | <img src="photos/angle_knob_side.jpg" alt="Angle view with the knob" width="260"> | <img src="photos/inside_wiring.jpg" alt="Inside the box: battery, XIAO board and wiring" width="260"> |
+| Arcade button and power switch | Knob side | Inside: 3000 mAh battery, XIAO, wiring |
+| <img src="photos/enclosure_3d_render.png" alt="3D render of the enclosure" width="260"> | <img src="Code/FSD/renders/pattern_B_menu_list.png" alt="Menu screen render" width="260"> | |
+| 3D model of the enclosure | Menu screen | |
 
 ## Games
 
@@ -47,6 +59,7 @@ network" pop-up, open `http://192.168.4.1` in Chrome or Safari instead.
 | `Code/tools/` | `embed_config_html.py` (run after editing the page), `release.sh` (build and publish a release) |
 | `Code/FSD/` | Functional specification, layout reference, wiring diagram and build plan |
 | `3D/` | Enclosure: FreeCAD source (`.FCStd`), `.step` export, and a print-ready `.3mf` |
+| `photos/` | Photos of the finished box and a render of the enclosure model |
 
 ## Enclosure
 
