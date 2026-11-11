@@ -129,7 +129,7 @@
 // ---- Firmware version ----
 // Shown on the Remote Config page. Bump it for every change, and publish a GitHub release
 // "vX.Y.Z" with the built app .bin attached, so a box can be updated from Remote Config.
-const char* FW_VERSION = "1.0.2";
+const char* FW_VERSION = "1.0.3";
 // A firmware upload is only installed if this exact text appears somewhere in the uploaded file,
 // i.e. the file really is a Tiger Timer build (any build contains it, since the update code
 // below searches for it). Never change it, or older boxes would refuse the new firmware.
@@ -1454,6 +1454,8 @@ void testSerialCommands() {
     else if (c == 'Y') { static int timerEndFrame = 0; drawTimerEndFrame(timerEndFrame); display.display(); Serial.printf("[timerend] frame %d\n", timerEndFrame); timerEndFrame = (timerEndFrame + 1) % timerEndFrameCount(); }
     else if (c == 'O') { static int totoroFrame = 0; unsigned long t0 = micros(); drawTotoroDoneFrame(totoroFrame); unsigned long dt = micros() - t0; display.display(); Serial.printf("[totoro] frame %d drawn in %lu us\n", totoroFrame, dt); totoroFrame = (totoroFrame + 1) % totoroDoneFrameCount(); }
     else if (c == 'W') { static int recFrame = 0; drawReflexRecordFrame(recFrame); display.display(); Serial.printf("[record] frame %d\n", recFrame); recFrame = (recFrame + 1) % 13; }
+    else if (c == 'I') { display.clearDisplay(); drawInstructionsScreen(); display.display(); }
+    else if (c == 'L') { currentLanguage = (currentLanguage + 1) % LANG_COUNT; Serial.printf("[lang] %d (RAM only)\n", currentLanguage); }
     else if (c == 'J') { display.clearDisplay(); drawReflexSplashFrame(4); drawSplashGameName(T(STR_MENU_REFLEX)); display.display(); } // Reflex splash, fully pressed
     else if (c == 'H') { stardropHighScore = 1234; tetrisHighScore = 1234; render(); } // RAM only - tests the wrapped score line
     else if (c == 'g' || c == 'h' || c == 'k' || c == 'c') { playGameSplashScreen(c == 'g' ? GAME_REFLEX : c == 'h' ? GAME_HOTPOTATO : c == 'k' ? GAME_CHESS : GAME_STOPWATCH); }
@@ -6799,22 +6801,39 @@ void drawLeaveConfirmScreen() {
 }
 
 // ---------------- Instructions screen: the global controls, always reachable from the top of the menu ----------------
+// Left-aligned list: each line's label (the text up to and including ':') is drawn bold - printed
+// twice, 1px apart, since the built-in font has no bold - and the rest follows in the normal
+// weight. The "More" item wraps onto a second line, aligned under the text after its label
+// (or pushed left just enough to fit, for longer translations).
+int drawInstructionLine(const char* text, int x, int y) {
+  const char* colon = strchr(text, ':');
+  int labelLen = colon ? (int)(colon - text) + 1 : 0;
+  char label[24];
+  labelLen = min(labelLen, (int)sizeof(label) - 1);
+  memcpy(label, text, labelLen);
+  label[labelLen] = '\0';
+  display.setCursor(x, y);     display.print(label);
+  display.setCursor(x + 1, y); display.print(label);
+  int valueX = x + labelLen * 6; // the value starts with its own space, which keeps the gap after the bold label
+  display.setCursor(valueX, y);
+  display.print(text + labelLen);
+  return valueX + 6; // where the value's first character starts
+}
+
 void drawInstructionsScreen() {
   drawInstructionsIcon(7, 7, 6, SH110X_WHITE);
   display.drawLine(0, 14, SCREEN_WIDTH, 14, SH110X_WHITE);
-
   display.setTextSize(1);
-  int16_t x1, y1;
-  uint16_t w, h;
 
-  // The "More" hint takes two lines, kept 9px apart so they read as one item.
-  const char* lines[4] = {T(STR_INSTR_MENU), T(STR_INSTR_VOLUME), T(STR_INSTR_SETTINGS), T(STR_INSTR_SETTINGS2)};
-  int ys[4] = {19, 30, 43, 52};
-  for (int i = 0; i < 4; i++) {
-    display.getTextBounds(lines[i], 0, 0, &x1, &y1, &w, &h);
-    display.setCursor((SCREEN_WIDTH - w) / 2, ys[i]);
-    display.print(lines[i]);
-  }
+  const int x = 1; // lines up with the icon above; the longest translation (21 chars) still fits
+  drawInstructionLine(T(STR_INSTR_MENU), x, 19);
+  drawInstructionLine(T(STR_INSTR_VOLUME), x, 30);
+  int moreValueX = drawInstructionLine(T(STR_INSTR_SETTINGS), x, 43);
+
+  const char* cont = T(STR_INSTR_SETTINGS2);
+  int contW = strlen(cont) * 6;
+  display.setCursor(min(moreValueX, SCREEN_WIDTH - contW), 52);
+  display.print(cont);
 }
 
 void drawLanguageScreen() {

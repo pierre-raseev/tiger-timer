@@ -218,7 +218,7 @@ meant for something else can short the cell or reverse its polarity.
    `begin()` switches the panel on without clearing it, which showed as a brief flash of random
    pixels before the splash. Then print a one-line
    boot summary on USB serial (115200 baud), e.g.
-   `[boot] Tiger Timer v1.0.2 - reset=11 wake=0, OLED ok, LittleFS ok (272/1408 KB used), sports_junior.csv present, lang=1`
+   `[boot] Tiger Timer v1.0.3 - reset=11 wake=0, OLED ok, LittleFS ok (272/1408 KB used), sports_junior.csv present, lang=1`
    — so a connected computer can confirm a healthy boot, and that the data files are present,
    without looking at the screen. `reset` is `esp_reset_reason()` (1 power-on, 3 software,
    4 crash, 8 deep-sleep wake, 9 brown-out, 11 USB) and `wake` is
@@ -473,7 +473,11 @@ Config**.
 
 ### 4.6 Instructions Screen
 A single static screen (no interaction beyond closing it) listing the three global controls in
-short form, translated, on four lines at `y = 19, 30, 43, 52` (the last two are one item):
+short form, translated, as a left-aligned list at `x = 1` on four lines at `y = 19, 30, 43, 52`
+(the last two are one item). Each line's label, up to and including the `:`, is bold (drawn twice,
+1px apart, as the font has no bold); the rest is normal weight. The "More" continuation line is
+aligned under the text after its label, or shifted left just enough to fit for longer
+translations:
 - "Menu: hold knob 1s"
 - "Volume: hold+turn"
 - "More: Go to Settings" / "> Remote Config" (pointing to the full instructions on the Remote
