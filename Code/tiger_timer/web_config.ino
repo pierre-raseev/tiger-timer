@@ -249,17 +249,17 @@ void handleGetConfig() {
   JsonDocument doc;
 
   doc["version"] = FW_VERSION;
+  doc["lang"] = currentLanguage; // the page shows itself in the box's language (0 EN, 1 FR, 2 ES)
 
   JsonArray menu = doc["menuOrder"].to<JsonArray>();
   for (int i = 0; i < MENU_COUNT; i++) menu.add(MENU_ORDER[i]);
 
   JsonArray games = doc["games"].to<JsonArray>();
   const int allGameIds[GAME_COUNT] = {GAME_TIMER, GAME_REFLEX, GAME_DICE, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_TRIVIA, GAME_TOOTHBRUSH, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_SIMPLEMORSE, GAME_PONG};
-  const char* allGameNames[GAME_COUNT] = {"Timer", "Reflex", "Dice", "Chess Clock", "Pass the Bomb", "Stopwatch", "Trivia", "Toothbrush Timer", "Tetris", "Star Drop", "Snake", "SimpleMorse", "Pong"};
   for (int i = 0; i < GAME_COUNT; i++) {
     JsonObject g = games.add<JsonObject>();
     g["id"] = allGameIds[i];
-    g["name"] = allGameNames[i];
+    g["name"] = cp437ToUtf8(menuLabelForGame(allGameIds[i])); // the box's own menu label, in its language
     g["enabled"] = gameEnabled[allGameIds[i]];
   }
   doc["settingsId"] = MENU_SETTINGS;

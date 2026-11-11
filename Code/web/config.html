@@ -186,22 +186,23 @@
   .fw-status { font-size: 14px; margin-top: 10px; min-height: 1.2em; }
   .fw-status.error { color: var(--bad); }
   .fw-status.good { color: var(--good); }
+  body.wait header, body.wait main { visibility: hidden; } /* until the box's language is known */
   .loading { text-align: center; color: var(--dim); padding: 20px; font-size: 14px; }
 </style>
 </head>
-<body>
+<body class="wait">
 
 <header>
-  <div class="brand"><div class="buzzer"></div><h1>TigerTimer Remote Config</h1></div>
-  <p>Connected over WiFi &mdash; changes save straight to the device</p>
+  <div class="brand"><div class="buzzer"></div><h1 data-t="ttl">TigerTimer Remote Config</h1></div>
+  <p data-t="sub">Connected over WiFi &mdash; changes save straight to the device</p>
 </header>
 
 <main>
 
   <section>
     <details class="howto" open>
-      <summary>How to use Tiger Timer</summary>
-      <div class="body">
+      <summary data-t="hts">How to use Tiger Timer</summary>
+      <div class="body" data-t="htb">
         <h3>Power &amp; charging</h3>
         <ul>
           <li>The battery <b>only charges while the power switch is ON</b>: switch it on, then plug in USB-C.
@@ -237,100 +238,100 @@
   </section>
 
   <section>
-    <h2>Menu order &amp; games</h2>
+    <h2 data-t="h_menu">Menu order &amp; games</h2>
     <div class="body">
       <ul id="menuList"><li class="loading">Loading&hellip;</li></ul>
-      <button class="primary" id="saveMenuBtn">Save menu</button>
-      <div class="hint">Use the arrows to reorder. Switch a game off to hide it from the device's menu &mdash; at least one must stay on.</div>
+      <button class="primary" id="saveMenuBtn" data-t="b_menu">Save menu</button>
+      <div class="hint" data-t="hint_menu">Use the arrows to reorder. Switch a game off to hide it from the device's menu &mdash; at least one must stay on.</div>
     </div>
   </section>
 
   <section>
-    <h2>Startup</h2>
+    <h2 data-t="h_start">Startup</h2>
     <div class="body">
       <div class="radio-row">
-        <div class="radio-opt" data-mode="0" id="startModeMenu">Go to menu</div>
-        <div class="radio-opt" data-mode="1" id="startModeGame">Start a game</div>
+        <div class="radio-opt" data-mode="0" id="startModeMenu" data-t="o_menu">Go to menu</div>
+        <div class="radio-opt" data-mode="1" id="startModeGame" data-t="o_game">Start a game</div>
       </div>
       <label class="field" id="startGameField" style="display:none">
-        <span class="label-text">Game to start with</span>
+        <span class="label-text" data-t="l_game">Game to start with</span>
         <select id="startGameSelect"></select>
       </label>
-      <button class="primary" id="saveStartupBtn">Save startup setting</button>
+      <button class="primary" id="saveStartupBtn" data-t="b_start">Save startup setting</button>
     </div>
   </section>
 
   <section>
-    <h2>Default timer length</h2>
+    <h2 data-t="h_timer">Default timer length</h2>
     <div class="body">
       <label class="field">
-        <span class="label-text">Seconds</span>
+        <span class="label-text" data-t="l_sec">Seconds</span>
         <input type="number" id="deftimeInput" min="10" max="5400" step="1">
         <div class="time-preview" id="deftimePreview"></div>
       </label>
-      <button class="primary" id="saveTimerBtn">Save default timer</button>
+      <button class="primary" id="saveTimerBtn" data-t="b_timer">Save default timer</button>
     </div>
   </section>
 
   <section>
-    <h2>Trivia questions</h2>
+    <h2 data-t="h_triv">Trivia questions</h2>
     <div class="body">
       <div class="row-2col trivia-controls">
-        <label class="field" style="margin:0"><span class="label-text">Category</span>
+        <label class="field" style="margin:0"><span class="label-text" data-t="l_cat">Category</span>
           <select id="triviaCat"></select>
         </label>
-        <label class="field" style="margin:0"><span class="label-text">Level</span>
+        <label class="field" style="margin:0"><span class="label-text" data-t="l_lvl">Level</span>
           <select id="triviaLevel"></select>
         </label>
       </div>
-      <button class="secondary" id="loadTriviaBtn" style="width:100%; margin-bottom:8px;">Load questions</button>
+      <button class="secondary" id="loadTriviaBtn" data-t="b_load" style="width:100%; margin-bottom:8px;">Load questions</button>
       <div class="row-2col" style="margin-bottom:12px">
-        <button class="secondary" id="downloadCsvBtn">&#8595; Download CSV</button>
-        <button class="secondary" id="uploadCsvBtn">&#8593; Upload CSV</button>
+        <button class="secondary" id="downloadCsvBtn" data-t="b_dl">&#8595; Download CSV</button>
+        <button class="secondary" id="uploadCsvBtn" data-t="b_ul">&#8593; Upload CSV</button>
       </div>
       <input type="file" id="csvFileInput" accept=".csv,text/csv" style="display:none">
 
       <div id="triviaList"></div>
 
       <div class="row-2col" style="margin-top:6px">
-        <button class="secondary" id="addQuestionBtn" disabled>+ Add question</button>
-        <button class="primary" id="saveTriviaBtn" disabled>Save questions</button>
+        <button class="secondary" id="addQuestionBtn" data-t="b_add" disabled>+ Add question</button>
+        <button class="primary" id="saveTriviaBtn" data-t="b_saveq" disabled>Save questions</button>
       </div>
-      <div class="hint">No commas allowed in question or answer text &mdash; they'll be stripped automatically on save. Download grabs whatever's currently saved on the device (save your edits first if you want them included). Uploading a CSV replaces the list below &mdash; still hit "Save questions" to write it to the device.</div>
+      <div class="hint" data-t="hint_triv">No commas allowed in question or answer text &mdash; they'll be stripped automatically on save. Download grabs whatever's currently saved on the device (save your edits first if you want them included). Uploading a CSV replaces the list below &mdash; still hit "Save questions" to write it to the device.</div>
     </div>
   </section>
 
   <section>
-    <h2>Pass the Bomb categories</h2>
+    <h2 data-t="h_hp">Pass the Bomb categories</h2>
     <div class="body">
       <ul id="hpCatList"><li class="loading">Loading&hellip;</li></ul>
-      <button class="primary" id="saveHpCatBtn">Save categories</button>
-      <div class="hint">Switch a category off to remove it from the random pool &mdash; at least one must stay on.</div>
+      <button class="primary" id="saveHpCatBtn" data-t="b_hp">Save categories</button>
+      <div class="hint" data-t="hint_hp">Switch a category off to remove it from the random pool &mdash; at least one must stay on.</div>
     </div>
   </section>
 
   <section>
-    <h2>High scores</h2>
+    <h2 data-t="h_hs">High scores</h2>
     <div class="body">
       <ul id="highScoreList"><li class="loading">Loading&hellip;</li></ul>
-      <div class="hint">Resets happen immediately &mdash; there's no undo.</div>
+      <div class="hint" data-t="hint_hs">Resets happen immediately &mdash; there's no undo.</div>
     </div>
   </section>
 
   <section>
-    <h2>Firmware update</h2>
+    <h2 data-t="h_fw">Firmware update</h2>
     <div class="body">
-      <div class="fw-version">Installed version: <b id="fwVersion">&hellip;</b></div>
+      <div class="fw-version"><span data-t="l_inst">Installed version:</span> <b id="fwVersion">&hellip;</b></div>
       <input type="file" id="fwFile" class="fw-file" accept=".bin,application/octet-stream">
-      <button class="primary" id="fwInstallBtn" disabled>Install update</button>
+      <button class="primary" id="fwInstallBtn" data-t="b_inst" disabled>Install update</button>
       <progress id="fwProgress" class="fw-progress" max="100" value="0" hidden></progress>
       <div id="fwStatus" class="fw-status"></div>
-      <div class="hint">Download the latest <b>TigerTimer-vX.Y.Z.bin</b> from
+      <div class="hint" data-t="hint_fw1">Download the latest <b>TigerTimer-vX.Y.Z.bin</b> from
         <a href="https://github.com/pierre-raseev/tiger-timer/releases" target="_blank" rel="noopener">github.com/pierre-raseev/tiger-timer/releases</a>
         <em>before</em> joining TigerTimer-Config (this network has no internet). Keep the box plugged in.
         You'll be asked to press the arcade button on the box to confirm. Your trivia questions and
         settings are kept.</div>
-      <div class="hint">If choosing the file or the upload doesn't work, close the &ldquo;Sign in to
+      <div class="hint" data-t="hint_fw2">If choosing the file or the upload doesn't work, close the &ldquo;Sign in to
         network&rdquo; pop-up and open <b>http://192.168.4.1</b> in a real browser (Chrome, Safari&hellip;)
         while still connected to TigerTimer-Config.</div>
     </div>
@@ -345,6 +346,140 @@ const API = "";
 let config = null;
 let triviaQuestions = null;
 let triviaLoadedFor = null;
+
+// ---------------- Language: the page follows the box's language (config.lang: 0 EN, 1 FR, 2 ES).
+// The English text lives in the HTML above; ST holds the [French, Spanish] HTML for every element
+// tagged data-t, and S holds [English, French, Spanish] for the text built in JS ({0} = argument).
+// Game names come from the box itself (its own menu labels), so they always match the screen. ----------------
+let L = 0;
+const ST = {
+  ttl: ['TigerTimer Config distante', 'TigerTimer Config remota'],
+  sub: ['Connecté en WiFi &mdash; les modifications sont enregistrées directement sur la boîte', 'Conectado por WiFi &mdash; los cambios se guardan directamente en la caja'],
+  hts: ['Comment utiliser Tiger Timer', 'Cómo usar Tiger Timer'],
+  htb: [`<h3>Alimentation et recharge</h3><ul>
+<li>La batterie <b>ne se recharge que si l'interrupteur est sur ON</b> : allumez-la, puis branchez l'USB-C. Vous pouvez la laisser allumée, la boîte se met en veille toute seule.</li>
+<li>Pendant la recharge, <b>le voyant clignote en rouge</b> : c'est comme ça que vous savez qu'elle charge.</li>
+<li>Éteignez-la pour la ranger : la batterie est alors complètement déconnectée.</li></ul>
+<h3>Commandes</h3><ul>
+<li><b>Bouton arcade :</b> valider, ou l'action principale du jeu.</li>
+<li><b>Tourner la molette :</b> se déplacer dans les menus et changer les valeurs.</li>
+<li><b>Cliquer la molette :</b> valider dans les menus ; pause/reprise dans Minuteur et Horloge échecs.</li>
+<li><b>Maintenir la molette et tourner :</b> le volume, depuis n'importe où.</li>
+<li><b>Maintenir la molette 1&nbsp;s</b> dans un jeu : «&nbsp;Retour au menu ?&nbsp;». C'est la seule façon de quitter un jeu, pour ne jamais perdre une partie par accident.</li>
+<li><b>Maintenir le bouton arcade</b> au démarrage : passer l'animation d'intro.</li></ul>
+<h3>Veille</h3><ul>
+<li>L'écran s'éteint après 5 minutes sans utilisation (pas pendant un minuteur ou une partie). N'importe quel bouton ou un tour de molette le rallume ; ce premier appui ne fait que le rallumer.</li>
+<li>Après 30 minutes, la boîte passe en veille profonde. Appuyez sur le bouton arcade pour la redémarrer.</li></ul>
+<h3>Réglages sur la boîte</h3><ul>
+<li><b>Langue</b> (English, Français, Español), <b>Intervalle</b> (de combien la durée du Minuteur change à chaque cran de molette) et <b>Config distante</b> (cette page).</li>
+<li>Appuyez sur l'un des deux boutons de la boîte pour quitter Config distante. Elle se ferme aussi toute seule après 5 minutes sans personne connecté.</li></ul>`,
+`<h3>Batería y carga</h3><ul>
+<li>La batería <b>solo se carga con el interruptor en ON</b>: enciéndela y luego conecta el USB-C. Puedes dejarla encendida, la caja se duerme sola.</li>
+<li>Mientras carga, <b>la luz parpadea en rojo</b>: así sabes que se está cargando.</li>
+<li>Apágala para guardarla: así la batería queda totalmente desconectada.</li></ul>
+<h3>Controles</h3><ul>
+<li><b>Botón arcade:</b> confirmar, o la acción principal del juego.</li>
+<li><b>Girar la rueda:</b> moverse por los menús y cambiar valores.</li>
+<li><b>Pulsar la rueda:</b> confirmar en los menús; pausa/reanudar en Temporizador y Reloj ajedrez.</li>
+<li><b>Mantener la rueda y girar:</b> volumen, desde cualquier sitio.</li>
+<li><b>Mantener la rueda 1&nbsp;s</b> dentro de un juego: «¿Volver al menú?». Es la única forma de salir de un juego, así nunca se pierde una partida por accidente.</li>
+<li><b>Mantener el botón arcade</b> al encender la caja: saltar la animación de inicio.</li></ul>
+<h3>Reposo</h3><ul>
+<li>La pantalla se apaga tras 5 minutos sin uso (no mientras corre un temporizador o un juego). Cualquier botón o giro de la rueda la enciende; esa primera pulsación solo la enciende.</li>
+<li>Tras 30 minutos la caja entra en reposo profundo. Pulsa el botón arcade para volver a encenderla.</li></ul>
+<h3>Ajustes en la caja</h3><ul>
+<li><b>Idioma</b> (English, Français, Español), <b>Intervalo</b> (cuánto cambia la duración del Temporizador con cada clic de la rueda) y <b>Config remota</b> (esta página).</li>
+<li>Pulsa cualquiera de los dos botones de la caja para salir de Config remota. También se cierra sola tras 5 minutos sin nadie conectado.</li></ul>`],
+  h_menu: ['Ordre du menu et jeux', 'Orden del menú y juegos'],
+  b_menu: ['Enregistrer le menu', 'Guardar menú'],
+  hint_menu: ['Utilisez les flèches pour réordonner. Désactivez un jeu pour le masquer du menu de la boîte &mdash; au moins un doit rester activé.', 'Usa las flechas para reordenar. Desactiva un juego para ocultarlo del menú de la caja &mdash; al menos uno debe seguir activado.'],
+  h_start: ['Démarrage', 'Al encender'],
+  o_menu: ['Aller au menu', 'Ir al menú'],
+  o_game: ['Lancer un jeu', 'Iniciar un juego'],
+  l_game: ['Jeu à lancer', 'Juego que iniciar'],
+  b_start: ['Enregistrer le démarrage', 'Guardar ajuste de inicio'],
+  h_timer: ['Durée du minuteur par défaut', 'Duración del temporizador por defecto'],
+  l_sec: ['Secondes', 'Segundos'],
+  b_timer: ['Enregistrer la durée', 'Guardar duración'],
+  h_triv: ['Questions du quiz', 'Preguntas de trivia'],
+  l_cat: ['Catégorie', 'Categoría'],
+  l_lvl: ['Niveau', 'Nivel'],
+  b_load: ['Charger les questions', 'Cargar preguntas'],
+  b_dl: ['&#8595; Télécharger le CSV', '&#8595; Descargar CSV'],
+  b_ul: ['&#8593; Importer un CSV', '&#8593; Subir CSV'],
+  b_add: ['+ Ajouter une question', '+ Añadir pregunta'],
+  b_saveq: ['Enregistrer les questions', 'Guardar preguntas'],
+  hint_triv: ['Pas de virgules dans les questions ni les réponses &mdash; elles sont retirées automatiquement à l\'enregistrement. Télécharger récupère ce qui est enregistré sur la boîte (enregistrez d\'abord vos modifications si vous voulez les inclure). Importer un CSV remplace la liste ci-dessous &mdash; appuyez quand même sur «&nbsp;Enregistrer les questions&nbsp;» pour l\'écrire sur la boîte.', 'No se permiten comas en preguntas ni respuestas &mdash; se quitan automáticamente al guardar. Descargar obtiene lo que está guardado en la caja (guarda antes tus cambios si quieres incluirlos). Subir un CSV reemplaza la lista de abajo &mdash; aun así pulsa «Guardar preguntas» para escribirla en la caja.'],
+  h_hp: ['Catégories de Passe la bombe', 'Categorías de Pasa la bomba'],
+  b_hp: ['Enregistrer les catégories', 'Guardar categorías'],
+  hint_hp: ['Désactivez une catégorie pour la retirer du tirage au sort &mdash; au moins une doit rester activée.', 'Desactiva una categoría para quitarla del sorteo &mdash; al menos una debe seguir activada.'],
+  h_hs: ['Meilleurs scores', 'Récords'],
+  hint_hs: ['La remise à zéro est immédiate &mdash; impossible d\'annuler.', 'El reinicio es inmediato &mdash; no se puede deshacer.'],
+  h_fw: ['Mise à jour du firmware', 'Actualización del firmware'],
+  l_inst: ['Version installée :', 'Versión instalada:'],
+  b_inst: ['Installer la mise à jour', 'Instalar actualización'],
+  hint_fw1: ['Téléchargez le dernier <b>TigerTimer-vX.Y.Z.bin</b> sur <a href="https://github.com/pierre-raseev/tiger-timer/releases" target="_blank" rel="noopener">github.com/pierre-raseev/tiger-timer/releases</a> <em>avant</em> de rejoindre TigerTimer-Config (ce réseau n\'a pas internet). Laissez la boîte branchée. On vous demandera d\'appuyer sur le bouton arcade de la boîte pour confirmer. Vos questions de quiz et vos réglages sont conservés.', 'Descarga el último <b>TigerTimer-vX.Y.Z.bin</b> de <a href="https://github.com/pierre-raseev/tiger-timer/releases" target="_blank" rel="noopener">github.com/pierre-raseev/tiger-timer/releases</a> <em>antes</em> de conectarte a TigerTimer-Config (esta red no tiene internet). Deja la caja enchufada. Se te pedirá pulsar el botón arcade de la caja para confirmar. Tus preguntas de trivia y tus ajustes se conservan.'],
+  hint_fw2: ['Si le choix du fichier ou l\'envoi ne fonctionne pas, fermez la fenêtre «&nbsp;Se connecter au réseau&nbsp;» et ouvrez <b>http://192.168.4.1</b> dans un vrai navigateur (Chrome, Safari&hellip;) en restant connecté à TigerTimer-Config.', 'Si elegir el archivo o la subida no funciona, cierra la ventana «Iniciar sesión en la red» y abre <b>http://192.168.4.1</b> en un navegador de verdad (Chrome, Safari&hellip;) sin desconectarte de TigerTimer-Config.'],
+};
+const S = {
+  settings: ['Settings', 'Paramètres', 'Ajustes'],
+  instructions: ['Instructions', 'Instructions', 'Instrucciones'],
+  loading: ['Loading…', 'Chargement…', 'Cargando…'],
+  menuSaved: ['Menu saved', 'Menu enregistré', 'Menú guardado'],
+  menuErr: ['Could not save menu', 'Impossible d\'enregistrer le menu', 'No se pudo guardar el menú'],
+  warnGame: ['At least one game must stay on - that change was ignored', 'Au moins un jeu doit rester activé - ce changement a été ignoré', 'Al menos un juego debe seguir activado - ese cambio se ignoró'],
+  warnCat: ['At least one category must stay on - that change was ignored', 'Au moins une catégorie doit rester activée - ce changement a été ignoré', 'Al menos una categoría debe seguir activada - ese cambio se ignoró'],
+  startSaved: ['Startup setting saved', 'Démarrage enregistré', 'Ajuste de inicio guardado'],
+  startErr: ['Could not save startup setting', 'Impossible d\'enregistrer le démarrage', 'No se pudo guardar el ajuste de inicio'],
+  timerSaved: ['Default timer saved', 'Durée par défaut enregistrée', 'Duración por defecto guardada'],
+  timerErr: ['Could not save default timer', 'Impossible d\'enregistrer la durée', 'No se pudo guardar la duración'],
+  cats: [null, ['Sport', 'Géographie', 'Sciences', 'Histoire', 'Général', 'Mythologie', 'Art', 'Animaux'], ['Deportes', 'Geografía', 'Ciencias', 'Historia', 'General', 'Mitología', 'Arte', 'Animales']],
+  levels: [null, ['Junior', 'Curieux', 'Maître'], ['Junior', 'Curioso', 'Maestro']],
+  empty: ['(empty)', '(vide)', '(vacía)'],
+  qQ: ['Question', 'Question', 'Pregunta'],
+  qC: ['Correct answer', 'Bonne réponse', 'Respuesta correcta'],
+  qW1: ['Wrong answer 1', 'Mauvaise réponse 1', 'Respuesta incorrecta 1'],
+  qW2: ['Wrong answer 2 (optional)', 'Mauvaise réponse 2 (facultatif)', 'Respuesta incorrecta 2 (opcional)'],
+  qW3: ['Wrong answer 3 (optional)', 'Mauvaise réponse 3 (facultatif)', 'Respuesta incorrecta 3 (opcional)'],
+  delQ: ['Delete question', 'Supprimer la question', 'Borrar pregunta'],
+  loadQErr: ['Could not load questions', 'Impossible de charger les questions', 'No se pudieron cargar las preguntas'],
+  csvLoaded: ['Loaded {0} questions from CSV - review, then Save', '{0} questions chargées depuis le CSV - vérifiez, puis enregistrez', '{0} preguntas cargadas del CSV - revísalas y guarda'],
+  csvErr: ['Could not read that CSV file', 'Impossible de lire ce fichier CSV', 'No se pudo leer ese archivo CSV'],
+  fileErr: ['Could not read that file', 'Impossible de lire ce fichier', 'No se pudo leer ese archivo'],
+  savedQ: ['Saved {0} questions', '{0} questions enregistrées', '{0} preguntas guardadas'],
+  savedQSkip: ['Saved {0} questions ({1} empty removed)', '{0} questions enregistrées ({1} vides retirées)', '{0} preguntas guardadas ({1} vacías quitadas)'],
+  saveQErr: ['Could not save questions', 'Impossible d\'enregistrer les questions', 'No se pudieron guardar las preguntas'],
+  catsSaved: ['Categories saved', 'Catégories enregistrées', 'Categorías guardadas'],
+  catsErr: ['Could not save categories', 'Impossible d\'enregistrer les catégories', 'No se pudieron guardar las categorías'],
+  best: ['Best: {0}', 'Record : {0}', 'Récord: {0}'],
+  reset: ['Reset', 'Remettre à zéro', 'Reiniciar'],
+  resetAsk: ['Reset the {0} high score? This can\'t be undone.', 'Remettre à zéro le meilleur score de {0} ? Impossible d\'annuler.', '¿Reiniciar el récord de {0}? No se puede deshacer.'],
+  hsReset: ['High score reset', 'Meilleur score remis à zéro', 'Récord reiniciado'],
+  hsErr: ['Could not reset high score', 'Impossible de remettre le score à zéro', 'No se pudo reiniciar el récord'],
+  unknown: ['unknown', 'inconnue', 'desconocida'],
+  fwBin: ['Choose the .bin file from the GitHub release.', 'Choisissez le fichier .bin de la release GitHub.', 'Elige el archivo .bin de la versión en GitHub.'],
+  fwSize: ['That file is not the right size for Tiger Timer firmware.', 'Ce fichier n\'a pas la bonne taille pour un firmware Tiger Timer.', 'Ese archivo no tiene el tamaño correcto para el firmware de Tiger Timer.'],
+  fwPress: ['Press the arcade button on the box to confirm (knob click cancels)…', 'Appuyez sur le bouton arcade de la boîte pour confirmer (un clic sur la molette annule)…', 'Pulsa el botón arcade de la caja para confirmar (pulsar la rueda cancela)…'],
+  fwDeclined: ['Cancelled on the box.', 'Annulé sur la boîte.', 'Cancelado en la caja.'],
+  fwTimeout: ['Not confirmed on the box in time.', 'Pas confirmé sur la boîte à temps.', 'No se confirmó en la caja a tiempo.'],
+  fwUploading: ['Uploading — keep this page open…', 'Envoi en cours — gardez cette page ouverte…', 'Subiendo — deja esta página abierta…'],
+  fwDone: ['Installed! The box is restarting into the new version and will go back to its menu. Open Remote Config again to see the new version number.', 'Installé ! La boîte redémarre sur la nouvelle version et revient à son menu. Rouvrez Config distante pour voir le nouveau numéro de version.', '¡Instalado! La caja se reinicia con la nueva versión y vuelve a su menú. Abre Config remota de nuevo para ver el nuevo número de versión.'],
+  fwFail: ['Update failed', 'Échec de la mise à jour', 'La actualización falló'],
+  fwLost: ['Connection lost during upload', 'Connexion perdue pendant l\'envoi', 'Se perdió la conexión durante la subida'],
+  noDevice: ['Could not reach the device.', 'Impossible de joindre la boîte.', 'No se pudo conectar con la caja.'],
+  cfgErr: ['Could not load config from device', 'Impossible de charger la configuration de la boîte', 'No se pudo cargar la configuración de la caja'],
+};
+function t(k, ...a) {
+  let s = S[k][L] || S[k][0];
+  a.forEach((v, i) => { s = s.replace('{' + i + '}', v); });
+  return s;
+}
+function applyLanguage() {
+  document.documentElement.lang = ['en', 'fr', 'es'][L];
+  if (!L) return;
+  document.querySelectorAll('[data-t]').forEach(el => { el.innerHTML = ST[el.dataset.t][L - 1]; });
+  document.title = document.querySelector('h1').textContent;
+}
 
 function toast(msg, isError) {
   const t = document.getElementById('toast');
@@ -393,7 +528,7 @@ function renderMenuList() {
     const isSettings = id === config.settingsId;
     const isInstructions = id === config.instructionsId;
     const isNonGame = isSettings || isInstructions;
-    const nonGameLabel = isSettings ? 'Settings' : 'Instructions';
+    const nonGameLabel = t(isSettings ? 'settings' : 'instructions');
     const enabled = isNonGame ? true : gameEnabled(id);
     const toggleHtml = isNonGame ? '' :
       `<label class="switch"><input type="checkbox" data-toggle="${id}" ${enabled ? 'checked' : ''}><span class="track"></span></label>`;
@@ -434,11 +569,11 @@ document.getElementById('saveMenuBtn').addEventListener('click', async () => {
     const res = await apiPost('/api/config', { menuOrder: currentOrder, disabledGames });
     config.menuOrder = [...currentOrder];
     if (res && res.warning) {
-      toast(res.warning, true);
+      toast(t('warnGame'), true);
     } else {
-      toast('Menu saved');
+      toast(t('menuSaved'));
     }
-  } catch (e) { toast('Could not save menu', true); }
+  } catch (e) { toast(t('menuErr'), true); }
 });
 
 // ---------------- Startup ----------------
@@ -462,8 +597,8 @@ document.getElementById('saveStartupBtn').addEventListener('click', async () => 
   const startGame = parseInt(document.getElementById('startGameSelect').value, 10);
   try {
     await apiPost('/api/config', { startMode: config.startMode, startGame });
-    toast('Startup setting saved');
-  } catch (e) { toast('Could not save startup setting', true); }
+    toast(t('startSaved'));
+  } catch (e) { toast(t('startErr'), true); }
 });
 
 // ---------------- Default timer ----------------
@@ -484,8 +619,8 @@ document.getElementById('saveTimerBtn').addEventListener('click', async () => {
   const val = parseInt(document.getElementById('deftimeInput').value, 10);
   try {
     await apiPost('/api/config', { defaultTimerSeconds: val });
-    toast('Default timer saved');
-  } catch (e) { toast('Could not save default timer', true); }
+    toast(t('timerSaved'));
+  } catch (e) { toast(t('timerErr'), true); }
 });
 
 // ---------------- Trivia ----------------
@@ -535,8 +670,8 @@ function populateTriviaDropdowns() {
   const catSel = document.getElementById('triviaCat');
   const lvlSel = document.getElementById('triviaLevel');
   catSel.innerHTML = ''; lvlSel.innerHTML = '';
-  config.categories.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = capitalize(c); catSel.appendChild(o); });
-  config.levels.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = capitalize(l); lvlSel.appendChild(o); });
+  config.categories.forEach((c, i) => { const o = document.createElement('option'); o.value = c; o.textContent = L ? S.cats[L][i] : capitalize(c); catSel.appendChild(o); });
+  config.levels.forEach((l, i) => { const o = document.createElement('option'); o.value = l; o.textContent = L ? S.levels[L][i] : capitalize(l); lvlSel.appendChild(o); });
 }
 
 function questionField(qs, key, placeholder, isCorrect) {
@@ -553,19 +688,19 @@ function renderTriviaList() {
     details.className = 'qcard';
     if (i === 0) details.open = true;
     details.innerHTML = `
-      <summary><span class="qnum">#${i + 1}</span><span class="qtext">${(q.en_q || '(empty)').replace(/</g,'&lt;')}</span></summary>
+      <summary><span class="qnum">#${i + 1}</span><span class="qtext">${(q[['en','fr','es'][L] + '_q'] || q.en_q || t('empty')).replace(/</g,'&lt;')}</span></summary>
       <div class="qbody">
         ${['en','fr','es'].map(lang => `
           <div class="lang-block" data-lang="${lang}">
             <div class="lang-title">${lang.toUpperCase()}</div>
-            ${questionField(q, lang+'_q', 'Question')}
-            ${questionField(q, lang+'_correct', 'Correct answer', true)}
-            ${questionField(q, lang+'_wrong1', 'Wrong answer 1')}
-            ${questionField(q, lang+'_wrong2', 'Wrong answer 2 (optional)')}
-            ${questionField(q, lang+'_wrong3', 'Wrong answer 3 (optional)')}
+            ${questionField(q, lang+'_q', t('qQ'))}
+            ${questionField(q, lang+'_correct', t('qC'), true)}
+            ${questionField(q, lang+'_wrong1', t('qW1'))}
+            ${questionField(q, lang+'_wrong2', t('qW2'))}
+            ${questionField(q, lang+'_wrong3', t('qW3'))}
           </div>
         `).join('')}
-        <div class="qfooter"><button class="danger" data-del="${i}">Delete question</button></div>
+        <div class="qfooter"><button class="danger" data-del="${i}">${t('delQ')}</button></div>
       </div>
     `;
     list.appendChild(details);
@@ -576,8 +711,8 @@ function renderTriviaList() {
       const card = e.target.closest('.qcard');
       const idx = Array.from(list.children).indexOf(card);
       triviaQuestions[idx][e.target.dataset.field] = e.target.value;
-      if (e.target.dataset.field === 'en_q') {
-        card.querySelector('.qtext').textContent = e.target.value || '(empty)';
+      if (e.target.dataset.field === ['en','fr','es'][L] + '_q') {
+        card.querySelector('.qtext').textContent = e.target.value || t('empty');
       }
     });
   });
@@ -593,7 +728,7 @@ function renderTriviaList() {
 document.getElementById('loadTriviaBtn').addEventListener('click', async () => {
   const cat = document.getElementById('triviaCat').value;
   const lvl = document.getElementById('triviaLevel').value;
-  document.getElementById('triviaList').innerHTML = '<div class="loading">Loading&hellip;</div>';
+  document.getElementById('triviaList').innerHTML = '<div class="loading">' + t('loading') + '</div>';
   try {
     const data = await apiGet(`/api/trivia?category=${cat}&level=${lvl}`);
     triviaQuestions = data.questions || [];
@@ -603,7 +738,7 @@ document.getElementById('loadTriviaBtn').addEventListener('click', async () => {
     renderTriviaList();
   } catch (e) {
     document.getElementById('triviaList').innerHTML = '';
-    toast('Could not load questions', true);
+    toast(t('loadQErr'), true);
   }
 });
 
@@ -631,12 +766,12 @@ document.getElementById('csvFileInput').addEventListener('change', e => {
       document.getElementById('addQuestionBtn').disabled = false;
       document.getElementById('saveTriviaBtn').disabled = false;
       renderTriviaList();
-      toast(`Loaded ${triviaQuestions.length} questions from CSV - review, then Save`);
+      toast(t('csvLoaded', triviaQuestions.length));
     } catch (err) {
-      toast('Could not read that CSV file', true);
+      toast(t('csvErr'), true);
     }
   };
-  reader.onerror = () => toast('Could not read that file', true);
+  reader.onerror = () => toast(t('fileErr'), true);
   reader.readAsArrayBuffer(file);
   e.target.value = ''; // allow re-selecting the same file later
 });
@@ -661,22 +796,23 @@ document.getElementById('saveTriviaBtn').addEventListener('click', async () => {
       // the device dropped rows with no question text - mirror that in the editor
       triviaQuestions = triviaQuestions.filter(q => (q.en_q || '').trim() || (q.fr_q || '').trim() || (q.es_q || '').trim());
       renderTriviaList();
-      toast(`Saved ${triviaQuestions.length} questions (${skipped} empty removed)`);
+      toast(t('savedQSkip', triviaQuestions.length, skipped));
     } else {
-      toast(`Saved ${triviaQuestions.length} questions`);
+      toast(t('savedQ', triviaQuestions.length));
     }
-  } catch (e) { toast('Could not save questions', true); }
+  } catch (e) { toast(t('saveQErr'), true); }
 });
 
 // ---------------- Pass the Bomb categories ----------------
 function renderHpCatList() {
   const ul = document.getElementById('hpCatList');
   ul.innerHTML = '';
+  const langs = ['en', 'fr', 'es'], main = langs[L], others = langs.filter(l => l !== main);
   config.hpCategories.forEach(cat => {
     const li = document.createElement('li');
     li.innerHTML = `<div class="names">` +
-        `<div class="en ${cat.enabled === false ? 'disabled' : ''}">${cat.en}</div>` +
-        `<div class="translations">${cat.fr} &middot; ${cat.es}</div>` +
+        `<div class="en ${cat.enabled === false ? 'disabled' : ''}">${cat[main]}</div>` +
+        `<div class="translations">${cat[others[0]]} &middot; ${cat[others[1]]}</div>` +
       `</div>` +
       `<label class="switch"><input type="checkbox" data-hpcat="${cat.id}" ${cat.enabled !== false ? 'checked' : ''}><span class="track"></span></label>`;
     ul.appendChild(li);
@@ -696,11 +832,11 @@ document.getElementById('saveHpCatBtn').addEventListener('click', async () => {
   try {
     const res = await apiPost('/api/config', { disabledHpCategories });
     if (res && res.warning) {
-      toast(res.warning, true);
+      toast(t('warnCat'), true);
     } else {
-      toast('Categories saved');
+      toast(t('catsSaved'));
     }
-  } catch (e) { toast('Could not save categories', true); }
+  } catch (e) { toast(t('catsErr'), true); }
 });
 
 // ---------------- High scores ----------------
@@ -718,21 +854,21 @@ function renderHighScoreList() {
     const score = (config.highScores && config.highScores[g.key]) || 0;
     li.innerHTML = `<div class="names">` +
         `<div class="en">${g.name}</div>` +
-        `<div class="translations">Best: ${score}</div>` +
+        `<div class="translations">${t('best', score)}</div>` +
       `</div>` +
-      `<button class="secondary" data-reset="${g.key}">Reset</button>`;
+      `<button class="secondary" data-reset="${g.key}" data-name="${g.name}">${t('reset')}</button>`;
     ul.appendChild(li);
   });
   ul.querySelectorAll('[data-reset]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const game = btn.dataset.reset;
-      if (!confirm(`Reset the ${game} high score? This can't be undone.`)) return;
+      if (!confirm(t('resetAsk', btn.dataset.name))) return;
       try {
         await apiPost('/api/reset-highscore', { game });
         if (config.highScores) config.highScores[game] = 0;
         renderHighScoreList();
-        toast('High score reset');
-      } catch (e) { toast('Could not reset high score', true); }
+        toast(t('hsReset'));
+      } catch (e) { toast(t('hsErr'), true); }
     });
   });
 }
@@ -741,7 +877,7 @@ function renderHighScoreList() {
 // The box must confirm with a physical arcade-button press before it accepts the file;
 // see "Firmware update" in web_config.ino for the device side.
 function renderFirmware() {
-  document.getElementById('fwVersion').textContent = config.version ? 'v' + config.version : 'unknown';
+  document.getElementById('fwVersion').textContent = config.version ? 'v' + config.version : t('unknown');
 }
 
 function fwStatus(msg, kind) {
@@ -757,8 +893,8 @@ document.getElementById('fwFile').addEventListener('change', e => {
   btn.disabled = true;
   fwStatus('');
   if (!f) return;
-  if (!/\.bin$/i.test(f.name)) { fwStatus('Choose the .bin file from the GitHub release.', 'error'); return; }
-  if (f.size > FW_MAX_BYTES || f.size < 100000) { fwStatus('That file is not the right size for Tiger Timer firmware.', 'error'); return; }
+  if (!/\.bin$/i.test(f.name)) { fwStatus(t('fwBin'), 'error'); return; }
+  if (f.size > FW_MAX_BYTES || f.size < 100000) { fwStatus(t('fwSize'), 'error'); return; }
   btn.disabled = false;
 });
 
@@ -774,9 +910,9 @@ function uploadFirmware(file) {
       let body = {};
       try { body = JSON.parse(xhr.responseText); } catch (e) {}
       if (xhr.status === 200 && body.ok) resolve();
-      else reject(new Error(body.error || 'Update failed'));
+      else reject(new Error(body.error || t('fwFail')));
     };
-    xhr.onerror = () => reject(new Error('Connection lost during upload'));
+    xhr.onerror = () => reject(new Error(t('fwLost')));
     const form = new FormData();
     form.append('firmware', file, file.name);
     xhr.send(form);
@@ -793,7 +929,7 @@ document.getElementById('fwInstallBtn').addEventListener('click', async () => {
   fileInput.disabled = true;
   try {
     await apiPost('/api/update/request', {});
-    fwStatus('Press the arcade button on the box to confirm (knob click cancels)…');
+    fwStatus(t('fwPress'));
     let state = 'waiting';
     const deadline = Date.now() + 65000;
     while (state === 'waiting' && Date.now() < deadline) {
@@ -801,17 +937,17 @@ document.getElementById('fwInstallBtn').addEventListener('click', async () => {
       state = (await apiGet('/api/update/status')).state;
     }
     if (state !== 'confirmed') {
-      fwStatus(state === 'declined' ? 'Cancelled on the box.' : 'Not confirmed on the box in time.', 'error');
+      fwStatus(t(state === 'declined' ? 'fwDeclined' : 'fwTimeout'), 'error');
       return;
     }
-    fwStatus('Uploading — keep this page open…');
+    fwStatus(t('fwUploading'));
     prog.value = 0;
     prog.hidden = false;
     await uploadFirmware(file);
     prog.value = 100;
-    fwStatus('Installed! The box is restarting into the new version and will go back to its menu. Open Remote Config again to see the new version number.', 'good');
+    fwStatus(t('fwDone'), 'good');
   } catch (e) {
-    fwStatus(e.message || 'Update failed', 'error');
+    fwStatus(e.message || t('fwFail'), 'error');
   } finally {
     btn.disabled = !fileInput.files[0];
     fileInput.disabled = false;
@@ -822,6 +958,8 @@ document.getElementById('fwInstallBtn').addEventListener('click', async () => {
 (async function init() {
   try {
     config = await apiGet('/api/config');
+    L = (config.lang >= 0 && config.lang <= 2) ? config.lang : 0;
+    applyLanguage();
     currentOrder = [...config.menuOrder];
     renderMenuList();
     renderStartup();
@@ -833,8 +971,11 @@ document.getElementById('fwInstallBtn').addEventListener('click', async () => {
   } catch (e) {
     document.getElementById('menuList').innerHTML = '<li class="loading">Could not reach the device.</li>';
     toast('Could not load config from device', true);
+  } finally {
+    document.body.classList.remove('wait');
   }
 })();
+setTimeout(() => document.body.classList.remove('wait'), 4000); // never stay hidden if the box is slow
 </script>
 
 </body>
