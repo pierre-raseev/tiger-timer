@@ -2,7 +2,8 @@
 // Config Mode: WiFi access point + on-device web server for editing settings from a phone
 // or laptop browser, without a USB cable. Entered only from Settings > Config Mode, and
 // fully torn down (WiFi off) when you press the button to exit - normal gameplay never
-// pays any WiFi battery cost. See /data/config.html for the actual page this serves.
+// pays any WiFi battery cost. The page itself is web/config.html, embedded gzipped into the
+// firmware as config_html.h (tools/embed_config_html.py) - not stored on LittleFS.
 //
 // Requires the "ArduinoJson" library, version 7.x specifically (Library Manager - search
 // "ArduinoJson" by Benoit Blanchon, install the latest 7.x - the JsonDocument API used below
@@ -232,16 +233,13 @@ String csvSanitizeField(const String& in) {
   return out;
 }
 
-// ---------------- Route: GET / - serves the config page itself from LittleFS ----------------
+// ---------------- Route: GET / - serves the config page itself, embedded in the firmware ----------------
+// Gzipped at build time (config_html.h) and sent as-is with Content-Encoding: gzip - every browser
+// unpacks it. Being part of the firmware, it is replaced by a firmware update (see "Firmware update" below).
 void handleConfigRoot() {
   configLastRequestMs = millis(); // any request counts as "someone is using Config Mode" - see enterConfigMode()
-  File f = LittleFS.open("/config.html", "r");
-  if (!f) {
-    configServer.send(500, "text/plain", "config.html not found on LittleFS. Did you upload the data folder?");
-    return;
-  }
-  configServer.streamFile(f, "text/html");
-  f.close();
+  configServer.sendHeader("Content-Encoding", "gzip");
+  configServer.send_P(200, "text/html", (PGM_P)CONFIG_HTML_GZ, CONFIG_HTML_GZ_LEN);
 }
 
 // ---------------- Route: GET /api/config - current menu order, startup choice, default timer, and
@@ -249,6 +247,8 @@ void handleConfigRoot() {
 void handleGetConfig() {
   configLastRequestMs = millis(); // any request counts as "someone is using Config Mode" - see enterConfigMode()
   JsonDocument doc;
+
+  doc["version"] = FW_VERSION;
 
   JsonArray menu = doc["menuOrder"].to<JsonArray>();
   for (int i = 0; i < MENU_COUNT; i++) menu.add(MENU_ORDER[i]);
@@ -678,6 +678,248 @@ void drawConfigModeScreen(const char* ssid, const char* ip) {
   display.display();
 }
 
+// ======================================================================================
+// Firmware update from the Remote Config page.
+// Flow (the page drives it, see the "Firmware update" section of web/config.html):
+//   1. POST /api/update/request - the box shows "Install update?"; the person at the box presses
+//      the arcade button to allow it (knob click cancels; 60s timeout). Someone else on the open
+//      TigerTimer-Config network can't install firmware without a hand on the box.
+//   2. The page polls GET /api/update/status until "confirmed" (or declined/timeout).
+//   3. POST /api/update?size=<bytes>, multipart with the .bin - accepted only within 2 min of the
+//      confirmation. Written to the spare OTA app slot (the default partition table has two)
+//      while the current firmware keeps running.
+//   4. Installed only if (a) the file contains TT_FW_MARKER, so it is a Tiger Timer build, and
+//      (b) the ESP32's own image check passes (header, chip type, checksum, full size). Anything
+//      else is discarded and the box keeps its current firmware.
+//   5. On success the box restarts ~1s later into the new firmware, back to its normal menu.
+// LittleFS (trivia questions) is never touched.
+// ======================================================================================
+enum FwUpdateState { UPD_IDLE, UPD_WAITING, UPD_CONFIRMED, UPD_DECLINED, UPD_TIMEOUT, UPD_RECEIVING, UPD_DONE, UPD_FAILED };
+FwUpdateState updState = UPD_IDLE;
+unsigned long updStateMs = 0;   // when updState last changed
+unsigned long updLastDataMs = 0; // last upload chunk, to catch a vanished browser mid-upload
+String updError;
+size_t updExpectedSize = 0;
+size_t updReceived = 0;
+int updLastPct = -1;
+bool updMarkerFound = false;
+uint8_t updTail[sizeof(TT_FW_MARKER)]; // last few bytes of the previous chunk, so a marker split across chunks is found
+size_t updTailLen = 0;
+const unsigned long UPD_CONFIRM_TIMEOUT_MS = 60UL * 1000UL;
+const unsigned long UPD_UPLOAD_WINDOW_MS   = 2UL * 60UL * 1000UL;
+const unsigned long UPD_STALL_TIMEOUT_MS   = 30UL * 1000UL;
+
+void setUpdState(int s) { updState = (FwUpdateState)s; updStateMs = millis(); } // int, not the enum: the Arduino prototype generator places prototypes above the enum
+
+const char* updStateName() {
+  switch (updState) {
+    case UPD_WAITING:   return "waiting";
+    case UPD_CONFIRMED: return "confirmed";
+    case UPD_DECLINED:  return "declined";
+    case UPD_TIMEOUT:   return "timeout";
+    case UPD_RECEIVING: return "receiving";
+    case UPD_DONE:      return "done";
+    case UPD_FAILED:    return "failed";
+    default:            return "idle";
+  }
+}
+
+// Up to three centred text lines plus an optional progress bar (pct < 0 = no bar).
+void drawUpdateScreen(int s1, int s2, int s3, int pct) {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SH110X_WHITE);
+  int ids[3] = {s1, s2, s3};
+  int ys[3] = {8, 26, 38};
+  for (int i = 0; i < 3; i++) {
+    if (ids[i] < 0) continue;
+    const char* t = T(ids[i]);
+    int w = strlen(t) * 6;
+    display.setCursor(max(0, (SCREEN_WIDTH - w) / 2), ys[i]);
+    display.print(t);
+  }
+  if (pct >= 0) {
+    display.drawRect(14, 30, 100, 10, SH110X_WHITE);
+    display.fillRect(16, 32, (96 * pct) / 100, 6, SH110X_WHITE);
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%d%%", pct);
+    display.setCursor((SCREEN_WIDTH - (int)strlen(buf) * 6) / 2, 48);
+    display.print(buf);
+  }
+  display.display();
+}
+
+void scanForFwMarker(const uint8_t* buf, size_t n) {
+  if (updMarkerFound || n == 0) return;
+  const size_t M = sizeof(TT_FW_MARKER) - 1; // without the trailing NUL
+  // A marker straddling the previous chunk and this one: tail + start of this chunk.
+  uint8_t joint[2 * sizeof(TT_FW_MARKER)];
+  size_t head = min(n, M - 1);
+  memcpy(joint, updTail, updTailLen);
+  memcpy(joint + updTailLen, buf, head);
+  if (memmem(joint, updTailLen + head, TT_FW_MARKER, M) || memmem(buf, n, TT_FW_MARKER, M)) {
+    updMarkerFound = true;
+    return;
+  }
+  // Keep the last M-1 bytes seen for the next chunk.
+  if (n >= M - 1) {
+    memcpy(updTail, buf + n - (M - 1), M - 1);
+    updTailLen = M - 1;
+  } else {
+    size_t keep = min(updTailLen, (M - 1) - n);
+    memmove(updTail, updTail + updTailLen - keep, keep);
+    memcpy(updTail + keep, buf, n);
+    updTailLen = keep + n;
+  }
+}
+
+void failUpdate(const String& why) {
+  if (updState == UPD_RECEIVING) Update.abort();
+  updError = why;
+  setUpdState(UPD_FAILED);
+  drawUpdateScreen(STR_UPDATE_FAILED, -1, -1, -1);
+  Serial.printf("[update] failed: %s\n", why.c_str());
+}
+
+// POST /api/update/request
+void handleUpdateRequest() {
+  configLastRequestMs = millis();
+  if (updState == UPD_RECEIVING || updState == UPD_DONE) {
+    configServer.send(409, "application/json", "{\"ok\":false,\"error\":\"An update is already in progress\"}");
+    return;
+  }
+  updError = "";
+  setUpdState(UPD_WAITING);
+  drawUpdateScreen(STR_UPDATE_CONFIRM, STR_UPDATE_BTN_YES, STR_UPDATE_KNOB_NO, -1);
+  configServer.send(200, "application/json", "{\"ok\":true}");
+}
+
+// GET /api/update/status
+void handleUpdateStatus() {
+  configLastRequestMs = millis();
+  JsonDocument doc;
+  doc["state"] = updStateName();
+  doc["error"] = updError;
+  String out;
+  serializeJson(doc, out);
+  configServer.send(200, "application/json", out);
+}
+
+// POST /api/update - called per chunk while the file streams in
+void handleUpdateUpload() {
+  configLastRequestMs = millis();
+  HTTPUpload& up = configServer.upload();
+  if (up.status == UPLOAD_FILE_START) {
+    if (updState != UPD_CONFIRMED || millis() - updStateMs > UPD_UPLOAD_WINDOW_MS) {
+      updError = "Not confirmed on the box - press Install again and press the arcade button";
+      return; // rest of the upload is ignored; the final handler reports the error
+    }
+    updExpectedSize = (size_t)configServer.arg("size").toInt();
+    if (updExpectedSize == 0) { failUpdate("Missing file size"); return; }
+    updReceived = 0;
+    updLastPct = -1;
+    updMarkerFound = false;
+    updTailLen = 0;
+    if (!Update.begin(updExpectedSize, U_FLASH)) {
+      failUpdate(String("File does not fit: ") + Update.errorString());
+      return;
+    }
+    setUpdState(UPD_RECEIVING);
+    updLastDataMs = millis();
+    drawUpdateScreen(STR_UPDATE_RUNNING, -1, -1, 0);
+    Serial.printf("[update] receiving %u bytes\n", (unsigned)updExpectedSize);
+  } else if (up.status == UPLOAD_FILE_WRITE) {
+    if (updState != UPD_RECEIVING) return;
+    updLastDataMs = millis();
+    scanForFwMarker(up.buf, up.currentSize);
+    if (Update.write(up.buf, up.currentSize) != up.currentSize) {
+      failUpdate(String("Write failed: ") + Update.errorString());
+      return;
+    }
+    updReceived += up.currentSize;
+    int pct = (int)((updReceived * 100) / updExpectedSize);
+    if (pct > 100) pct = 100;
+    if (pct / 5 != updLastPct / 5) { // redraw every 5%, the I2C screen push isn't free
+      updLastPct = pct;
+      drawUpdateScreen(STR_UPDATE_RUNNING, -1, -1, pct);
+    }
+  } else if (up.status == UPLOAD_FILE_END) {
+    if (updState != UPD_RECEIVING) return;
+    if (!updMarkerFound) { failUpdate("This file is not Tiger Timer firmware"); return; }
+    if (!Update.end()) { // false = the full expected size must have arrived; also runs the image check
+      updError = String("Firmware check failed: ") + Update.errorString();
+      setUpdState(UPD_FAILED);
+      drawUpdateScreen(STR_UPDATE_FAILED, -1, -1, -1);
+      return;
+    }
+    setUpdState(UPD_DONE);
+    drawUpdateScreen(STR_UPDATE_RESTART, -1, -1, -1);
+    Serial.println("[update] installed, restarting");
+  } else if (up.status == UPLOAD_FILE_ABORTED) {
+    if (updState == UPD_RECEIVING) failUpdate("Upload interrupted");
+  }
+}
+
+// POST /api/update - called once after the whole upload
+void handleUpdateDone() {
+  configLastRequestMs = millis();
+  if (updState == UPD_DONE) {
+    configServer.send(200, "application/json", "{\"ok\":true}");
+  } else {
+    JsonDocument doc;
+    doc["ok"] = false;
+    doc["error"] = updError.length() ? updError : String("Update failed");
+    String out;
+    serializeJson(doc, out);
+    configServer.send(400, "application/json", out);
+  }
+}
+
+// Called from the Config Mode loop. Returns true if it used a button press (so the loop must not
+// treat that press as "exit Config Mode").
+bool serviceFwUpdate(bool buttonDown, bool knobDown) {
+  unsigned long now = millis();
+  switch (updState) {
+    case UPD_WAITING:
+      if (buttonDown || knobDown) {
+        setUpdState(buttonDown ? UPD_CONFIRMED : UPD_DECLINED);
+        while (digitalRead(BUTTON_PIN) == LOW || digitalRead(ENCODER_SW) == LOW) delay(2);
+        delay(50);
+        if (updState == UPD_CONFIRMED) drawUpdateScreen(STR_UPDATE_WAITING, -1, -1, -1);
+        else drawConfigModeScreen(CONFIG_AP_SSID, configApIpStr.c_str());
+        return true;
+      }
+      if (now - updStateMs > UPD_CONFIRM_TIMEOUT_MS) {
+        setUpdState(UPD_TIMEOUT);
+        drawConfigModeScreen(CONFIG_AP_SSID, configApIpStr.c_str());
+      }
+      return true; // while asking, a press never exits Config Mode
+    case UPD_CONFIRMED:
+      if (now - updStateMs > UPD_UPLOAD_WINDOW_MS) {
+        setUpdState(UPD_TIMEOUT);
+        drawConfigModeScreen(CONFIG_AP_SSID, configApIpStr.c_str());
+      }
+      return false;
+    case UPD_RECEIVING:
+      if (now - updLastDataMs > UPD_STALL_TIMEOUT_MS) failUpdate("Upload stalled");
+      return true; // buttons ignored mid-write
+    case UPD_DONE:
+      if (now - updStateMs > 1000) { // gives the browser time to get the "ok" response
+        display.oled_command(SH110X_DISPLAYOFF);
+        ESP.restart();
+      }
+      return true;
+    case UPD_FAILED:
+      if (now - updStateMs > 3000) { // leave "Update failed" up briefly, then back to the QR screen
+        setUpdState(UPD_IDLE);
+        drawConfigModeScreen(CONFIG_AP_SSID, configApIpStr.c_str());
+      }
+      return true;
+    default:
+      return false;
+  }
+}
+
 // ---------------- Config Mode: entry point, called from confirmSettingsSelection() ----------------
 void enterConfigMode() {
   display.clearDisplay();
@@ -705,10 +947,15 @@ void enterConfigMode() {
     configServer.on("/api/trivia", HTTP_POST, handlePostTrivia);
     configServer.on("/api/trivia/csv", HTTP_GET, handleGetTriviaCsv);
     configServer.on("/api/reset-highscore", HTTP_POST, handleResetHighScore);
+    configServer.on("/api/update/request", HTTP_POST, handleUpdateRequest);
+    configServer.on("/api/update/status", HTTP_GET, handleUpdateStatus);
+    configServer.on("/api/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
     configServer.onNotFound(handleConfigNotFound); // also serves as the captive-portal redirect
     routesRegistered = true;
   }
   configServer.begin();
+  setUpdState(UPD_IDLE);
+  updError = "";
 
   setOledFastRefresh(true); // so phone cameras can capture the QR - see setOledFastRefresh()
   drawConfigModeScreen(CONFIG_AP_SSID, configApIpStr.c_str());
@@ -721,9 +968,13 @@ void enterConfigMode() {
   //   - no web request at all for CONFIG_NO_REQUEST_TIMEOUT_MS, even if something stays connected.
   unsigned long lastClientSeenMs = millis();
   configLastRequestMs = millis();
-  while (digitalRead(BUTTON_PIN) == HIGH && digitalRead(ENCODER_SW) == HIGH) {
+  while (true) {
     configDns.processNextRequest();
     configServer.handleClient();
+    bool buttonDown = digitalRead(BUTTON_PIN) == LOW;
+    bool knobDown = digitalRead(ENCODER_SW) == LOW;
+    if (serviceFwUpdate(buttonDown, knobDown)) { delay(2); continue; } // an update prompt/upload owns the buttons
+    if (buttonDown || knobDown) break;
     if (WiFi.softAPgetStationNum() > 0) lastClientSeenMs = millis();
     if (millis() - lastClientSeenMs >= CONFIG_NO_CLIENT_TIMEOUT_MS) break;
     if (millis() - configLastRequestMs >= CONFIG_NO_REQUEST_TIMEOUT_MS) break;

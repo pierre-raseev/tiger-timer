@@ -3,7 +3,7 @@
 Copy everything below the line into the system/task prompt for a model that has access to the
 **full source code** alongside the planning documents — i.e. you are giving it the doc bundle
 *and* the working sketch (`tiger_timer.ino`, `web_config.ino`, `tigertimer_qrcode.h/.c`,
-`press_start_2p_font.h`, `data/*.csv`, `data/config.html`). Use
+`press_start_2p_font.h`, `data/*.csv`, `web/config.html` (embedded as `config_html.h` via `tools/embed_config_html.py`)). Use
 `TigerTimer_ModelPrompt_NoSource.md` instead if you are *not* providing the source.
 
 ---
@@ -20,7 +20,7 @@ time** — read only what that task points you to, implement it, verify it, stop
 
 | File | What it is | When to read it |
 |---|---|---|
-| `tiger_timer.ino`, `web_config.ino`, `tigertimer_qrcode.h/.c`, `press_start_2p_font.h`, `data/*.csv`, `data/config.html` | **The actual, authoritative, working implementation.** Every exact pixel coordinate, timing constant, string, and edge-case behavior lives here, precisely. | This is what you edit. For any task, open only the specific function(s)/file(s) it's actually about — not the whole ~4700-line main file. |
+| `tiger_timer.ino`, `web_config.ino`, `tigertimer_qrcode.h/.c`, `press_start_2p_font.h`, `data/*.csv`, `web/config.html` (embedded as `config_html.h` via `tools/embed_config_html.py`) | **The actual, authoritative, working implementation.** Every exact pixel coordinate, timing constant, string, and edge-case behavior lives here, precisely. | This is what you edit. For any task, open only the specific function(s)/file(s) it's actually about — not the whole ~4700-line main file. |
 | `TigerTimer_FSD.md` | The Functional Specification Document — *what* the system does and *why*, in prose. Useful for understanding intent and verifying a change is behaviorally correct, not just "makes the code compile." | Read only the section(s) your current task cites. |
 | `TigerTimer_DevPlan.md` | The project broken into ~14 phases and ~45 small tasks, each with a Definition of Done and a pointer to its FSD section(s). | This is where you find out what to do next. See "Working procedure" below. |
 | `TigerTimer_LayoutReference.md` + `renders/*.png` | The six reusable on-screen layout patterns, with real coordinates and one rendered mockup per pattern. | Only needed as a *quick orientation* before diving into a screen's draw function in the source — the source itself is more precise, this is for getting your bearings faster. |

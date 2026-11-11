@@ -21,7 +21,8 @@ compile and run against it, with a clearly marked TODO, not a fully finished fea
   grows) additional `.ino` "tab" files in the same folder — Arduino concatenates every `.ino` in
   a sketch folder into one compile unit, so this is purely an organizational split, not a real
   module boundary. A `data/` subfolder holds anything uploaded to the device's filesystem
-  (trivia CSVs, the config web page).
+  (trivia CSVs). The config web page lives in `web/config.html` and is embedded into the firmware
+  (`tools/embed_config_html.py` → `config_html.h`), so a firmware update also updates it.
 - FSD section(s): §2.1.
 - Definition of Done: sketch compiles empty (just `setup(){}`/`loop(){}`) targeting the XIAO
   ESP32C6 board profile in the Arduino IDE, with the Adafruit SH110X library installed.

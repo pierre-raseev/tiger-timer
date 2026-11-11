@@ -61,7 +61,7 @@
                            menu/settings, every game, localization, splash
                            screens, the volume system.
     web_config.ino       - "Config Mode": turns the device into its own WiFi
-                           AP serving a small web app (data/config.html) for
+                           AP serving a small web app (web/config.html) for
                            editing things a single knob can't reasonably
                            edit - menu order/enable, trivia question content,
                            Pass-the-Bomb category list, startup behavior.
@@ -71,7 +71,10 @@
     data/*.csv           - trivia question content (15-column format, see
                            the comment above loadTriviaQuestion() and FSD
                            Sec.5.8).
-    data/config.html      - the Config Mode web page itself.
+    config_html.h         - the Config Mode web page, gzipped into the firmware. GENERATED from
+                            web/config.html by tools/embed_config_html.py - edit the .html,
+                            re-run the script. Lives in firmware (not LittleFS) so a firmware
+                            update also updates the page and never touches the trivia files.
 
   --- Notable design decisions worth knowing before changing things ---
     - MENU_ORDER is a runtime array (not compile-time const) specifically so
@@ -114,12 +117,23 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <DNSServer.h> // used by web_config.ino for the captive-portal redirect
+#include <Update.h>    // firmware update uploaded from the Remote Config page (web_config.ino)
+#include "config_html.h" // the Remote Config page, gzipped - GENERATED from web/config.html by tools/embed_config_html.py
 #include <ArduinoJson.h>
 #include "tigertimer_qrcode.h" // vendored QR encoder (see tigertimer_qrcode.h/.c) - avoids a name collision
                              // with the ESP32 core's own bundled qrcode.h (used for WiFi provisioning)
 #include "cp437_utf8.h" // CP437 <-> UTF-8 conversion for the Remote Config web page (web_config.ino)
 #include <math.h> // roundf(), used when drawing the WiFi QR code at an arbitrary pixel size // Library Manager: "ArduinoJson" by Benoit Blanchon - used only by the
                           // Config Mode web server (web_config.ino) to parse/build the config page's requests
+
+// ---- Firmware version ----
+// Shown on the Remote Config page. Bump it for every change, and publish a GitHub release
+// "vX.Y.Z" with the built app .bin attached, so a box can be updated from Remote Config.
+const char* FW_VERSION = "1.0.0";
+// A firmware upload is only installed if this exact text appears somewhere in the uploaded file,
+// i.e. the file really is a Tiger Timer build (any build contains it, since the update code
+// below searches for it). Never change it, or older boxes would refuse the new firmware.
+const char TT_FW_MARKER[] = "TigerTimer-firmware-id-7d1e9a";
 
 // ---- Pins ----
 const int BUTTON_PIN   = D1;
@@ -421,7 +435,14 @@ const int STR_SIMON_COMPLETE = 125;
 const int STR_SIMON_ROUND = 126;
 const int STR_ZONE_FRONT = 127; // toothbrush zone label, line 2
 const int STR_MENU_PONG = 128;
-const int NUM_STRINGS = 129;
+const int STR_UPDATE_CONFIRM = 129;  // firmware update from Remote Config (web_config.ino)
+const int STR_UPDATE_BTN_YES = 130;
+const int STR_UPDATE_KNOB_NO = 131;
+const int STR_UPDATE_RUNNING = 132;
+const int STR_UPDATE_RESTART = 133;
+const int STR_UPDATE_FAILED = 134;
+const int STR_UPDATE_WAITING = 135;
+const int NUM_STRINGS = 136;
 
 const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SELECT_GAME          */{"Choose Option", "Choisir option", "Elegir opcion"},
@@ -553,6 +574,13 @@ const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SIMON_ROUND          */{"Round", "Manche", "Ronda"},
   /* STR_ZONE_FRONT           */{"front", "devant", "frente"},
   /* STR_MENU_PONG            */{"Pong", "Pong", "Pong"},
+  /* STR_UPDATE_CONFIRM       */{"Install update?", "Installer la MAJ ?", "Actualizar?"},
+  /* STR_UPDATE_BTN_YES       */{"Button: install", "Bouton : installer", "Boton: instalar"},
+  /* STR_UPDATE_KNOB_NO       */{"Knob: cancel", "Molette : annuler", "Rueda: cancelar"},
+  /* STR_UPDATE_RUNNING       */{"Updating...", "Mise \x85 jour...", "Actualizando..."},
+  /* STR_UPDATE_RESTART       */{"Restarting...", "Red\x82marrage...", "Reiniciando..."},
+  /* STR_UPDATE_FAILED        */{"Update failed", "\x90" "chec de la MAJ", "Error de update"},
+  /* STR_UPDATE_WAITING       */{"Waiting for file", "Attente du fichier", "Esperando archivo"},
 
 };
 
@@ -1370,11 +1398,11 @@ void setup() {
 
   // One-line boot summary on USB serial - lets a connected computer confirm a healthy boot
   // (and that the trivia data / config page are present) without looking at the screen.
-  Serial.printf("[boot] Tiger Timer - reset=%d wake=%d, OLED %s, LittleFS %s (%u/%u KB used), config.html %s, sports_junior.csv %s, lang=%d\n",
+  Serial.printf("[boot] Tiger Timer v%s - reset=%d wake=%d, OLED %s, LittleFS %s (%u/%u KB used), sports_junior.csv %s, lang=%d\n",
+                FW_VERSION,
                 (int)esp_reset_reason(), (int)esp_sleep_get_wakeup_cause(),
                 oledOk ? "ok" : "MISSING", fsOk ? "ok" : "FAILED",
                 fsOk ? (unsigned)(LittleFS.usedBytes() / 1024) : 0u, fsOk ? (unsigned)(LittleFS.totalBytes() / 1024) : 0u,
-                (fsOk && LittleFS.exists("/config.html")) ? "present" : "missing",
                 (fsOk && LittleFS.exists("/sports_junior.csv")) ? "present" : "missing",
                 currentLanguage);
   display.setRotation(0);
