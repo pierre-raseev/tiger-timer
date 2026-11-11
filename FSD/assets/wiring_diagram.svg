@@ -59,6 +59,7 @@ text{font-family:"IBM Plex Mono",Menlo,Consolas,monospace;fill:#1c2420;font-size
   <circle cx="306" cy="278" r="13" class="sym" style="fill:#fbfcfa"/>
   <path d="M300 272 V284 M306 269 V287 M312 272 V284" class="sym" style="stroke-width:1.2"/>
   <text x="306" y="303" text-anchor="middle" class="t-small" style="font-weight:600">Buzzer</text>
+  <text x="321" y="265" text-anchor="middle" class="t-small" style="fill:#b93d27;font-weight:700">+</text>
   <rect x="328" y="261" width="14" height="34" rx="2" class="box"/><rect x="342" y="261" width="14" height="34" rx="2" class="jx"/>
   <text x="349" y="273" text-anchor="middle" class="jn">1</text>
   <text x="349" y="289" text-anchor="middle" class="jn">2</text>
