@@ -1043,8 +1043,15 @@ metronome. Code in its own sketch tab, `metronome.ino`.
   beat; the jump from the 4th pad back to the 1st is higher (40 px vs 28 px). The pad it just
   landed on is filled for the first quarter of the beat, with two small impact lines for the
   first eighth. Stopped: the ball rests on the first pad above a "Press to start" line.
-- **Frame rate:** a redraw on every beat, plus in-between frames at ~25 fps (`METRO_FRAME_MS`=40)
-  — but never within 30 ms of the next beat, so a screen transfer (~25 ms) can't delay a click.
+- **Frame rate and sync:** in-between frames at ~25 fps (`METRO_FRAME_MS`=40). A full screen
+  transfer takes ~28 ms, so the frame showing the ball landed on the next pad (that beat, phase 0)
+  is started 34 ms before the beat (`METRO_LANDING_LEAD_US`) and has finished arriving ~6 ms
+  before the click — the landing is seen with the sound, not ~45 ms after it as when the frame
+  was drawn after the click. In-between frames stop 66 ms before a beat so they can never run
+  into that frame or delay a click; if the landing frame couldn't be sent ahead (first beat after
+  starting, a dialog was open), it's drawn right after the click instead. While running, turning
+  the knob doesn't redraw by itself (the next in-between frame shows the new tempo), for the same
+  reason. Measured on the box: clicks within ~10 µs of schedule at 120, 220 and 240 BPM.
   No drawing while the encoder is held (the volume overlay stays up) or while the screen sleeps.
 - Counts as "time-critical" while running (no screen or deep sleep). Leaving stops it.
 - **Bench-testing:** `TT_SCREEN_DUMP` builds add `M` (open Metronome), `S` (next splash frame),

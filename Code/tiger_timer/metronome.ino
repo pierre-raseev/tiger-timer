@@ -15,10 +15,17 @@ const int METRO_BEATS = 4;               // beats per bar - beat 0 is the accent
 const unsigned long METRO_LED_ACCENT_MS = 160;
 const unsigned long METRO_LED_BEAT_MS = 70;
 const unsigned long METRO_FRAME_MS = 40; // ~25 fps for the moving parts between beats
+// A full screen transfer takes ~28 ms. The "ball has landed" frame for the next beat is started
+// this long before the beat, so it has finished arriving on the panel when the click sounds;
+// in-between frames stop early enough never to run into it.
+const long METRO_LANDING_LEAD_US = 34000;
+const long METRO_LANDING_MIN_US = 30000; // closer than this to the beat: too late to start it, skip it
+const long METRO_FRAME_GUARD_US = METRO_LANDING_LEAD_US + 32000;
 
 unsigned long metroBeatUs = 0;    // micros() when the last beat sounded
 unsigned long metroNextBeatUs = 0;
 unsigned long metroLastFrameMs = 0;
+bool metroLandingShown = false; // the next beat's landing frame is already on screen
 unsigned long metroLastDetentMs = 0;
 // metroBpm, metroRunning, metroBeat, metroTestPhase live in tiger_timer.ino (the
 // bench-test commands there use them, and that tab is compiled before this one)
@@ -64,6 +71,7 @@ void metroToggle() {
   }
   if (prefs.getUShort("metBpm", METRO_DEFAULT_BPM) != metroBpm) prefs.putUShort("metBpm", (uint16_t)metroBpm);
   metroRunning = true;
+  metroLandingShown = false;
   metroBeat = METRO_BEATS - 1;     // so the first beat to sound is the accent
   metroNextBeatUs = micros();      // ...right away
 }
@@ -80,7 +88,7 @@ void metroAdjustBpm(int direction) {
 void updateMetronome() {
   if (!metroRunning) return;
   unsigned long now = micros();
-  bool canDraw = !screenAsleep && swState != LOW; // never draw over the volume overlay
+  bool canDraw = !screenAsleep && swState != LOW && inGameScreen(); // never draw over the volume overlay or a dialog
 
   if ((long)(now - metroNextBeatUs) >= 0) {
     metroBeat = (metroBeat + 1) % METRO_BEATS;
@@ -92,16 +100,27 @@ void updateMetronome() {
     }
     digitalWrite(BUTTON_LED, HIGH);
     metroClick(metroBeat == 0);
-    if (canDraw) { render(); metroLastFrameMs = millis(); }
+    // the landing frame is normally already showing; draw it now only if it couldn't be sent ahead
+    // (first beat after starting, or the screen just came back)
+    if (!metroLandingShown && !screenAsleep && swState != LOW) { render(); metroLastFrameMs = millis(); }
+    metroLandingShown = false;
     return;
   }
 
   unsigned long sinceMs = (now - metroBeatUs) / 1000;
   if (sinceMs >= (metroBeat == 0 ? METRO_LED_ACCENT_MS : METRO_LED_BEAT_MS)) digitalWrite(BUTTON_LED, LOW);
+  if (!canDraw) return;
 
-  // in-between frames, but never one that could still be sending when the next beat is due
-  long untilNextMs = (long)(metroNextBeatUs - now) / 1000;
-  if (canDraw && inGameScreen() && untilNextMs > 30 && millis() - metroLastFrameMs >= METRO_FRAME_MS) {
+  long untilNextUs = (long)(metroNextBeatUs - now);
+  if (!metroLandingShown && untilNextUs <= METRO_LANDING_LEAD_US) {
+    if (untilNextUs >= METRO_LANDING_MIN_US) { // still time to get it on the panel before the click
+      metroLandingShown = true;                // drawMetronomeScreen() now draws the next beat, phase 0
+      render();
+      metroLastFrameMs = millis();
+    }
+    return;
+  }
+  if (!metroLandingShown && untilNextUs > METRO_FRAME_GUARD_US && millis() - metroLastFrameMs >= METRO_FRAME_MS) {
     render();
     metroLastFrameMs = millis();
   }
@@ -183,7 +202,9 @@ void drawMetronomeScreen() {
     return;
   }
   float p = metroPhase();
-  int from = metroBeat, to = (metroBeat + 1) % METRO_BEATS;
+  int from = metroBeat;
+  if (metroLandingShown) { from = (metroBeat + 1) % METRO_BEATS; p = 0; } // drawn just ahead of that beat
+  int to = (from + 1) % METRO_BEATS;
   float x = METRO_PAD_X[from] + (METRO_PAD_X[to] - METRO_PAD_X[from]) * p;
   float height = (to == 0) ? 40.0f : 28.0f; // the jump back to the first pad is a big one
   float y = (METRO_FLOOR_Y - 4) - height * 4.0f * p * (1.0f - p);
