@@ -17,7 +17,7 @@ merging together (see §4.1).
 
 Tiger Timer is a battery-powered, pocket-sized party-game console built on an ESP32
 microcontroller with a small monochrome OLED screen, one rotary encoder, one large arcade-style
-push button, and a piezo buzzer. It boots into a scrollable menu of **13 mini-games** plus a
+push button, and a piezo buzzer. It boots into a scrollable menu of **14 mini-games** plus a
 Settings and an Instructions entry. Each game is self-contained, uses the same two physical
 controls (encoder + button) with a consistent global interaction model, and returns to the menu
 via a confirmation dialog so gameplay is never lost by accident.
@@ -311,17 +311,18 @@ Arduino `Preferences` library). Keys and what they store:
 | `startMode` | uint8 | 0 = boot to menu, 1 = boot straight into a specific game | 0 |
 | `startGame` | uint8 | Which game id to boot into when `startMode`=1 | Timer's id |
 | `menuOrd` | bytes (N) | The current menu ordering, as a list of game/sentinel ids | the default order below |
-| `gameEn` | bytes (N) | Per-game enabled/disabled flags, parallel array to the game id list | Timer, Reflex, Dice, Chess Clock, Pass the Bomb, Stopwatch, Toothbrush enabled; Quiz, Tetris, Star Drop, Snake, Pong, SimpleMorse hidden until turned on in Remote Config (only applies to a fresh box — saved choices are kept) |
+| `gameEn` | bytes (N) | Per-game enabled/disabled flags, parallel array to the game id list | Timer, Reflex, Dice, Chess Clock, Pass the Bomb, Stopwatch, Metronome, Toothbrush enabled; Quiz, Tetris, Star Drop, Snake, Pong, SimpleMorse hidden until turned on in Remote Config (only applies to a fresh box — saved choices are kept) |
 | `idVer` | uint8 | Version of the game-id numbering the keys above were saved with (see below) | 1 (absent) |
 | `hpCatEn` | bytes (20) | Per-category enabled/disabled flags for Pass the Bomb (§5.5) | all enabled |
 | `ttHigh` | uint16 | Tetris's persisted high score | 0 |
 | `sdHigh` | uint16 | Star Drop's persisted high score | 0 |
 | `skHigh` | uint16 | Snake's persisted high score | 0 |
 | `pgHigh` | uint16 | Pong's persisted high score | 0 |
+| `metBpm` | uint16 | Metronome tempo, saved when it's started (only if changed) | 100 |
 
 **Game ids and the one-time migrations.** `startGame`, `menuOrd` and `gameEn` store raw game ids
 (Timer 0, Reflex 1, Dice 2, Chess Clock 3, Pass the Bomb 4, Stopwatch 5, Trivia 6, Toothbrush 7,
-Tetris 8, Star Drop 9, Snake 10, SimpleMorse 11, Pong 12; sentinels Settings 100, Instructions
+Tetris 8, Star Drop 9, Snake 10, SimpleMorse 11, Pong 12, Metronome 13; sentinels Settings 100, Instructions
 101). When the id list changes, settings saved by older firmware are converted once at boot by
 `migrateSavedGameIds()`, one version step at a time, and `idVer` records the result (absent = 1):
 - **v1 → v2:** the Turn Order game was removed from the device entirely; it was id 5 and the
@@ -329,8 +330,10 @@ Tetris 8, Star Drop 9, Snake 10, SimpleMorse 11, Pong 12; sentinels Settings 100
   later ids are shifted down, and a start-up game of Turn Order falls back to booting to the menu.
 - **v2 → v3:** Pong added as id 12. It's inserted into a saved menu order right after Snake, and
   added as enabled.
+- **v3 → v4:** Metronome added as id 13. It's inserted into a saved menu order right after
+  Stopwatch (or first, if Stopwatch is missing), and added as enabled.
 
-The user's menu order, enabled games and start-up choice are otherwise kept. Current: `idVer`=3.
+The user's menu order, enabled games and start-up choice are otherwise kept. Current: `idVer`=4.
 
 Design rule enforced everywhere a set of things can be toggled off (games in the menu, Pass the
 Bomb categories): **at least one must always remain enabled.** If a save would disable the last
@@ -389,7 +392,7 @@ A two-phase animated wordmark, skippable by holding the arcade button or the enc
   text on both pages (`INSTRUCTIONS_ICON_ART`); **Settings** — a cog with 8 teeth and a hole in
   the middle (`SETTINGS_ICON_ART`). Every icon fits inside the 15 px highlight bar of a selected row.
 - **Default order** (used on first boot, or if saved order data is ever invalid): Timer,
-  Toothbrush Timer, Dice, Reflex, Chess Clock, Pass the Bomb, Stopwatch, Trivia,
+  Toothbrush Timer, Dice, Reflex, Chess Clock, Pass the Bomb, Stopwatch, Metronome, Trivia,
   Tetris, Star Drop, Snake, Pong, SimpleMorse, **Instructions**, **Settings** — Instructions and
   Settings are always the last two entries by default, and (like any entry) can be reordered via
   Remote Config but can never be disabled/hidden (§3.5).
@@ -437,6 +440,9 @@ own first screen appears:
     bottom, both paddles following it.
   - *SimpleMorse:* a big telegraph key taps out a pattern (the lever and knob dip on key-down
     frames) while the dots and dashes sent so far grow to its right.
+  - *Metronome:* a big pyramid metronome (outlined case on a double base line); its arm, with a
+    sliding weight, swings ~30° to each side and reaches an end every 4 frames, with two short
+    tick marks drawn at that end.
 - **Exception — Toothbrush:** instead of the big menu icon it shows its own animated scene: a
   big toothbrush lying across the screen (head on the left, bristles up) while a toothpaste tube
   travels along it from left to right, squeezing a wavy ribbon of paste onto the bristles; a
@@ -1009,6 +1015,40 @@ numbered after it; in the menu it sits between Snake and SimpleMorse.)*
 - **Bench-testing:** `TT_SCREEN_DUMP` builds add `P` (open Pong), `u`/`j` (paddle up/down one
   detent), `s` (state snapshot), `e` (raw encoder pins and pending detents), `A` (autopilot: the paddle tracks the ball, for soak-testing the
   physics) and `Z` (clear the Pong high score).
+
+---
+
+### 5.14 Metronome
+A steady click in 4/4, the first beat of every bar higher-pitched (the accent), like a commercial
+metronome. Code in its own sketch tab, `metronome.ino`.
+- **Icon:** a pyramid metronome (13 px) with its arm leaning right and the weight on the arm.
+- **Tempo:** 30–240 BPM (`METRO_MIN_BPM`/`METRO_MAX_BPM`), default 100. Turning the encoder
+  changes it by 1 BPM per detent, or 4 per detent when spun fast (detents under 60 ms apart);
+  this also works while running, the new tempo taking effect from the next beat. The tempo is
+  saved (`metBpm`) when the metronome is started, and restored when the game is opened.
+- **Controls:** the arcade button or an encoder click starts/stops it (the click has no action
+  of its own here, §3.2). Hold 1 s to leave, as in every game.
+- **Beats:** 4 per bar; beat 1 is the accent. Starting plays the accent right away. Beat times
+  are kept in `micros()` and advanced by exactly one interval each beat, so the tempo doesn't
+  drift; if the loop ever falls a whole beat behind (a blocking sound or screen transfer), it
+  resyncs instead of firing the missed beats in a burst.
+- **Sound:** a dry wood-block tick, 18 ms: 1046 Hz on normal beats, 1568 Hz (a fifth higher) on
+  the accent.
+- **Light:** the arcade button's LED turns on at every beat — 160 ms on the accent, 70 ms on the
+  other beats — and is off while stopped.
+- **Screen:** standard icon + divider; the header's right side shows the tempo ("100 BPM").
+  Four pads sit on the floor line at x 16/48/80/112 (the accent's pad is wider). While running, a
+  ball (radius 3) hops from pad to pad on a parabola and lands on the next pad exactly on the next
+  beat; the jump from the 4th pad back to the 1st is higher (40 px vs 28 px). The pad it just
+  landed on is filled for the first quarter of the beat, with two small impact lines for the
+  first eighth. Stopped: the ball rests on the first pad above a "Press to start" line.
+- **Frame rate:** a redraw on every beat, plus in-between frames at ~25 fps (`METRO_FRAME_MS`=40)
+  — but never within 30 ms of the next beat, so a screen transfer (~25 ms) can't delay a click.
+  No drawing while the encoder is held (the volume overlay stays up) or while the screen sleeps.
+- Counts as "time-critical" while running (no screen or deep sleep). Leaving stops it.
+- **Bench-testing:** `TT_SCREEN_DUMP` builds add `M` (open Metronome), `S` (next splash frame),
+  `F` (next running frame: 4 beats × 6 phases, clock frozen), `K` (back to the live stopped
+  screen) and `+`/`-` (tempo ±20).
 
 ## 6. Volume Indicator System
 

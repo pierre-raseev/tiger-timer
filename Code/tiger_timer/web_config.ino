@@ -40,10 +40,13 @@ const char* CONFIG_TRIVIA_FIELD_NAMES[15] = {
 //   v1 -> v2: Turn Order (id 5) removed; ids 6-12 moved down by one (13 -> 12 games, 15 -> 14 menu entries).
 //   v2 -> v3: Pong added as id 12 (12 -> 13 games, 14 -> 15 menu entries); it's inserted into a
 //             saved menu order right after Snake, and enabled.
+//   v3 -> v4: Metronome added as id 13 (13 -> 14 games, 15 -> 16 menu entries); inserted right
+//             after Stopwatch, and enabled.
 // Keeps the user's menu order, enabled/disabled games and start-up game across updates.
 void migrateSavedGameIds() {
   int ver = prefs.getUChar("idVer", 1);
-  if (ver >= 3) return;
+  if (ver >= 4) return;
+  if (ver == 3) { migrateAddMetronome(); return; }
 
   if (ver < 2) {
     const int OLD_TURNORDER = 5, V1_MENU = 15, V1_GAMES = 13, V2_MENU = 14, V2_GAMES = 12;
@@ -102,6 +105,35 @@ void migrateSavedGameIds() {
   }
 
   prefs.putUChar("idVer", 3);
+  migrateAddMetronome();
+}
+
+// v3 -> v4: add the Metronome after Stopwatch (or first, if there's no Stopwatch in the saved list)
+void migrateAddMetronome() {
+  const int V3_MENU = 15, V3_GAMES = 13, STOPWATCH_ID = 5, METRONOME_ID = 13;
+  uint8_t oldMenu[V3_MENU];
+  if (prefs.getBytes("menuOrd", oldMenu, V3_MENU) == V3_MENU) {
+    uint8_t newMenu[V3_MENU + 1];
+    int n = 0;
+    bool placed = false;
+    for (int i = 0; i < V3_MENU; i++) {
+      newMenu[n++] = oldMenu[i];
+      if (oldMenu[i] == STOPWATCH_ID) { newMenu[n++] = METRONOME_ID; placed = true; }
+    }
+    if (!placed) {
+      for (int i = V3_MENU; i > 0; i--) newMenu[i] = newMenu[i - 1];
+      newMenu[0] = METRONOME_ID;
+    }
+    prefs.putBytes("menuOrd", newMenu, V3_MENU + 1);
+  }
+  uint8_t oldEn[V3_GAMES];
+  if (prefs.getBytes("gameEn", oldEn, V3_GAMES) == V3_GAMES) {
+    uint8_t newEn[V3_GAMES + 1];
+    for (int i = 0; i < V3_GAMES; i++) newEn[i] = oldEn[i];
+    newEn[V3_GAMES] = 1; // Metronome starts enabled
+    prefs.putBytes("gameEn", newEn, V3_GAMES + 1);
+  }
+  prefs.putUChar("idVer", 4);
 }
 
 // ---------------- Menu order: load/save/validate ----------------
@@ -255,7 +287,7 @@ void handleGetConfig() {
   for (int i = 0; i < MENU_COUNT; i++) menu.add(MENU_ORDER[i]);
 
   JsonArray games = doc["games"].to<JsonArray>();
-  const int allGameIds[GAME_COUNT] = {GAME_TIMER, GAME_REFLEX, GAME_DICE, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_TRIVIA, GAME_TOOTHBRUSH, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_SIMPLEMORSE, GAME_PONG};
+  const int allGameIds[GAME_COUNT] = {GAME_TIMER, GAME_REFLEX, GAME_DICE, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_TRIVIA, GAME_TOOTHBRUSH, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_SIMPLEMORSE, GAME_PONG, GAME_METRONOME};
   for (int i = 0; i < GAME_COUNT; i++) {
     JsonObject g = games.add<JsonObject>();
     g["id"] = allGameIds[i];

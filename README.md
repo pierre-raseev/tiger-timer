@@ -29,6 +29,8 @@ mini-games, in English, French or Spanish.
 - **Pass the Bomb:** a category and a letter ("Country starting with B"); answer and pass the box
   before the hidden timer goes off. 20 categories, each can be turned off.
 - **Stopwatch:** a simple count-up stopwatch.
+- **Metronome:** 30 to 240 BPM in 4/4, with a higher click on the first beat of each bar and the
+  button light flashing on every beat.
 - **Quiz:** buzz in with the arcade button and pick an answer. 8 categories, 3 levels, questions
   in all three languages and editable from Remote Config.
 - **Tetris:** played with the box turned on its side.

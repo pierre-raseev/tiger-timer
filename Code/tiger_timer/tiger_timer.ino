@@ -134,7 +134,7 @@
 // ---- Firmware version ----
 // Shown on the Remote Config page. Bump it for every change, and publish a GitHub release
 // "vX.Y.Z" with the built app .bin attached, so a box can be updated from Remote Config.
-const char* FW_VERSION = "1.0.7";
+const char* FW_VERSION = "1.0.8";
 // A firmware upload is only installed if this exact text appears somewhere in the uploaded file,
 // i.e. the file really is a Tiger Timer build (any build contains it, since the update code
 // below searches for it). Never change it, or older boxes would refuse the new firmware.
@@ -241,14 +241,21 @@ const int GAME_STARDROP   = 9;
 const int GAME_SNAKE      = 10;
 const int GAME_SIMPLEMORSE = 11;
 const int GAME_PONG       = 12; // added after the Turn Order removal - see migrateSavedGameIds (idVer 3)
-const int GAME_COUNT      = 13;
+const int GAME_METRONOME  = 13; // idVer 4, see migrateSavedGameIds
+const int GAME_COUNT      = 14;
 int currentGame = GAME_TIMER;
+
+// Metronome state (the rest of the game is in metronome.ino)
+int metroBpm = 100;
+bool metroRunning = false;
+int metroBeat = 0;          // the beat that sounded last, 0..3 (0 = accent)
+float metroTestPhase = -1;  // bench dumps only: >= 0 freezes the beat phase
 
 const int MENU_SETTINGS = 100; // sentinel: a menu entry that isn't a playable game
 const int MENU_INSTRUCTIONS = 101; // sentinel: another non-game entry, the global instructions screen
-const int MENU_COUNT = 15;
+const int MENU_COUNT = 16;
 // Default/fallback order, used on first boot and whenever a saved order in flash is missing or invalid.
-const int DEFAULT_MENU_ORDER[MENU_COUNT] = {GAME_TIMER, GAME_TOOTHBRUSH, GAME_DICE, GAME_REFLEX, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_TRIVIA, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_PONG, GAME_SIMPLEMORSE, MENU_INSTRUCTIONS, MENU_SETTINGS};
+const int DEFAULT_MENU_ORDER[MENU_COUNT] = {GAME_TIMER, GAME_TOOTHBRUSH, GAME_DICE, GAME_REFLEX, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_METRONOME, GAME_TRIVIA, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_PONG, GAME_SIMPLEMORSE, MENU_INSTRUCTIONS, MENU_SETTINGS};
 // Actual display order - no longer const: Config Mode (web_config.ino) can rewrite this at runtime
 // and persist it to flash. Everything that reads MENU_ORDER elsewhere in the sketch is unaffected,
 // since it's still just an array of GAME_* ids in display order.
@@ -448,7 +455,8 @@ const int STR_UPDATE_RESTART = 133;
 const int STR_UPDATE_FAILED = 134;
 const int STR_UPDATE_WAITING = 135;
 const int STR_INSTR_SETTINGS2 = 136; // second line of STR_INSTR_SETTINGS (doesn't fit on one line)
-const int NUM_STRINGS = 137;
+const int STR_MENU_METRONOME = 137;
+const int NUM_STRINGS = 138;
 
 const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_SELECT_GAME          */{"Choose Option", "Choisir option", "Elegir opcion"},
@@ -588,6 +596,7 @@ const char* TRANSLATIONS[NUM_STRINGS][LANG_COUNT] = {
   /* STR_UPDATE_FAILED        */{"Update failed", "\x90" "chec de la MAJ", "Error de update"},
   /* STR_UPDATE_WAITING       */{"Waiting for file", "Attente du fichier", "Esperando archivo"},
   /* STR_INSTR_SETTINGS2      */{"> Remote Config", "> Config distante", "> Config remota"},
+  /* STR_MENU_METRONOME       */{"Metronome", "M\x82tronome", "Metr\xA2nomo"},
 
 };
 
@@ -1239,6 +1248,16 @@ void toggleMenuFromLongPress();
 void closeInstructions();
 void dispatchButtonShortPress();
 void dispatchEncoderClick();
+// metronome.ino
+bool metroIsRunning();
+void initMetronome();
+void leaveMetronome();
+void metroToggle();
+void metroAdjustBpm(int direction);
+void updateMetronome();
+void drawMetronomeScreen();
+void drawMetronomeIcon(int cx, int cy, int r, uint16_t color);
+void drawMetronomeSplashFrame(int f);
 void readButton();
 void readEncoderButton();
 void playNote(int freq, int durationMs);
@@ -1310,6 +1329,7 @@ void drawSettingsIcon(int cx, int cy, int r, uint16_t color);
 void drawConfigModeIcon(int cx, int cy, int r, uint16_t color);
 void enterConfigMode(); // web_config.ino
 void migrateSavedGameIds(); // web_config.ino
+void migrateAddMetronome();
 void loadMenuOrderFromPrefs(); // web_config.ino
 void saveMenuOrderToPrefs(); // web_config.ino
 void loadGameEnabledFromPrefs(); // web_config.ino
@@ -1471,6 +1491,17 @@ void testSerialCommands() {
       playGameSplashScreen(GAMES[next]);
       next = (next + 1) % 7;
     }
+    else if (c == 'M') { inMenu = false; currentGame = GAME_METRONOME; initGameState(GAME_METRONOME); render(); }
+    else if (c == 'S') { static int sf = 0; display.clearDisplay(); drawMetronomeSplashFrame(sf); drawSplashGameName(menuLabelForGame(GAME_METRONOME)); display.display(); Serial.printf("[metro] splash frame %d\n", sf); sf = (sf + 1) % 12; }
+    else if (c == 'F') { // next running frame: 4 beats x 6 phases, drawn with the clock frozen
+      static int rf = 0;
+      metroRunning = true; metroBeat = rf / 6; metroTestPhase = (rf % 6) / 6.0f;
+      render(); Serial.printf("[metro] beat %d phase %.2f\n", metroBeat, metroTestPhase);
+      metroRunning = false; rf = (rf + 1) % 24;
+    }
+    else if (c == 'K') { metroTestPhase = -1; metroRunning = false; render(); }
+    else if (c == '+') { metroBpm = min(240, metroBpm + 20); render(); }
+    else if (c == '-') { metroBpm = max(30, metroBpm - 20); render(); }
     else if (c == 'n') { if (inMenu) { menuSelection = (menuSelection + 1) % visibleMenuCount; render(); } }
     else if (c == 'B') { playGameSplashScreen(GAME_TOOTHBRUSH); }
     else if (c == 'Q') { playGameSplashScreen(GAME_STARDROP); }
@@ -1558,6 +1589,9 @@ void loop() {
   if (!inMenu && currentGame == GAME_SNAKE) {
     updateSnake();
   }
+  if (!inMenu && currentGame == GAME_METRONOME) {
+    updateMetronome();
+  }
 
   checkScreenSleep();
   checkDeepSleep();
@@ -1589,7 +1623,8 @@ bool isTimeCriticalActive() {
          (currentGame == GAME_STARDROP && stardropState == STARDROP_PLAYING) ||
          (currentGame == GAME_SNAKE && snakeState == SNAKE_PLAYING) ||
          (currentGame == GAME_PONG && pongState == PONG_PLAYING) ||
-         (currentGame == GAME_SIMPLEMORSE && simonState == SIMON_INPUT);
+         (currentGame == GAME_SIMPLEMORSE && simonState == SIMON_INPUT) ||
+         (currentGame == GAME_METRONOME && metroIsRunning());
 }
 
 // ---------------- Power management: sleeps the OLED after 5 minutes idle, unless something time-critical is running ----------------
@@ -1758,6 +1793,8 @@ bool applyEncoderDetent(int direction) {
       }
     } else if (currentGame == GAME_PONG) {
       return false; // handled as a batch in readEncoder()
+    } else if (currentGame == GAME_METRONOME) {
+      metroAdjustBpm(direction); // tempo - also while running
     } else if (currentGame == GAME_HOTPOTATO && hpState == HP_READY) {
       hpRerollWithAnimation(); // blocking - already renders itself throughout
       return false;
@@ -1820,6 +1857,8 @@ void initGameState(int game) {
     simonState = SIMON_READY;
     simonRound = 0;
     simonNewSequence();
+  } else if (game == GAME_METRONOME) {
+    initMetronome();
   }
 }
 
@@ -2226,7 +2265,7 @@ void drawSimpleMorseSplashFrame(int f) {
 bool hasAnimatedGameSplash(int game) {
   return game == GAME_REFLEX || game == GAME_HOTPOTATO || game == GAME_CHESS || game == GAME_STOPWATCH ||
          game == GAME_TIMER || game == GAME_DICE || game == GAME_TRIVIA || game == GAME_TETRIS ||
-         game == GAME_SNAKE || game == GAME_PONG || game == GAME_SIMPLEMORSE;
+         game == GAME_SNAKE || game == GAME_PONG || game == GAME_SIMPLEMORSE || game == GAME_METRONOME;
 }
 
 void playAnimatedGameSplash(int game) {
@@ -2243,6 +2282,7 @@ void playAnimatedGameSplash(int game) {
     else if (game == GAME_SNAKE) drawSnakeSplashFrame(f);
     else if (game == GAME_PONG) drawPongSplashFrame(f);
     else if (game == GAME_SIMPLEMORSE) drawSimpleMorseSplashFrame(f);
+    else if (game == GAME_METRONOME) drawMetronomeSplashFrame(f);
     drawSplashGameName(menuLabelForGame(game));
     display.display();
     delay(GAME_SPLASH_FRAME_MS);
@@ -4082,6 +4122,7 @@ void leaveToMenu() {
   snakeState = SNAKE_READY;         // same as a game over would
   pongState = PONG_READY;
   simonState = SIMON_READY;
+  if (currentGame == GAME_METRONOME) leaveMetronome();
   stopTone(); // in case the arcade button was mid-hold (live dot/dash tone) when this happened
   digitalWrite(BUTTON_LED, LOW);
   render();
@@ -4172,6 +4213,8 @@ void dispatchButtonShortPress() {
     handleSnakeButtonPress();
   } else if (currentGame == GAME_PONG) {
     handlePongButtonPress();
+  } else if (currentGame == GAME_METRONOME) {
+    metroToggle();
   } else { // GAME_SIMPLEMORSE
     handleSimonButtonPress();
   }
@@ -5103,6 +5146,8 @@ void render() {
     drawSnakeScreen();
   } else if (currentGame == GAME_PONG) {
     drawPongScreen();
+  } else if (currentGame == GAME_METRONOME) {
+    drawMetronomeScreen();
   } else { // GAME_SIMPLEMORSE
     drawSimonScreen();
   }
@@ -6653,6 +6698,7 @@ const char* menuLabelForGame(int gameId) {
     case GAME_STARDROP:   return T(STR_MENU_STARDROP);
     case GAME_SNAKE:      return T(STR_MENU_SNAKE);
     case GAME_PONG:       return T(STR_MENU_PONG);
+    case GAME_METRONOME:  return T(STR_MENU_METRONOME);
     case GAME_SIMPLEMORSE: return T(STR_MENU_SIMPLEMORSE);
     case GAME_DICE:       return T(STR_MENU_DICE);
     case GAME_REFLEX:     return T(STR_MENU_REFLEX);
@@ -7324,6 +7370,7 @@ void drawGameIcon(int gameIndex, int cx, int cy, int r, uint16_t color) {
   else if (gameIndex == GAME_SNAKE) drawSnakeIcon(cx, cy, r, color);
   else if (gameIndex == GAME_PONG) drawPongIcon(cx, cy, r, color);
   else if (gameIndex == GAME_SIMPLEMORSE) drawSimpleMorseIcon(cx, cy, r, color);
+  else if (gameIndex == GAME_METRONOME) drawMetronomeIcon(cx, cy, r, color);
   else if (gameIndex == MENU_INSTRUCTIONS) drawInstructionsIcon(cx, cy, r, color);
   else drawSettingsIcon(cx, cy, r, color); // MENU_SETTINGS
 }
