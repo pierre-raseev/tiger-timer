@@ -241,7 +241,7 @@ game explicitly overrides it:
 |---|---|---|
 | Arcade button | Short press | **Confirm / primary action.** In a menu-type screen (main menu, Settings, Language picker, Timer Step picker, Instructions, the leave-confirmation dialog) this confirms whichever item is highlighted. Inside a game, this is that game's main action (start countdown, roll dice, arm the bomb, etc. — see each game's spec). |
 | Encoder | Turn (not held) | Moves a selection cursor, adjusts a numeric value, or performs a game-specific action, depending on the current screen (see each game's spec). |
-| Encoder | Short click (press+release, not held past ~1s, no turn while held) | **Also confirm / primary action** — functionally identical to the arcade button's short press in every menu-type screen. Inside some games it does a secondary context action instead (see the per-game "Encoder click" rows below) if that game defines one; otherwise it does nothing. |
+| Encoder | Short click (press+release, not held past ~1s, no turn while held) | **Also confirm / primary action** — does exactly what the arcade button's short press would, on every screen: menus, starting a game or timer (e.g. starting the Toothbrush timer), confirming a setup step, rolling dice, arming the bomb, restarting after a game over, pausing Snake/Pong/Toothbrush. **Exceptions** — (a) states where the click has its own, different action: pause/resume while the Timer or Chess clock is running, lap while the Stopwatch runs, hard drop while Tetris is playing; (b) timed gameplay presses that only the arcade button can make, where the click does nothing: the Reflex hit (and false start) once a round is armed, the Morse dot/dash input during playback/input, the Chess turn pass (the click pauses instead), and the Trivia buzz-in on the play screen. Firmware: `dispatchEncoderClick()`, which falls back to the arcade button's `dispatchButtonShortPress()`. |
 | Encoder | Held down and turned | **Adjusts buzzer volume**, from *anywhere*, at *any time*, even mid-game. While held+turning, the screen switches to a full-screen volume indicator (§6.2) live-updating with every detent; releasing restores whatever screen was showing underneath. This gesture "claims" the hold, so releasing afterward does **not** also fire a click action. |
 | Encoder | Held for 1 full second *without* being turned | **Opens the "Go back to menu?" dialog** if currently inside a game (§3.4). **From the Settings list specifically, jumps straight back to the main menu with no confirmation** (there's no in-progress game state to lose there). From anywhere else in the menu hierarchy (main menu, Language/Timer Step pickers, Instructions), this does nothing — those screens already have their own short-press way back out. If the leave-confirmation dialog is already open, a second long-press does nothing extra. |
 
@@ -343,7 +343,7 @@ Remote Config (web) feature only, see §7.2. They are stored as 16-bit values, s
 
 ### 3.6 Why the Splash-Skip Doesn't Cause a Phantom Click
 Worth documenting explicitly because it's a real bug class: if you skip the boot splash by
-holding the arcade button, the button is still physically down (or its release hasn't yet
+holding the arcade button (or the encoder's push button — either skips), the button is still physically down (or its release hasn't yet
 settled) the instant the main loop's debounce logic starts running. A naive implementation would
 misread that as a brand-new press-then-release and fire a phantom confirm action. The correct
 fix: when the splash-skip is detected, **block and wait for the physical release** (plus a short
@@ -355,7 +355,7 @@ starts, the button reads cleanly "not pressed" and no phantom edge exists.
 ## 4. Menu & Navigation
 
 ### 4.1 Boot Splash Animation
-A two-phase animated wordmark, skippable by holding the arcade button at any point during it
+A two-phase animated wordmark, skippable by holding the arcade button or the encoder's push button at any point during it
 (see §3.6):
 - Phase 1: a "TIGER" bitmap wordmark slides in from off-screen left to a center-left resting
   position.
@@ -506,8 +506,8 @@ A simple countdown timer.
   `DEFAULT_TIME`=120s). The **Auto** ramp step scales the increment based on the current value
   so it's easy to fine-tune short durations and quickly cover long ones — this same ramp
   function is reused by Chess Clock's starting-time picker (§5.4).
-- Press the arcade button to (re)start the countdown from the currently set duration; a short
-  "go" jingle plays.
+- Press the arcade button (or click the encoder) to (re)start the countdown from the currently
+  set duration; a short "go" jingle plays.
 - **While running:** the encoder no longer adjusts the time (turning it does nothing), so it
   can't be bumped by accident mid-countdown. The button's LED blinks the whole time, speeding up
   as time runs low. Displayed as `M:SS`, largest text size that fits.
@@ -577,7 +577,8 @@ Rolls 1–5 dice of a chosen type.
   original build supports the common D&D-style set). Confirm with the arcade button (or encoder
   click) to move to choosing dice count.
 - **Count screen:** turning the encoder sets how many dice to roll (1–5, `MAX_DICE_COUNT`=5).
-  Confirm to roll.
+  Confirm (arcade button or encoder click) to roll; either control also rolls again from the
+  result screen.
 - **Rolling:** a brief multi-frame animation cycles random faces before settling on the final
   result(s), which are then displayed until the next action.
 
@@ -587,7 +588,7 @@ Two-player countdown clock with increment.
 - **Setup (two steps):** first pick the starting time per player (range 0:30–90:00,
   `CHESS_START_MIN_SECONDS`=30, `CHESS_START_MAX_SECONDS`=5400, using the same Auto-ramp step
   logic as the Timer game), then pick the increment added per move (0–60 seconds, in 10-second
-  steps). Confirm each with the arcade button.
+  steps). Confirm each with the arcade button or an encoder click.
 - **Play:** the currently-active player's remaining time counts down; the whole screen inverts
   (or otherwise strongly indicates) which side is active. Before the clock has actually started
   (i.e. before the first "pass"), the header shows the game's name instead of a turn indicator.
@@ -662,7 +663,8 @@ Standard count-up stopwatch with lap support.
 - The arcade button cycles three states: **Ready** (0:00) → **Running** → **Stopped** (shows the
   final elapsed time) → back to **Ready** (cleared). There is no pause/resume: pressing again
   after stopping resets to 0:00 rather than continuing the count.
-- An encoder click records a lap while running.
+- An encoder click records a lap while running; otherwise (Ready / Stopped) it does the same as
+  the arcade button (start / reset).
 - Elapsed time is held as accumulated milliseconds, captured at the moment of stopping, so the
   displayed stopped time is exactly the time measured.
 

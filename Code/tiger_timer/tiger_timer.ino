@@ -37,10 +37,15 @@
   There are exactly two physical controls and their meaning is consistent
   across every screen except where a specific game overrides it:
     - Arcade button, short press  = confirm / that screen's primary action.
-    - Encoder, short click        = same as above in menu-type screens; a
-                                     few games (Timer, Chess) repurpose it as
-                                     pause/resume instead, since there's
-                                     nothing to "confirm" mid-round.
+    - Encoder, short click        = same as the arcade button everywhere
+                                     (menus, start, restart, setup steps),
+                                     except where it has its own action:
+                                     pause (Timer/Chess running), lap
+                                     (Stopwatch running), hard drop (Tetris
+                                     playing). Timed gameplay presses (Reflex
+                                     hit, Morse input, Chess pass, Trivia
+                                     buzz-in) stay arcade-only. See
+                                     dispatchEncoderClick().
     - Encoder, held + turned      = adjust buzzer volume, from anywhere, any
                                      time - shows a full-screen live indicator
                                      while held, restores the prior screen on
@@ -129,7 +134,7 @@
 // ---- Firmware version ----
 // Shown on the Remote Config page. Bump it for every change, and publish a GitHub release
 // "vX.Y.Z" with the built app .bin attached, so a box can be updated from Remote Config.
-const char* FW_VERSION = "1.0.6";
+const char* FW_VERSION = "1.0.7";
 // A firmware upload is only installed if this exact text appears somewhere in the uploaded file,
 // i.e. the file really is a Tiger Timer build (any build contains it, since the update code
 // below searches for it). Never change it, or older boxes would refuse the new firmware.
@@ -1233,6 +1238,7 @@ void confirmLeaveConfirmSelection();
 void toggleMenuFromLongPress();
 void closeInstructions();
 void dispatchButtonShortPress();
+void dispatchEncoderClick();
 void readButton();
 void readEncoderButton();
 void playNote(int freq, int durationMs);
@@ -4224,6 +4230,34 @@ void readButton() {
   lastButtonFlicker = raw;
 }
 
+// ---------------- Encoder short click: does exactly what the arcade button would (selection
+// screens, starting a game/timer, restarting after a game over, confirming a setup step...) EXCEPT
+// in the states where the click has its own, different action - pause (Timer, Chess), lap
+// (Stopwatch), hard drop (Tetris) - or where the arcade press is the timed gameplay input itself
+// (Reflex hit, Morse dot/dash, Chess turn pass, Trivia buzz-in, Tetris rotate), which a knob click
+// can't stand in for. ----------------
+void dispatchEncoderClick() {
+  if (tryConfirmSelectionScreens()) return;
+
+  if (currentGame == GAME_TIMER && running) {
+    toggleTimerPause();
+  } else if (currentGame == GAME_CHESS && chessScreenState == CHESS_PLAYING) {
+    toggleChessPause();
+  } else if (currentGame == GAME_STOPWATCH && stopwatchState == STOPWATCH_RUNNING) {
+    recordStopwatchLap();
+  } else if (currentGame == GAME_TETRIS && tetrisState == TETRIS_PLAYING) {
+    tetrisHardDrop();
+  } else if (currentGame == GAME_REFLEX && reflexState != REFLEX_READY) {
+    // waiting/lit: only the arcade button's press instant can be judged
+  } else if (currentGame == GAME_SIMPLEMORSE && simonState != SIMON_READY && simonState != SIMON_GAME_OVER && simonState != SIMON_COMPLETE) {
+    // playback/input: dot vs dash is read from how long the arcade button is held
+  } else if (currentGame == GAME_TRIVIA && triviaScreenState == TRIVIA_PLAYING) {
+    // buzzing in is the arcade button's job
+  } else {
+    dispatchButtonShortPress(); // same action as the arcade button
+  }
+}
+
 // ---------------- Encoder push-button: a short click confirms/selects (same as the arcade button)
 // or does a per-game context action (pause/lap); holding it 1s is the only way to open the menu.
 // Hold+turn is claimed for volume in readEncoder() and disqualifies both of those for this hold. ----------------
@@ -4250,28 +4284,7 @@ void readEncoderButton() {
         if (swClaimedByVolume) {
           render(); // clear the full-screen volume overlay, back to the normal screen
         } else if (!swLongFired && !swWakeConsumed) {
-          if (!tryConfirmSelectionScreens()) {
-            if (currentGame == GAME_DICE && diceScreenState == DICE_SELECT_TYPE) {
-              confirmDiceType();
-            } else if (currentGame == GAME_CHESS && chessScreenState == CHESS_PLAYING) {
-              toggleChessPause();
-            } else if (currentGame == GAME_TIMER && running) {
-              toggleTimerPause();
-            } else if (currentGame == GAME_STOPWATCH && stopwatchState == STOPWATCH_RUNNING) {
-              recordStopwatchLap();
-            } else if (currentGame == GAME_TETRIS && tetrisState == TETRIS_PLAYING) {
-              tetrisHardDrop();
-            } else if (currentGame == GAME_TETRIS && (tetrisState == TETRIS_READY || tetrisState == TETRIS_GAME_OVER)) {
-              handleTetrisButtonPress(); // start/restart, same as the arcade button
-            } else if (currentGame == GAME_STARDROP && (stardropState == STARDROP_READY || stardropState == STARDROP_GAME_OVER)) {
-              handleStarDropButtonPress(); // start/restart, same as the arcade button
-            } else if (currentGame == GAME_SNAKE) {
-              handleSnakeButtonPress(); // start/restart/pause/resume, same as the arcade button
-            } else if (currentGame == GAME_PONG) {
-              handlePongButtonPress(); // start/restart/pause/resume, same as the arcade button
-            }
-            // otherwise: no assigned action on this screen, click does nothing
-          }
+          dispatchEncoderClick();
           render();
         }
         swClaimedByVolume = false;
@@ -4780,15 +4793,15 @@ void playFireworkAnimation() {
 // continuously throughout via the same cover-and-uncover technique as before (no second bitmap
 // frame needed). Once both words are in their final position, the blinking stops - the whole
 // scene (tiger, both words, mouth uncovered) holds static for another 0.5 seconds. ----------------
-// ---------------- Splash: true if the arcade button is currently pressed - and if so, blocks
+// ---------------- Splash: true if the arcade button or encoder is currently pressed - and if so, blocks
 // until it's released (plus a short settle delay) before returning. That wait matters: without
 // it, a press held through the splash is still down (or its release hasn't settled) the instant
 // loop() starts, and readButton()'s debounce logic - which assumes the button starts unpressed -
 // reads that as a brand-new press-then-release, auto-confirming whatever's highlighted in the
 // menu instead of actually landing on the configured startup screen. ----------------
 bool splashSkipRequested() {
-  if (digitalRead(BUTTON_PIN) != LOW) return false;
-  while (digitalRead(BUTTON_PIN) == LOW) delay(2);
+  if (digitalRead(BUTTON_PIN) != LOW && digitalRead(ENCODER_SW) != LOW) return false;
+  while (digitalRead(BUTTON_PIN) == LOW || digitalRead(ENCODER_SW) == LOW) delay(2);
   delay(30);
   return true;
 }
