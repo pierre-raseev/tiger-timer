@@ -134,7 +134,7 @@
 // ---- Firmware version ----
 // Shown on the Remote Config page. Bump it for every change, and publish a GitHub release
 // "vX.Y.Z" with the built app .bin attached, so a box can be updated from Remote Config.
-const char* FW_VERSION = "1.0.8";
+const char* FW_VERSION = "1.0.9";
 // A firmware upload is only installed if this exact text appears somewhere in the uploaded file,
 // i.e. the file really is a Tiger Timer build (any build contains it, since the update code
 // below searches for it). Never change it, or older boxes would refuse the new firmware.
@@ -241,7 +241,7 @@ const int GAME_STARDROP   = 9;
 const int GAME_SNAKE      = 10;
 const int GAME_SIMPLEMORSE = 11;
 const int GAME_PONG       = 12; // added after the Turn Order removal - see migrateSavedGameIds (idVer 3)
-const int GAME_METRONOME  = 13; // idVer 4, see migrateSavedGameIds
+const int GAME_METRONOME  = 13; // idVer 4 (moved to 3rd in idVer 5), see migrateSavedGameIds
 const int GAME_COUNT      = 14;
 int currentGame = GAME_TIMER;
 
@@ -255,7 +255,7 @@ const int MENU_SETTINGS = 100; // sentinel: a menu entry that isn't a playable g
 const int MENU_INSTRUCTIONS = 101; // sentinel: another non-game entry, the global instructions screen
 const int MENU_COUNT = 16;
 // Default/fallback order, used on first boot and whenever a saved order in flash is missing or invalid.
-const int DEFAULT_MENU_ORDER[MENU_COUNT] = {GAME_TIMER, GAME_TOOTHBRUSH, GAME_DICE, GAME_REFLEX, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_METRONOME, GAME_TRIVIA, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_PONG, GAME_SIMPLEMORSE, MENU_INSTRUCTIONS, MENU_SETTINGS};
+const int DEFAULT_MENU_ORDER[MENU_COUNT] = {GAME_TIMER, GAME_TOOTHBRUSH, GAME_METRONOME, GAME_DICE, GAME_REFLEX, GAME_CHESS, GAME_HOTPOTATO, GAME_STOPWATCH, GAME_TRIVIA, GAME_TETRIS, GAME_STARDROP, GAME_SNAKE, GAME_PONG, GAME_SIMPLEMORSE, MENU_INSTRUCTIONS, MENU_SETTINGS};
 // Actual display order - no longer const: Config Mode (web_config.ino) can rewrite this at runtime
 // and persist it to flash. Everything that reads MENU_ORDER elsewhere in the sketch is unaffected,
 // since it's still just an array of GAME_* ids in display order.
@@ -1330,6 +1330,7 @@ void drawConfigModeIcon(int cx, int cy, int r, uint16_t color);
 void enterConfigMode(); // web_config.ino
 void migrateSavedGameIds(); // web_config.ino
 void migrateAddMetronome();
+void migrateMetronomeThird();
 void loadMenuOrderFromPrefs(); // web_config.ino
 void saveMenuOrderToPrefs(); // web_config.ino
 void loadGameEnabledFromPrefs(); // web_config.ino

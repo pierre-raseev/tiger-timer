@@ -330,10 +330,11 @@ Tetris 8, Star Drop 9, Snake 10, SimpleMorse 11, Pong 12, Metronome 13; sentinel
   later ids are shifted down, and a start-up game of Turn Order falls back to booting to the menu.
 - **v2 → v3:** Pong added as id 12. It's inserted into a saved menu order right after Snake, and
   added as enabled.
-- **v3 → v4:** Metronome added as id 13. It's inserted into a saved menu order right after
-  Stopwatch (or first, if Stopwatch is missing), and added as enabled.
+- **v3 → v4:** Metronome added as id 13, at the end of a saved menu order, and added as enabled.
+- **v4 → v5:** the Metronome is moved to 3rd position of a saved menu order (firmware 1.0.8 had
+  put it right after Stopwatch). A v3 box goes through both steps in one boot.
 
-The user's menu order, enabled games and start-up choice are otherwise kept. Current: `idVer`=4.
+The user's menu order, enabled games and start-up choice are otherwise kept. Current: `idVer`=5.
 
 Design rule enforced everywhere a set of things can be toggled off (games in the menu, Pass the
 Bomb categories): **at least one must always remain enabled.** If a save would disable the last
@@ -392,7 +393,7 @@ A two-phase animated wordmark, skippable by holding the arcade button or the enc
   text on both pages (`INSTRUCTIONS_ICON_ART`); **Settings** — a cog with 8 teeth and a hole in
   the middle (`SETTINGS_ICON_ART`). Every icon fits inside the 15 px highlight bar of a selected row.
 - **Default order** (used on first boot, or if saved order data is ever invalid): Timer,
-  Toothbrush Timer, Dice, Reflex, Chess Clock, Pass the Bomb, Stopwatch, Metronome, Trivia,
+  Toothbrush Timer, Metronome, Dice, Reflex, Chess Clock, Pass the Bomb, Stopwatch, Trivia,
   Tetris, Star Drop, Snake, Pong, SimpleMorse, **Instructions**, **Settings** — Instructions and
   Settings are always the last two entries by default, and (like any entry) can be reordered via
   Remote Config but can never be disabled/hidden (§3.5).

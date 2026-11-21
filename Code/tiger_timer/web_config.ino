@@ -40,12 +40,14 @@ const char* CONFIG_TRIVIA_FIELD_NAMES[15] = {
 //   v1 -> v2: Turn Order (id 5) removed; ids 6-12 moved down by one (13 -> 12 games, 15 -> 14 menu entries).
 //   v2 -> v3: Pong added as id 12 (12 -> 13 games, 14 -> 15 menu entries); it's inserted into a
 //             saved menu order right after Snake, and enabled.
-//   v3 -> v4: Metronome added as id 13 (13 -> 14 games, 15 -> 16 menu entries); inserted right
-//             after Stopwatch, and enabled.
+//   v3 -> v4: Metronome added as id 13 (13 -> 14 games, 15 -> 16 menu entries), enabled.
+//   v4 -> v5: the Metronome moved to 3rd position of the saved menu order (firmware 1.0.8 had
+//             put it after Stopwatch); a v3 box goes straight through both steps.
 // Keeps the user's menu order, enabled/disabled games and start-up game across updates.
 void migrateSavedGameIds() {
   int ver = prefs.getUChar("idVer", 1);
-  if (ver >= 4) return;
+  if (ver >= 5) return;
+  if (ver == 4) { migrateMetronomeThird(); return; }
   if (ver == 3) { migrateAddMetronome(); return; }
 
   if (ver < 2) {
@@ -110,20 +112,12 @@ void migrateSavedGameIds() {
 
 // v3 -> v4: add the Metronome after Stopwatch (or first, if there's no Stopwatch in the saved list)
 void migrateAddMetronome() {
-  const int V3_MENU = 15, V3_GAMES = 13, STOPWATCH_ID = 5, METRONOME_ID = 13;
+  const int V3_MENU = 15, V3_GAMES = 13, METRONOME_ID = 13;
   uint8_t oldMenu[V3_MENU];
   if (prefs.getBytes("menuOrd", oldMenu, V3_MENU) == V3_MENU) {
     uint8_t newMenu[V3_MENU + 1];
-    int n = 0;
-    bool placed = false;
-    for (int i = 0; i < V3_MENU; i++) {
-      newMenu[n++] = oldMenu[i];
-      if (oldMenu[i] == STOPWATCH_ID) { newMenu[n++] = METRONOME_ID; placed = true; }
-    }
-    if (!placed) {
-      for (int i = V3_MENU; i > 0; i--) newMenu[i] = newMenu[i - 1];
-      newMenu[0] = METRONOME_ID;
-    }
+    for (int i = 0; i < V3_MENU; i++) newMenu[i] = oldMenu[i];
+    newMenu[V3_MENU] = METRONOME_ID;
     prefs.putBytes("menuOrd", newMenu, V3_MENU + 1);
   }
   uint8_t oldEn[V3_GAMES];
@@ -134,6 +128,24 @@ void migrateAddMetronome() {
     prefs.putBytes("gameEn", newEn, V3_GAMES + 1);
   }
   prefs.putUChar("idVer", 4);
+  migrateMetronomeThird();
+}
+
+// v4 -> v5: the Metronome goes in 3rd position of the saved menu order (v4 had put it after Stopwatch)
+void migrateMetronomeThird() {
+  const int MENU_N = 16, METRONOME_ID = 13, TARGET = 2;
+  uint8_t menu[MENU_N];
+  if (prefs.getBytes("menuOrd", menu, MENU_N) == MENU_N) {
+    int at = -1;
+    for (int i = 0; i < MENU_N; i++) if (menu[i] == METRONOME_ID) at = i;
+    if (at >= 0 && at != TARGET) {
+      if (at > TARGET) { for (int i = at; i > TARGET; i--) menu[i] = menu[i - 1]; }
+      else { for (int i = at; i < TARGET; i++) menu[i] = menu[i + 1]; }
+      menu[TARGET] = METRONOME_ID;
+      prefs.putBytes("menuOrd", menu, MENU_N);
+    }
+  }
+  prefs.putUChar("idVer", 5);
 }
 
 // ---------------- Menu order: load/save/validate ----------------
