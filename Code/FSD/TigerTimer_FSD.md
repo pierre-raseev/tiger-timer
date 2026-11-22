@@ -1193,13 +1193,17 @@ translations cost about 5 KB of app flash.
    on-device equivalent (an earlier on-device "Advanced Settings" screen for this was removed in
    favor of this web-only version).
 
-- **How to use Tiger Timer** (first section, expanded by default, collapsible): power &
-  charging (the battery only charges with the power switch on; the red light right next to the
-  charging port blinks while it charges; off = storage), the controls
-  (arcade button, knob turn/click, hold+turn volume, hold 1 s to leave a game, hold the arcade
-  button at start-up to skip the intro), sleep (screen off after 5 min, deep sleep after 30 min,
-  arcade button wakes), and the on-box Settings (Language, Timer Step, Remote Config, how Remote
-  Config closes).
+- **How to use Tiger Timer** (first section, expanded by default, collapsible), with the same
+  wording as the printed French guide (mode d'emploi):
+  - **Power & charging:** the side switch; switch ON first, then plug in USB-C (it doesn't charge
+    when off); the red light inside the box blinks while charging, faintly visible from outside.
+    Sleep is here too: screen off after 5 min, deep sleep after 30 min, the arcade button wakes it.
+  - **Controls**, as action → gesture: confirm (arcade button or knob click), pick/adjust (turn),
+    volume (hold + turn), back to menu (hold 1 s), skip the intro (hold the arcade button at
+    start-up).
+  - **Games:** one line per game for all 14, in default menu order, hidden ones included.
+  - **Settings on the box:** Language, Timer Step, Remote Config; hidden games are switched on in
+    Menu order & games; how Remote Config closes.
 - The Firmware update section links to `https://github.com/pierre-raseev/tiger-timer/releases`
   (public repository) for downloading the `.bin`.
 

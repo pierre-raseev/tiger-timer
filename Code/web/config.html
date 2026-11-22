@@ -205,31 +205,44 @@
       <div class="body" data-t="htb">
         <h3>Power &amp; charging</h3>
         <ul>
-          <li>The battery <b>only charges while the power switch is ON</b>: switch it on, then plug in USB-C.
-            Leaving it on is fine, the box goes to sleep on its own.</li>
-          <li>While it charges, the <b>red light right next to the charging port blinks</b>: that's how you know it's charging.</li>
-          <li>Switch it off for storage: that fully disconnects the battery.</li>
+          <li><b>On / off:</b> the switch on the side.</li>
+          <li><b>Charging:</b> switch it <b>ON first</b>, then plug in USB-C (switched off, it doesn't charge).
+            The red light inside the box blinks while it charges; you can just see it from outside.</li>
+          <li><b>Sleep:</b> the screen turns off on its own after 5 minutes (not while a timer or game is running),
+            and the box goes to sleep after 30 minutes. Press the arcade button to wake it.</li>
         </ul>
         <h3>Controls</h3>
         <ul>
-          <li><b>Arcade button:</b> confirm, or the game's main action.</li>
-          <li><b>Turn the knob:</b> move through menus and change values.</li>
-          <li><b>Click the knob:</b> confirm in menus; pause/resume in Timer and Chess Clock.</li>
-          <li><b>Hold the knob and turn:</b> volume, from anywhere.</li>
-          <li><b>Hold the knob 1&nbsp;s</b> inside a game: &ldquo;Go back to menu?&rdquo;. It's the only way out
-            of a game, so a round is never lost by accident.</li>
-          <li><b>Hold the arcade button</b> while the box starts: skip the intro animation.</li>
+          <li><b>Confirm:</b> arcade button, or click the knob.</li>
+          <li><b>Pick a game, change a value:</b> turn the knob.</li>
+          <li><b>Volume:</b> hold the knob down and turn, from anywhere.</li>
+          <li><b>Back to the menu:</b> hold the knob down for 1&nbsp;s.</li>
+          <li><b>Skip the intro:</b> hold the arcade button while the box starts.</li>
         </ul>
-        <h3>Sleep</h3>
+        <h3>Games</h3>
         <ul>
-          <li>The screen turns off after 5 minutes without use (not while a timer or game is running).
-            Any button or knob turn wakes it; that first press only wakes it.</li>
-          <li>After 30 minutes the box goes into deep sleep. Press the arcade button to start it again.</li>
+          <li><b>Timer:</b> 10&nbsp;s to 90&nbsp;min. Knob to set, button to start, click to pause. The button blinks faster and faster and beeps for the last 5 seconds.</li>
+          <li><b>Toothbrush:</b> 1 to 5&nbsp;min, in 6 zones (top and bottom; left, front, right). A beep says when to change zone.</li>
+          <li><b>Metronome:</b> 30 to 240&nbsp;BPM in 4/4.</li>
+          <li><b>Dice:</b> pick the die (d4 to d20), then how many dice (1 to 5). Button to roll and roll again.</li>
+          <li><b>Reflex:</b> press, wait for the button to light up, then hit it as fast as you can. Time in milliseconds, a trophy for a new record. Press too early and you lose!</li>
+          <li><b>Chess Clock:</b> two players: starting time, then a bonus per move (0 to 60&nbsp;s). Press the arcade button when your turn is done, click to pause.</li>
+          <li><b>Pass the Bomb:</b> gives a random category and letter (&ldquo;Country with B&rdquo;: a country that contains a B, or one that starts with B to make it harder).
+            Turn the knob for another one. Press the button to arm the bomb (it goes off at random, after 10 to 60&nbsp;s).
+            Everyone answers and passes the box on; whoever holds it when it explodes loses.</li>
+          <li><b>Stopwatch:</b> button to start, stop, reset. Click while it runs: lap time.</li>
+          <li><b>Trivia:</b> 8 categories, 3 levels. Turn: question &rarr; answers &rarr; next question. The button buzzes in and shows the right answer.</li>
+          <li><b>Tetris:</b> knob to move the piece, arcade button to rotate it, click to drop it.</li>
+          <li><b>Star Drop:</b> move the telescope to catch stars (10&nbsp;pts), planets (20) and moons (30). 3 lives.</li>
+          <li><b>Snake:</b> the knob turns the snake left or right. The edges don't kill, only biting your own tail. Button to pause.</li>
+          <li><b>Pong:</b> against the computer, the knob moves the paddle. +1 per return, +5 when the computer misses. 3 lives.</li>
+          <li><b>SimpleMorse:</b> a word in Morse. The box plays the start, repeat it with short (dot) and long (dash) presses. One more symbol each round.</li>
         </ul>
         <h3>Settings on the box</h3>
         <ul>
           <li><b>Language</b> (English, Fran&ccedil;ais, Espa&ntilde;ol), <b>Timer Step</b> (how fast the
             Timer length changes per knob click), and <b>Remote Config</b> (this page).</li>
+          <li>Some games start hidden: switch them on, hide or reorder games in <b>Menu order &amp; games</b> below.</li>
           <li>Press either button on the box to leave Remote Config. It also closes on its own after
             5 minutes with nobody connected.</li>
         </ul>
@@ -357,38 +370,62 @@ const ST = {
   sub: ['Connecté en WiFi &mdash; les modifications sont enregistrées directement sur la boîte', 'Conectado por WiFi &mdash; los cambios se guardan directamente en la caja'],
   hts: ['Comment utiliser Tiger Timer', 'Cómo usar Tiger Timer'],
   htb: [`<h3>Alimentation et recharge</h3><ul>
-<li>La batterie <b>ne se recharge que si l'interrupteur est sur ON</b> : allumez-la, puis branchez l'USB-C. Vous pouvez la laisser allumée, la boîte se met en veille toute seule.</li>
-<li>Pendant la recharge, <b>le voyant rouge juste à côté du port de charge clignote</b> : c'est comme ça que vous savez qu'elle charge.</li>
-<li>Éteignez-la pour la ranger : la batterie est alors complètement déconnectée.</li></ul>
+<li><b>Allumer / éteindre :</b> interrupteur sur le côté.</li>
+<li><b>Recharger :</b> mettre d'abord l'interrupteur <b>sur ON</b>, puis brancher l'USB-C (sinon ça ne charge pas). La lumière rouge à l'intérieur de la boîte clignote pendant la charge (elle se voit légèrement de l'extérieur).</li>
+<li><b>Veille :</b> l'écran s'éteint automatiquement après 5 min (pas pendant un minuteur ou une partie), la boîte se met en veille après 30 min. Appuyez sur le bouton arcade pour la réveiller.</li></ul>
 <h3>Commandes</h3><ul>
-<li><b>Bouton arcade :</b> valider, ou l'action principale du jeu.</li>
-<li><b>Tourner la molette :</b> se déplacer dans les menus et changer les valeurs.</li>
-<li><b>Cliquer la molette :</b> valider dans les menus ; pause/reprise dans Minuteur et Horloge échecs.</li>
-<li><b>Maintenir la molette et tourner :</b> le volume, depuis n'importe où.</li>
-<li><b>Maintenir la molette 1&nbsp;s</b> dans un jeu : «&nbsp;Retour au menu ?&nbsp;». C'est la seule façon de quitter un jeu, pour ne jamais perdre une partie par accident.</li>
-<li><b>Maintenir le bouton arcade</b> au démarrage : passer l'animation d'intro.</li></ul>
-<h3>Veille</h3><ul>
-<li>L'écran s'éteint après 5 minutes sans utilisation (pas pendant un minuteur ou une partie). N'importe quel bouton ou un tour de molette le rallume ; ce premier appui ne fait que le rallumer.</li>
-<li>Après 30 minutes, la boîte passe en veille profonde. Appuyez sur le bouton arcade pour la redémarrer.</li></ul>
+<li><b>Valider :</b> bouton arcade ou clic molette.</li>
+<li><b>Choisir un jeu, régler une valeur :</b> tourner la molette.</li>
+<li><b>Régler le volume :</b> maintenir la molette enfoncée et tourner, depuis n'importe où.</li>
+<li><b>Retour au menu :</b> molette enfoncée pendant 1&nbsp;s.</li>
+<li><b>Passer l'animation d'intro :</b> maintenir le bouton arcade au démarrage.</li></ul>
+<h3>Les jeux</h3><ul>
+<li><b>Minuteur :</b> de 10&nbsp;s à 90&nbsp;min. Molette pour régler, bouton pour lancer, clic pour la pause. Le bouton clignote de plus en plus vite et bipe les 5 dernières secondes.</li>
+<li><b>Brossage :</b> 1 à 5&nbsp;min, en 6 zones (haut et bas ; gauche, devant, droite). Un bip dit de changer de zone.</li>
+<li><b>Métronome :</b> 30 à 240&nbsp;BPM en 4/4.</li>
+<li><b>Dés :</b> choisissez le dé (d4 à d20), puis combien de dés (1 à 5). Bouton pour lancer et relancer.</li>
+<li><b>Réflexe :</b> appuyez, attendez que le bouton s'allume, puis tapez le plus vite possible. Temps en millisecondes, trophée en cas de record. Appuyez trop tôt et c'est perdu !</li>
+<li><b>Horloge échecs :</b> deux joueurs : temps de départ, puis bonus par coup (0 à 60&nbsp;s). Appuyer sur le bouton arcade quand on a fini son tour, clic pour la pause.</li>
+<li><b>Passe la bombe :</b> donne au hasard un thème et une lettre («&nbsp;Pays en B&nbsp;» : un pays qui contient un B, ou qui commence par B pour que ce soit plus compliqué). Tourner la molette pour avoir une autre combinaison. Appuyer sur le bouton pour armer la bombe (elle explose au hasard, entre 10 et 60&nbsp;s). Chacun répond et passe la boîte ; celui qui l'a quand elle explose a perdu.</li>
+<li><b>Chronomètre :</b> bouton pour démarrer, arrêter, remettre à zéro. Clic pendant la course : temps intermédiaire.</li>
+<li><b>Quiz :</b> 8 thèmes, 3 niveaux. Tournez : question &rarr; réponses &rarr; question suivante. Le bouton fait buzzer et montre la bonne réponse.</li>
+<li><b>Tetris :</b> molette pour déplacer la pièce, bouton arcade pour la tourner, clic pour la faire tomber.</li>
+<li><b>Star Drop :</b> déplacez le télescope pour attraper étoiles (10&nbsp;pts), planètes (20) et lunes (30). 3 vies.</li>
+<li><b>Snake :</b> la molette tourne le serpent à gauche ou à droite. Les bords ne tuent pas, seulement se mordre la queue. Bouton pour la pause.</li>
+<li><b>Pong :</b> contre l'ordinateur, la molette bouge la raquette. +1 par renvoi, +5 si l'ordinateur perd. 3 vies.</li>
+<li><b>SimpleMorse :</b> un mot en morse. La boîte joue le début, répétez avec des appuis courts (point) et longs (trait). Un signe de plus à chaque tour.</li></ul>
 <h3>Réglages sur la boîte</h3><ul>
 <li><b>Langue</b> (English, Français, Español), <b>Intervalle</b> (de combien la durée du Minuteur change à chaque cran de molette) et <b>Config distante</b> (cette page).</li>
+<li>Certains jeux sont masqués au départ : activez, masquez ou réordonnez les jeux dans <b>Ordre du menu et jeux</b> ci-dessous.</li>
 <li>Appuyez sur l'un des deux boutons de la boîte pour quitter Config distante. Elle se ferme aussi toute seule après 5 minutes sans personne connecté.</li></ul>`,
 `<h3>Batería y carga</h3><ul>
-<li>La batería <b>solo se carga con el interruptor en ON</b>: enciéndela y luego conecta el USB-C. Puedes dejarla encendida, la caja se duerme sola.</li>
-<li>Mientras carga, <b>la luz roja justo al lado del puerto de carga parpadea</b>: así sabes que se está cargando.</li>
-<li>Apágala para guardarla: así la batería queda totalmente desconectada.</li></ul>
+<li><b>Encender / apagar:</b> el interruptor del lateral.</li>
+<li><b>Cargar:</b> pon primero el interruptor <b>en ON</b> y luego conecta el USB-C (si no, no carga). La luz roja dentro de la caja parpadea mientras carga (se ve un poco desde fuera).</li>
+<li><b>Reposo:</b> la pantalla se apaga sola tras 5 min (no mientras corre un temporizador o un juego) y la caja entra en reposo tras 30 min. Pulsa el botón arcade para despertarla.</li></ul>
 <h3>Controles</h3><ul>
-<li><b>Botón arcade:</b> confirmar, o la acción principal del juego.</li>
-<li><b>Girar la rueda:</b> moverse por los menús y cambiar valores.</li>
-<li><b>Pulsar la rueda:</b> confirmar en los menús; pausa/reanudar en Temporizador y Reloj ajedrez.</li>
-<li><b>Mantener la rueda y girar:</b> volumen, desde cualquier sitio.</li>
-<li><b>Mantener la rueda 1&nbsp;s</b> dentro de un juego: «¿Volver al menú?». Es la única forma de salir de un juego, así nunca se pierde una partida por accidente.</li>
-<li><b>Mantener el botón arcade</b> al encender la caja: saltar la animación de inicio.</li></ul>
-<h3>Reposo</h3><ul>
-<li>La pantalla se apaga tras 5 minutos sin uso (no mientras corre un temporizador o un juego). Cualquier botón o giro de la rueda la enciende; esa primera pulsación solo la enciende.</li>
-<li>Tras 30 minutos la caja entra en reposo profundo. Pulsa el botón arcade para volver a encenderla.</li></ul>
+<li><b>Confirmar:</b> botón arcade o pulsar la rueda.</li>
+<li><b>Elegir un juego, cambiar un valor:</b> girar la rueda.</li>
+<li><b>Volumen:</b> mantener la rueda pulsada y girar, desde cualquier sitio.</li>
+<li><b>Volver al menú:</b> mantener la rueda pulsada 1&nbsp;s.</li>
+<li><b>Saltar la animación de inicio:</b> mantener el botón arcade al encender.</li></ul>
+<h3>Juegos</h3><ul>
+<li><b>Temporizador:</b> de 10&nbsp;s a 90&nbsp;min. Rueda para ajustar, botón para empezar, pulsar la rueda para pausar. El botón parpadea cada vez más rápido y pita los últimos 5 segundos.</li>
+<li><b>Cepillado:</b> 1 a 5&nbsp;min, en 6 zonas (arriba y abajo; izquierda, delante, derecha). Un pitido indica cuándo cambiar de zona.</li>
+<li><b>Metrónomo:</b> 30 a 240&nbsp;BPM en 4/4.</li>
+<li><b>Dados:</b> elige el dado (d4 a d20) y luego cuántos dados (1 a 5). Botón para tirar y volver a tirar.</li>
+<li><b>Reflejos:</b> pulsa, espera a que el botón se encienda y dale lo más rápido posible. Tiempo en milisegundos, trofeo si es récord. ¡Si pulsas antes de tiempo, pierdes!</li>
+<li><b>Reloj ajedrez:</b> dos jugadores: tiempo inicial y luego bonus por jugada (0 a 60&nbsp;s). Pulsa el botón arcade al terminar tu turno, pulsa la rueda para pausar.</li>
+<li><b>Pasa la bomba:</b> da al azar una categoría y una letra («País con B»: un país que contiene una B, o que empieza por B para hacerlo más difícil). Gira la rueda para otra combinación. Pulsa el botón para activar la bomba (explota al azar, entre 10 y 60&nbsp;s). Cada uno responde y pasa la caja; quien la tenga cuando explote, pierde.</li>
+<li><b>Cronómetro:</b> botón para empezar, parar y poner a cero. Pulsar la rueda mientras corre: tiempo parcial.</li>
+<li><b>Trivia:</b> 8 categorías, 3 niveles. Gira: pregunta &rarr; respuestas &rarr; siguiente pregunta. El botón hace sonar el pulsador y muestra la respuesta correcta.</li>
+<li><b>Tetris:</b> rueda para mover la pieza, botón arcade para girarla, pulsar la rueda para dejarla caer.</li>
+<li><b>Star Drop:</b> mueve el telescopio para atrapar estrellas (10&nbsp;pts), planetas (20) y lunas (30). 3 vidas.</li>
+<li><b>Snake:</b> la rueda gira la serpiente a izquierda o derecha. Los bordes no matan, solo morderse la cola. Botón para pausar.</li>
+<li><b>Pong:</b> contra la máquina, la rueda mueve la pala. +1 por devolución, +5 si la máquina falla. 3 vidas.</li>
+<li><b>SimpleMorse:</b> una palabra en morse. La caja toca el principio; repítelo con pulsaciones cortas (punto) y largas (raya). Un símbolo más en cada ronda.</li></ul>
 <h3>Ajustes en la caja</h3><ul>
 <li><b>Idioma</b> (English, Français, Español), <b>Intervalo</b> (cuánto cambia la duración del Temporizador con cada clic de la rueda) y <b>Config remota</b> (esta página).</li>
+<li>Algunos juegos empiezan ocultos: actívalos, ocúltalos o cambia su orden en <b>Orden del menú y juegos</b> más abajo.</li>
 <li>Pulsa cualquiera de los dos botones de la caja para salir de Config remota. También se cierra sola tras 5 minutos sin nadie conectado.</li></ul>`],
   h_menu: ['Ordre du menu et jeux', 'Orden del menú y juegos'],
   b_menu: ['Enregistrer le menu', 'Guardar menú'],
